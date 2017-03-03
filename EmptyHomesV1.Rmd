@@ -1,0 +1,56 @@
+---
+title: "Empty Homes V1"
+author: "Jonathan Bourne"
+date: "10 February 2017"
+output: html_document
+---
+
+
+
+```{r}
+packages <- c("tidyverse", "spdep", "igraph", "maptools")
+
+
+#you could replace a lot of the packages with just tidyverse but some people have problems installing it.
+new.packages <- packages[!(packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+
+
+lapply(packages, library, character.only = TRUE)
+
+#Set up file system to read the correct folders this switches between aws and windows mode
+basewd <-"~/Dropbox/SSE/Empty Homes"
+
+DataFolder <- file.path(basewd, "Data")
+ShapeFiles <- file.path(basewd,"ShapeFiles/statistical-gis-boundaries-london/ESRI")
+Figures <- file.path(basewd, "Figures")
+
+
+
+select <-dplyr::select
+```
+
+
+
+
+```{r}
+setwd(ShapeFiles)
+
+wards.shp <- readShapeSpatial("London_Ward.shp")
+coords <- coordinates(wards.shp)
+WardsAdj <- poly2nb(wards.shp, queen= FALSE)
+plot(wards.shp, border="grey")
+plot(WardsAdj, coords, add=TRUE, col="red")
+
+test <- (nb2mat(WardsAdj)>0)*1
+
+
+g=graph.data.frame(WardsAdj)
+get.adjacency(WardsAdj,sparse=FALSE)
+
+
+
+```
+
+
+
