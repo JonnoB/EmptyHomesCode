@@ -1,0 +1,289 @@
+---
+title: "Untitled"
+author: "Jonathan Bourne"
+date: "10 February 2017"
+output: html_document
+---
+
+GEOGRAPHIC LESCENSING FROM ONS remember to use!
+https://www.ons.gov.uk/methodology/geography/licences
+
+The lookup to convert from Local authority code to name and region code and name is found here
+http://ons.maps.arcgis.com/home/item.html?id=17a30c262cf44ad0b9780d97c5d4a856
+
+
+Number of households of size x with bedrooms y
+https://www.nomisweb.co.uk/census/2011/lc4405ew
+```{r setup}
+setwd( "~/Dropbox/SSE/Empty Homes/EmptyHomesCode/SubCode")
+source("Setup.R")
+```
+
+
+Postocode look up data found at
+http://ons.maps.arcgis.com/home/item.html?id=ef72efd6adf64b11a2228f7b3e95deea
+
+Covered by open government licesence
+```{r}
+
+
+setwd(PostcodeLookups)
+
+PstCdLSOA.raw <- read.csv("PCD11_OA11_LSOA11_MSOA11_LAD11_EW_LU_aligned_v2.csv", stringsAsFactors = FALSE)
+
+templatefile<- "Convert Postcode to LSOA.xlsx"
+
+
+lapply(unique(PstCdLSOA.raw$LAD1), function(LAD){ 
+   PstCdLSOA <- PstCdLSOA.raw[PstCdLSOA.raw$LAD11NM == LAD,]
+
+filename <- paste0(LAD,"LSOA.xlsx")
+setwd(basewd)
+wb <- loadWorkbook("Convert Postcode to LSOA.xlsx")
+#input the LSOA lookup table
+writeData(wb, sheet = "LSOAdata", PstCdLSOA, colNames = T)
+#add in randomly sampled postcodes as an example
+writeData(wb, sheet = "InpuNames and codes for administrative geographyt", sample(PstCdLSOA$PCD7, 6), 
+          startCol = 2, startRow = 2,
+          colNames = F)
+setwd(ExcelLookups)
+saveWorkbook(wb,filename ,overwrite = T)
+  })
+
+
+```
+
+The data on ONS is old, so taking a current list of post codes is necessary.
+
+https://www.freemaptools.com/download/outcode-postcodes/postcode-outcodes.csv
+
+Need to check the lattitude and longitude and merge them with the LSOA they fall inside. to create a new list
+
+The England and wales shape files can be downloaded here
+http://geoportal.statistics.gov.uk/datasets/da831f80764346889837c72508f046fa_0
+
+
+```{r}
+
+
+setwd(ShapeFiles)
+list.files(pattern = ".shp")
+
+#load shape file
+shape <- readOGR(dsn = "LSOA_2004_London_Low_Resolution.shp")
+
+#Convert to Latitude and longitude
+shape <- spTransform(shape, CRS("+init=epsg:4326"))
+
+#read postcodes
+# setwd(basewd)
+# postcodes <-read.csv("ukpostcodes.csv")
+# 
+# #subset to souteast
+# p2 <- postcodes[grepl("^SE",postcodes$postcode),]
+
+
+#Plot using base this doesn't work I don't know why
+# coordinates(p2) <- ~ latitude + longitude  # pts needs to be a data.frame for this to work
+# proj4string(p2) <- proj4string(shape)
+# 
+# plot(shape)
+# plot(p2, col="red" , add=TRUE)
+
+#convert shape files to data frame
+AG <- tidy(shape) 
+
+#Plot shape files as map of london with south east plotted over the top. this does work as expected.
+ggplot()+ geom_polygon(data=AG, aes(long, lat, group = group), 
+colour = alpha("darkred", 1/2), size = 0.7, fill = 'skyblue', alpha = .3) +geom_point(data= p2, aes(x = longitude, y= latitude))+
+  ggtitle("London With SE postcodes overplotted")
+
+
+#Subset map to a smaller area
+AG2 <- AG %>% filter(long>-0.2, long<0.1, lat<51.55, lat>51.45)
+#check that the points are aligned. They are.
+ggplot()+ geom_polygon(data=AG2, aes(long, lat, group = group), 
+colour = alpha("darkred", 1/2), size = 0.7, fill = 'skyblue', alpha = .3) + geom_point(data= p2, aes(x = longitude, y= latitude))
+
+```
+
+
+
+```{r}
+p3 <- postcodes %>% filter(latitude<65)
+#ensure that the points are converted to latitude and longitude
+coordinates(p3) <- ~longitude + latitude
+#set the projection of the data to longitude and latitude
+proj4string(p3) <- CRS("+proj=longlat")
+#I don't undertsand what is going on here
+p3 <- spTransform(p3, proj4string(shape))
+proj4string(p3) <- proj4string(shape)
+z <- over(p3, shape)
+
+PstCdLSOA.raw <- bind_cols(postcodes %>% filter(latitude<65), z)
+
+PstCdLSOA.raw <- PstCdLSOA.raw %>% filter(!is.na(PstCdLSOA.raw$LSOA_CODE))
+
+
+head(PstCdLSOA.raw,100)
+```
+
+
+```{r}
+lapply(unique(PstCdLSOA.raw$LA_NAME), function(LAD){ 
+   PstCdLSOA <- PstCdLSOA.raw[PstCdLSOA.raw$LA_NAME == LAD,]
+
+filename <- paste0(LAD,"LSOA.xlsx")
+setwd(basewd)
+wb <- loadWorkbook("Convert Postcode to LSOA.xlsx")
+#input the LSOA lookup table
+writeData(wb, sheet = "LSOAdata", PstCdLSOA, colNames = T)
+#add in randomly sampled postcodes as an example
+writeData(wb, sheet = "Input", sample(PstCdLSOA$postcode, 6), 
+          startCol = 2, startRow = 2,
+          colNames = F)
+setwd(ExcelLookups)
+saveWorkbook(wb,filename ,overwrite = T)
+  })
+```
+
+
+
+```{r}
+#Read postcodes from the ONS folder of codes
+setwd(ONSpostcodes)
+list.files()
+p2<- read.csv("se.csv", header = FALSE)
+setwd(ONSpostcodeMeta)
+names(p2) <- z <- read.csv("Code-Point_Open_Column_Headers.csv")[1,] %>%t
+
+#Check that the shapes are using the same coordinate system
+AG <- tidy(shape)
+#Subset map to a smaller area
+AG2 <- AG %>% filter(long>530000, long<550000, lat>170000, lat<185000)
+#check that the points are aligned. They are.
+ggplot()+ geom_polygon(data=AG2, aes(long, lat, group = group), 
+colour = alpha("darkred", 1/2), size = 0.7, fill = 'skyblue', alpha = .3)+ geom_point(data= p2, aes(x = Eastings, y= Northings))
+
+#set the Northings an eastings columns to be the coordinates
+coordinates(p2) <- ~Eastings + Northings
+#defines the coordinate system
+proj4string(p2) <- CRS("+init=epsg:27700")
+#converts the coordinate system from the one definded to the coordinate system of the shape file, this step is not neccesary in this case as both are using the Uk grid referencing system.
+p2 <- spTransform(p2, proj4string(shape))
+
+#check that the conversion has worked properly
+plot(shape)
+plot(p2, col="red" , add=TRUE)
+
+#Check which LSOA each postcode falls within and bind it to the postcode data
+PstCdLSOA.raw <- bind_cols(tidy(p2), over(p2, shape))
+
+#remove any NA values
+PstCdLSOA.raw <- PstCdLSOA.raw %>% filter(!is.na(PstCdLSOA.raw$LSOA_CODE))
+
+```
+
+This code block works smoothly using government data testing on the "se" postcodes. The next code chunk will perform the same operation for all postcodes. as a result it is computationally intense.
+
+#Using only ONS data
+
+Load the LSOA shape data for EW 
+```{r}
+setwd(LSOAshapedata)
+
+shape <- readOGR(dsn = list.files(pattern = "shp"))
+
+```
+
+
+# Load Post code data
+
+This chunk checks the exiatane of the postcode to lsoa lookup if it doesn't find it, the second part of the code is run that creates the lookup. Creating the lookup takes quite a lot of time so it is good to only have to do it once.
+```{r}
+
+if(file.exists(file.path(DataFolder,"PstCdLSOA.rds"))){
+ PstCdLSOA.raw <- readRDS(file.path(DataFolder,"PstCdLSOA.rds"))
+} else {
+  source(file.path(CommonCode, "PostcodeLookup.R"))
+}
+
+```
+
+
+Add in LAD names and Region, remove non-essential columns
+```{r}
+setwd(AddGeog)
+list.files()
+
+LADReg <- read.csv("LAD15_RGN15_EN_LU.csv", stringsAsFactors = FALSE   )
+Wardnames <- read.csv("Ward_to_Local_Authority_District_to_County_to_Region_to_Country_December_2016_Lookup_in_United_Kingdom_V2.csv", stringsAsFactors = FALSE) %>%
+  select(WD16CD, WD16NM)
+
+PstCdLSOA <- PstCdLSOA.raw %>% mutate_if(., is.factor, as.character)
+
+#There are a couple of errors is the region LSOA look up these are manually corrected here.
+PstCdLSOA[PstCdLSOA$Postcode=="BN994AE", c(3,4,7)] <- PstCdLSOA[PstCdLSOA$Postcode=="BN126BW", c(3,4,7)] 
+
+PstCdLSOA[PstCdLSOA$Postcode=="DY4 4BA", c(3,4,7)] <- PstCdLSOA[PstCdLSOA$Postcode=="DY4 0YX", c(3,4,7)] 
+PstCdLSOA[PstCdLSOA$Postcode=="DY4 4BB", c(3,4,7)] <- PstCdLSOA[PstCdLSOA$Postcode=="DY4 0YX", c(3,4,7)] 
+
+
+PstCdLSOA <- PstCdLSOA %>% left_join(., LADReg, by = c("Admin_district_code"="LAD15CD")) %>%
+  left_join(., Wardnames, c("Admin_ward_code" = "WD16CD")) %>% 
+  select(Postcode, Country_code, Admin_district_code, 
+                          Admin_ward_code, lsoa11cd, lsoa11nm, LAD15NM, 
+                          RGN15CD, RGN15NM, WD16NM)
+
+
+#Wales doesn't have any LAD for some reason, fix is to add in LSOA name subtracting the code
+
+PstCdLSOA$LAD15NM[grepl("W", PstCdLSOA$Country_code)] <- gsub(' .*', '' , PstCdLSOA$lsoa11nm[grepl("W", PstCdLSOA$Country_code)])
+
+#Make sure that Scotland and Wales are included in the regions.
+
+PstCdLSOA[grepl("W", PstCdLSOA$Country_code),c("RGN15CD" , "RGN15NM" )] <- c("Wales", "Wales")
+
+PstCdLSOA[grepl("S", PstCdLSOA$Country_code),c("RGN15CD" , "RGN15NM" )] <- c("Scotland", "Scotland")
+
+
+#remove spaces from the the Postcodes
+
+PstCdLSOA <- PstCdLSOA %>% mutate(Postcode = gsub(" ", "", Postcode))
+
+```
+
+
+Create a script that cycles through and creates a folder for each region and then generates the excel sheet for each LAD within each region. This allows the excel spreadsheet for different parts of the country to be found more easily.
+```{r}
+
+lapply(unique(PstCdLSOA$RGN15NM), function(n){
+  title <- paste("Region", n)
+  dir.create(file.path(Regions, title ), showWarnings = FALSE)
+  #The inner loop creates the excel files for each LAD within each region
+  PstCdLSOA.Reg <- PstCdLSOA %>% filter(RGN15NM == n)
+  
+  print(title)
+  lapply(unique(PstCdLSOA.Reg$LAD15NM), function(LAD){
+
+    PstCdLSOA.filt <- PstCdLSOA.Reg %>% filter(LAD15NM == LAD)
+    print(paste(n, ":", LAD))
+      ExemptionsFile <- paste0(LAD,"ExemptionsLSOA.xlsx")
+      CTBandsFile <- paste0(LAD,"CTBandsLSOA.xlsx")
+      setwd(basewd)
+      wb <- loadWorkbook("Convert Postcode to LSOA.xlsx")
+      #input the LSOA lookup table
+      writeData(wb, sheet = "LSOAdata", PstCdLSOA.filt, colNames = T)
+      #add in randomly sampled postcodes as an example
+      writeData(wb, sheet = "Input", sample(PstCdLSOA.filt$Postcode, 6),
+                startCol = 2, startRow = 2,
+                colNames = F)
+      setwd(file.path(Regions, title))
+      saveWorkbook(wb,ExemptionsFile ,overwrite = T)
+      saveWorkbook(wb,CTBandsFile ,overwrite = T)
+    })
+})
+
+
+```
+

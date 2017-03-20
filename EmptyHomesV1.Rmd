@@ -5,32 +5,23 @@ date: "10 February 2017"
 output: html_document
 ---
 
+It would have been sensible to separate council and private housing
 
-
-```{r}
-packages <- c("tidyverse", "spdep", "igraph", "maptools")
-
-
-#you could replace a lot of the packages with just tidyverse but some people have problems installing it.
-new.packages <- packages[!(packages %in% installed.packages()[,"Package"])]
-if(length(new.packages)) install.packages(new.packages)
-
-
-lapply(packages, library, character.only = TRUE)
-
-#Set up file system to read the correct folders this switches between aws and windows mode
-basewd <-"~/Dropbox/SSE/Empty Homes"
-
-DataFolder <- file.path(basewd, "Data")
-ShapeFiles <- file.path(basewd,"ShapeFiles/statistical-gis-boundaries-london/ESRI")
-Figures <- file.path(basewd, "Figures")
-
-
-
-select <-dplyr::select
+```{r setup}
+setwd( "~/Dropbox/SSE/Empty Homes/EmptyHomesCode/SubCode")
+source("Setup.R")
 ```
 
+#Load completed data
 
+```{r}
+setwd("/home/jonno/Dropbox/SSE/Empty Homes/Regions-Complete/Region London")
+list.files()
+
+test <- read.xlsx("SuttonExemptionsLSOA.xlsx")
+ken1 <- read.xlsx("Copy of Kensington and ChelseaCTBandsLSOA.xlsx" )
+ken2 <- read.xlsx("Copy of Kensington and ChelseaExemptionsLSOA (002).xlsx")
+```
 
 
 ```{r}
@@ -52,5 +43,425 @@ get.adjacency(WardsAdj,sparse=FALSE)
 
 ```
 
+Council tax bands from VOA
+https://www.gov.uk/government/statistics/council-tax-stock-of-properties-2016
 
+
+
+```{r PopandHomes}
+setwd(DataFolder)
+
+CTtaxstock<- read_csv("Table_CTSOP1.1_2016.csv")
+
+
+pop <- read_csv("SAPE2.csv")
+
+EW <- inner_join(select(CTtaxstock, ECODE, ALL_PROPERTIES),select(pop, `Area Codes`, `All Ages`),
+          by=c("ECODE" = "Area Codes")) %>% setNames(c("ECODE", "Homes", "Pop")) 
+```
+
+
+#Padstow example
+```{r}
+test2 <- CTtaxstock 
+pop2 <- pop %>% filter(grepl("Cornwall 008",X3))
+
+#padstow
+pad <- left_join(select(test2, ECODE, ALL_PROPERTIES), select(pop2, `Area Codes`, `All Ages`),
+          by=c("ECODE" = "Area Codes")) %>% 
+  mutate(diff = ALL_PROPERTIES-`All Ages`, ratio = ALL_PROPERTIES/`All Ages`) %>% filter(complete.cases(.))
+
+```
+
+#Load the LSOA shape data for EW 
+
+```{r}
+setwd(LSOAshapedata)
+
+shape <- readOGR(dsn = list.files(pattern = "shp"))
+
+```
+
+
+
+# Load Post code data
+
+This chunk checks the exiatane of the postcode to lsoa lookup if it doesn't find it, the second part of the code is run that creates the lookup. Creating the lookup takes quite a lot of time so it is good to only have to do it once.
+```{r}
+
+if(file.exists(file.path(DataFolder,"PstCdLSOA.rds"))){
+ PstCdLSOA.raw <- readRDS(file.path(DataFolder,"PstCdLSOA.rds"))
+} else {
+  source(file.path(CommonCode, "PostcodeLookup.R"))
+}
+
+```
+
+
+Bind the ward names and LAD names to the lsoa data
+```{r}
+setwd(PostcodeLookups)
+lsoa <- read_csv("PCD11_OA11_LSOA11_MSOA11_LAD11_EW_LU_aligned_v2.csv") %>%
+  select(LSOA11CD:LAD11NMW) %>% distinct(., LSOA11CD, .keep_all = TRUE)
+
+setwd(AddGeog)
+wardnames <- read_csv("Ward_to_Local_Authority_District_to_County_to_Region_to_Country_December_2016_Lookup_in_United_Kingdom_V2.csv") %>% setNames(c("Admin_ward_code", names(.)[-1]))
+
+#uses the dataframe from the CreateExceltemplates to get the ward names and the lsoa together
+wardlsoa <- PstCdLSOA.raw %>% distinct(lsoa11cd, .keep_all = TRUE) %>% 
+  select(lsoa11cd, Admin_ward_code)
+
+EW2 <- inner_join(EW, lsoa, by = c("ECODE" = "LSOA11CD") ) %>% 
+      left_join(., wardlsoa, by = c("ECODE"="lsoa11cd") ) %>% 
+  left_join(., select(wardnames, Admin_ward_code, WD16NM), by = "Admin_ward_code") %>%
+  group_by(Admin_ward_code) %>%
+  mutate(WardHomes = sum(Homes),  WardPop = sum(Pop)) %>% ungroup
+rm(wardlsoa)
+rm(wardnames)
+```
+
+Convert shape file to dataframe and join in the LSOA data
+```{r}
+setwd(LSOAshapedata)
+
+shape <- readOGR(dsn = list.files(pattern = "shp"))
+
+AG <- fortify(shape, region = "objectid")
+
+AG <- AG %>% mutate(id = as.integer(id)) %>% 
+  left_join(., shape@data, by = c("id" = "objectid")) %>% 
+  left_join(., EW2, by = c("lsoa11cd" = "ECODE"))
+
+```
+
+#I should probably join the homes and pop at the same time I join the council tax data
+
+other borough
+```{r}
+setwd("/home/jonno/Dropbox/SSE/Empty Homes/Regions-Complete/Region London")
+list.files()
+
+test <- read_excel("Copy of Haringey_Exemptions_Discounts_LSOA.xlsx")[,c(1,4:6)] %>% setNames(make.names(names(.)))
+
+test2 <- test %>% group_by(LSOA_CODE, Exemption.type) %>% summarise(Counts = n())
+
+test2b <- test %>% 
+  mutate(type2 = ifelse(grepl("Empty", Exemption.type), "Empty", Exemption.type)) %>%
+  group_by(type2) %>% summarise(Counts = n())
+
+test2b <- test %>% 
+  mutate(type2 = ifelse(grepl("Empty", Exemption.type), "Empty", Exemption.type)) %>%
+  group_by(type2, LSOA_CODE) %>% "Hammersmith.xls"  
+  summarise(Counts = n()) %>% 
+  spread(., type2, Counts, fill = 0)
+
+test3 <- test2b %>% left_join(., select(EW2, ECODE:Pop), by = c("LSOA_CODE" = "ECODE")) %>%
+   mutate(EmptPerc = Empty/Homes)
+
+```
+
+
+Load lambeth data
+```{r}
+setwd("/home/jonno/Dropbox/SSE/Empty Homes/Regions-Complete/Region London")
+list.files()
+
+test <- read_excel("LambethExemptionsLSOA.xlsx")[,1:4] %>% setNames(make.names(names(.)))
+
+test2b <- test %>% 
+  mutate(type2 = ifelse(grepl("Empty", Exemption.type), "Empty", Exemption.type)) %>%
+  group_by(type2, LSOA_CODE) %>% 
+  summarise(Counts = n()) %>% 
+  spread(., type2, Counts, fill = 0)
+
+test3 <- test2b %>% left_join(., select(EW2, ECODE:Pop), by = c("LSOA_CODE" = "ECODE")) %>%
+   mutate(EmptPerc = Empty/Homes)
+
+```
+
+
+Filter to lambeth and plot
+```{r}
+AG2 <- AG %>% filter(LAD11NM == "Lambeth") %>% 
+  left_join(., test2b, by = c("lsoa11cd" = "LSOA_CODE")) %>% mutate(EmptPerc = Empty/Homes)
+
+ggplot()+ geom_polygon(data=AG2, aes(long, lat, group = group, fill = EmptPerc), 
+colour = alpha("darkred", 1/2), size = 0.7) + scale_colour_gradient2() +
+  ggtitle("Lambeth coloured by areas of highest % empty Homes")
+
+
+```
+
+Filter to RBKC
+```{r}
+
+AG2 <- AG %>% filter(LAD11NM == "Kensington and Chelsea")
+
+#manually map ward codes to empty and missing homes
+
+WardDat <- data.frame(Admin_ward_code = unique(AG2$Admin_ward_code), 
+           Wardname = c("Abingdon","Brompton and Hans Town", "Courtfield", "Stanley", "Campden", "Colville", "Earl's Court", 
+                      "Redcliffe", "Chelsea Riverside", "Kensal Green", "Golborne", "Royal Hospital", "Holland", "Notting Dale",
+                      "Norland", "St. Helen's", "Pembridge", "Queen's Gate", "Dalgarno"),
+           LowUse = c(744,1932,1060,593,664,330,572,587,371,0, 196, 829, 640,106,237, 149,331,846,87))
+
+
+Chelsea <- EW2 %>% filter(LAD11NM == "Kensington and Chelsea") %>% 
+  select(Admin_ward_code:WardPop) %>%
+  distinct(Admin_ward_code, .keep_all=TRUE) %>% 
+  left_join(., WardDat) %>% ungroup %>% mutate(PercEmpt = LowUse/WardHomes)
+
+AG2 <- AG2 %>% left_join(., WardDat, by = "Admin_ward_code") %>% 
+  filter(Wardname != "Kensal Green")
+
+
+ 
+
+ggplot()+ geom_polygon(data=AG2, aes(long, lat, group = group, fill = vallow), 
+colour = alpha("darkred", 1/2), size = 0.7) + scale_colour_gradient2() 
+```
+
+
+#get prices
+
+```{r}
+
+setwd(DataFolder)
+
+test <-read_csv("pp-2016.csv", col_names = FALSE )
+
+#quick and dirty loses half the sales due to missing the postcode
+test <- test %>% left_join(., PstCdLSOA.raw, by = c("X4"="Postcode")) %>% filter(!is.na(lsoa11cd))
+
+
+test2 <- test %>% group_by(Admin_ward_code) %>% summarise( MeanPrice = mean(X2), counts =n() )
+
+WardDat2 <- WardDat %>% left_join(., test2) %>% mutate(vallow = LowUse*MeanPrice) %>%
+  filter(!is.na(MeanPrice)) 
+
+sum(WardDat2$vallow)/sum(WardDat2$LowUse)
+
+Lest <- test %>% filter(X14 =="LEICESTERSHIRE") 
+
+Lest %>% filter(X2<15000000) %>% ggplot(., aes(x= X2)) + geom_density()
+
+%>% group_by(X13) %>% summarise(mean = mean(X2))
+
+Melt <- test %>% filter(X13 == "MELTON")
+
+
+test %>% filter(grepl("chelsea", X13, ignore.case = TRUE)) %>%
+  filter(X2<3000000) %>% ggplot(., aes(x= X2)) + geom_density()
+
+
+```
+
+
+# Using the semi data
+
+
+```{r}
+#Lambeth
+
+setwd("/home/jonno/Dropbox/SSE/Empty Homes/Regions-Complete/Region London")
+
+Lambeth <- read_excel("LambethExemptionsLSOA.xlsx")[,1:4] %>% setNames(make.names(names(.))) %>% 
+  mutate(type2 = ifelse(grepl("Empty", Exemption.type), "Empty", Exemption.type)) %>%
+  group_by(type2, LSOA_CODE) %>% 
+  summarise(Counts = n()) %>% 
+  spread(., type2, Counts, fill = 0) %>% 
+   left_join(., EW2, by = c("LSOA_CODE" = "ECODE")) %>% 
+  group_by(Admin_ward_code) %>% mutate(Empty = sum(Empty), LowUse = Empty) %>% ungroup
+
+
+
+LAMDAT <- AG %>% filter(LAD11NM == "Lambeth") %>% 
+  left_join(., select(Lambeth, LSOA_CODE, LowUse, Empty), by = c("lsoa11cd" = "LSOA_CODE"))
+
+#Sutton
+
+Sutton <- read_excel("SuttonExemptionsLSOA.xlsx"  )[,1:6]
+
+#ward folder
+setwd(SemiLondon)
+list.files()
+
+wardnames <- EW2 %>% group_by(Admin_ward_code, WD16NM) %>% summarise(counts = n(), LAD11NM = first(LAD11NM), LAD11CD = first(LAD11CD)) %>% arrange(WD16NM)
+
+test <- wardnames %>% filter(grepl("Kensington", LAD11NM)) 
+
+test <- EW2 %>% filter(LAD11NM == "Wandsworth")
+
+
+#Chelsea
+Chelwards <- wardnames %>% filter(grepl("Kensington", LAD11NM)) 
+
+Chelsea <- read_excel("FOI2017-0143.xlsx" ) %>% setNames(make.names(names(.))) %>% slice(1:18) %>%
+  mutate(Admin_ward_code = Chelwards$Admin_ward_code[c(1:10,12:17,19,18)]) %>% group_by(X.Ward) %>%
+  mutate(Empty = sum(Empty..unfurnished, Empty..works, Job.related., Empty..50..premium., Moorings , na.rm = TRUE),
+         LowUse = Empty + Second.Homes) %>% ungroup
+
+Chelsea[is.na(Chelsea)] <-0
+rm(Chelwards)
+
+CHELDAT <-  AG %>% filter(grepl("Kensington", LAD11NM))%>% left_join(., select(Chelsea, Admin_ward_code, LowUse, Empty)) %>% 
+  filter(WD16NM!= "Kensal Green")
+
+#Hackney has provided Census Wards I'm not sure how useable it is. 
+hackney <- read_csv("hackney.csv") %>% setNames(make.names(names(.))) %>% group_by(Exemption.Discount, Ward.Name) %>% summarise(counts = n()) %>% ungroup %>% spread(Exemption.Discount, counts, fill = 0) 
+
+
+#Hammersmith 
+Hammersmith <- read_excel("Hammersmith.xls", skip = 1 ) %>% filter(!is.na(Ward) ) %>% 
+  bind_cols(., filter(wardnames,LAD11NM == "Hammersmith and Fulham")) %>% select(-Ward) %>%
+  mutate(LowUse = `Second (B)` + `Empty Unocc`+ LTE + Premium, Empty = LowUse - `Second (B)`)
+  
+Hammersmith2 <- EW2 %>% filter(LAD11NM == "Hammersmith and Fulham") %>% left_join(., select(Hammersmith, Admin_ward_code, LowUse, Empty))
+
+HAMDAT <- AG %>% filter(LAD11NM == "Hammersmith and Fulham")%>% left_join(., select(Hammersmith, Admin_ward_code, LowUse, Empty))
+
+
+#Wandsworth
+
+wardnames %>% filter(LAD11NM == "Wandsworth")
+
+Wandsworth <- read_excel("wandsworth2.xlsx",  skip = 3 ) %>% select(1,3) %>% 
+  group_by(`Ptc Wardname`) %>% summarise(Empty = sum(`Count Current Occupancy Discounts`)) %>% ungroup %>% 
+  arrange(`Ptc Wardname`) %>% 
+  filter(!is.na(`Ptc Wardname`)) %>% 
+  bind_cols(., wardnames %>% filter(LAD11NM == "Wandsworth") %>% 
+              select(Admin_ward_code)) %>%
+  mutate(LowUse = Empty)
+
+Wandsworth2 <- EW2 %>% filter(LAD11NM == "Wandsworth") %>% left_join(., select(Wandsworth, Admin_ward_code, Empty))
+WANDAT <- AG %>% filter(LAD11NM == "Wandsworth")%>% left_join(., select(Wandsworth, Admin_ward_code, LowUse, Empty))
+
+
+#Merton
+wardnames %>% filter(LAD11NM == "Merton")
+Merton <- read_excel("merton1.xlsx" )[,-2] %>%setNames(make.names(names(.))) %>% slice(-1) %>% arrange(X) %>%
+  filter(X != "Norbury", X!="Nightingale", X !="Stonecot") %>% 
+    bind_cols(., wardnames %>% filter(LAD11NM == "Merton") %>% 
+              select(Admin_ward_code)) %>%
+  mutate(Empty =   Disc.Class.C.Vacant.dwelling + Disc.class.C.Long.term.empty + Premium.Levy, LowUse =  Disc.Class.A.Second.home + Disc.Class.B.second.home )
+
+MERDAT <- AG %>% filter(LAD11NM == "Merton")%>% left_join(., select(Merton, Admin_ward_code, LowUse, Empty))
+
+
+#Southwark
+
+test <- wardnames %>% filter(LAD11NM == "Southwark")
+
+Southwark <- read_excel("southwark.xlsx" , skip = 1) %>% setNames(make.names(names(.))) %>% 
+  filter(Ward.codes != "TOTALS") %>% select(-Ward.codes) %>%
+  mutate(WARDS= na.locf(WARDS)) %>% group_by(WARDS) %>%
+  summarise_all(sum, na.rm = TRUE) %>% ungroup %>%
+  arrange(WARDS) %>%
+    bind_cols(., wardnames %>% filter(LAD11NM == "Southwark") %>% 
+              select(Admin_ward_code)) %>%
+  mutate(Empty =   Unoccupied.and.furnished.lets....0. + Job.related.dwelling...50..discount + Second.Home...unoccupied.and.furnished...0.+Empty.and.unfurnished...0. + Levy.on.long.term.empty...50..Premium + Uninhabitable.Works.required....0., LowUse =  Empty )
+
+Wandsworth2 <- EW2 %>% filter(LAD11NM == "Southwark") %>% left_join(., select(Southwark, Admin_ward_code, Empty))
+
+SOUDAT <- AG %>% filter(LAD11NM == "Southwark")%>% left_join(., select(Southwark, Admin_ward_code, LowUse, Empty))
+
+#Harrow
+
+test <- read_excel("HarrowCTBandsLSOA. 3118795.xlsx"  )[1:4]%>% setNames(make.names(names(.))) 
+
+#Kingston
+test <- wardnames %>% filter(grepl("Kingston upon Thames", LAD11NM))
+
+Kingston <- read_excel("Kingston1.xlsx"  )%>% setNames(make.names(names(.))) %>%
+  arrange(X) %>% slice(1:16) %>%
+  bind_cols(., wardnames %>% filter(LAD11NM == "Kingston upon Thames") %>% 
+              select(Admin_ward_code)) %>%
+  mutate(Empty = Empty...Furnished..0.. + Empty.Homes.Premium + LONG.TERM.EMPTY..0.. + Structural.Repair..0.., LowUse = Empty + X2nd.Home..0..)
+
+KINDAT <- AG %>% filter(LAD11NM == "Kingston upon Thames")%>% left_join(., select(Kingston, Admin_ward_code, LowUse, Empty))
+
+
+#TowerHamlets
+test <- wardnames %>% filter(grepl("Tower", LAD11NM))
+
+Tower <- read_excel("Towerhamlets.xlsx")[,c(1,3)] %>% 
+  filter(!is.na(DiscClass)) %>%
+  group_by(Ward, DiscClass) %>%
+  summarise(count = n()) %>% ungroup %>%
+  spread(., key =DiscClass, value = count, fill = 0 ) %>% 
+  mutate(Empty = rowSums(.[,4:8]), LowUse = B+BE+Empty) %>% 
+  slice(c(1:13, 15:17, 14, 18:20)) %>%
+   bind_cols(., wardnames %>% filter(grepl("Tower", LAD11NM)))
+  
+TOWDAT <- AG %>% filter(grepl("Tower", LAD11NM)) %>% left_join(., select(Tower, Admin_ward_code, LowUse, Empty))
+
+#Greenwhich
+list.files()
+wardnames %>% filter(grepl("Greenwich", LAD11NM))
+
+Greenwich <- read_excel( "FOI-3348 ctfoi35report.xlsx" ) %>%  
+  setNames(make.names(names(.))) %>%
+  filter(grepl("EMPTY",Exempt.Discount.Description)) %>% 
+  select(-Exempt.Code) %>%
+  spread(key= Exempt.Discount.Description, value = Total, fill = 0) %>%
+  mutate(Empty = rowSums(.[,-1]), LowUse = Empty) %>%
+   bind_cols(., wardnames %>% filter(grepl("Greenwich", LAD11NM)))
+  
+
+GREDAT <- AG %>% filter(grepl("Greenwich", LAD11NM)) %>% left_join(., select(Greenwich, Admin_ward_code, LowUse, Empty))
+
+
+
+```
+
+
+Plot Map
+```{r}
+AG2 <- bind_rows(CHELDAT,HAMDAT, WANDAT, LAMDAT, MERDAT, 
+                 SOUDAT, KINDAT, TOWDAT, GREDAT) %>% 
+  mutate(LowUsePerc = LowUse/WardHomes, 
+         EmptyPerc = Empty/WardHomes,
+         EmptyPercRank = percent_rank(Empty/WardHomes))
+
+ggplot()+ geom_polygon(data=AG2, aes(long, lat, group = group, fill = EmptyPerc), 
+colour = alpha("darkred", 1/2), size = 0.1) + scale_colour_gradient2() +
+  labs(title = "All Boroughs Percentage Empty") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+AG2 %>% 
+  ggplot(.)+ geom_polygon( aes(long, lat, group = group, fill =sqrt(EmptyPerc)), 
+colour = alpha("darkred", 1/2), size = 0.2) + scale_colour_gradient2() 
+
+ggplot()+ geom_polygon(data=AG2, aes(long, lat, group = group, fill = LowUse/WardHomes), 
+colour = alpha("darkred", 1/2), size = 0.2) + scale_colour_gradient2() 
+
+#single borough
+GREDAT %>%
+  mutate(LowUsePerc = LowUse/WardHomes, 
+         EmptyPerc = Empty/WardHomes,
+         EmptyPercRank = percent_rank(Empty/WardHomes)) %>%
+ggplot(.)+ geom_polygon( aes(long, lat, group = group, fill = EmptyPerc), 
+colour = alpha("darkred", 1/2), size = 0.2) + scale_colour_gradient2() 
+
+```
+
+
+#Proper data Barrow
+
+```{r}
+setwd(file.path(RegionsComp, "Region North West"))
+
+list.files()
+
+test <- read_excel("Barrow-in-FurnessExemptionsLSOA.xlsx", sheet=1) %>% setNames(make.names(names(.))) %>% .[,1:4] %>% filter(Current.Discount.Type.Code !="SINGLE") %>% group_by(LSOA_CODE) %>%
+  summarise(Empty = n())
+
+Barrow2 <- test %>% left_join(., EW2, by = c("LSOA_CODE" = "ECODE")) %>% mutate(EmptyPerc = Empty/Homes)
+
+test2 <- test %>% left_join(., AG, by = c("LSOA_CODE" = "lsoa11cd")) %>% mutate(EmptyPerc = Empty/Homes)
+
+ggplot()+ geom_polygon(data=test2, aes(long, lat, group = group, fill = EmptyPerc), 
+colour = alpha("darkred", 1/2), size = 0.2) + scale_colour_gradient2() + ggtitle("Barrow in Furness Emptyness %")
+```
 
