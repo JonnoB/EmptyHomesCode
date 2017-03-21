@@ -14,6 +14,7 @@ http://ons.maps.arcgis.com/home/item.html?id=17a30c262cf44ad0b9780d97c5d4a856
 
 Number of households of size x with bedrooms y
 https://www.nomisweb.co.uk/census/2011/lc4405ew
+
 ```{r setup}
 setwd( "~/Dropbox/SSE/Empty Homes/EmptyHomesCode/SubCode")
 source("Setup.R")

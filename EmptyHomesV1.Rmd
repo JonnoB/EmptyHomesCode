@@ -7,6 +7,12 @@ output: html_document
 
 It would have been sensible to separate council and private housing
 
+
+#Telegraph article on pensioners requireing mortgages
+http://www.telegraph.co.uk/personal-banking/mortgages/pensioner-mortgages-boom-britains-broken-housing-market/
+
+
+
 ```{r setup}
 setwd( "~/Dropbox/SSE/Empty Homes/EmptyHomesCode/SubCode")
 source("Setup.R")
@@ -20,7 +26,7 @@ list.files()
 
 test <- read.xlsx("SuttonExemptionsLSOA.xlsx")
 ken1 <- read.xlsx("Copy of Kensington and ChelseaCTBandsLSOA.xlsx" )
-ken2 <- read.xlsx("Copy of Kensington and ChelseaExemptionsLSOA (002).xlsx")
+ken2 <- read.xlsx("NewhamExemptionsLSOA.XLSX")[,1:4]
 ```
 
 
@@ -43,10 +49,11 @@ get.adjacency(WardsAdj,sparse=FALSE)
 
 ```
 
+
+#VOA data
+
 Council tax bands from VOA
 https://www.gov.uk/government/statistics/council-tax-stock-of-properties-2016
-
-
 
 ```{r PopandHomes}
 setwd(DataFolder)
@@ -58,19 +65,6 @@ pop <- read_csv("SAPE2.csv")
 
 EW <- inner_join(select(CTtaxstock, ECODE, ALL_PROPERTIES),select(pop, `Area Codes`, `All Ages`),
           by=c("ECODE" = "Area Codes")) %>% setNames(c("ECODE", "Homes", "Pop")) 
-```
-
-
-#Padstow example
-```{r}
-test2 <- CTtaxstock 
-pop2 <- pop %>% filter(grepl("Cornwall 008",X3))
-
-#padstow
-pad <- left_join(select(test2, ECODE, ALL_PROPERTIES), select(pop2, `Area Codes`, `All Ages`),
-          by=c("ECODE" = "Area Codes")) %>% 
-  mutate(diff = ALL_PROPERTIES-`All Ages`, ratio = ALL_PROPERTIES/`All Ages`) %>% filter(complete.cases(.))
-
 ```
 
 #Load the LSOA shape data for EW 
@@ -99,7 +93,7 @@ if(file.exists(file.path(DataFolder,"PstCdLSOA.rds"))){
 
 
 Bind the ward names and LAD names to the lsoa data
-```{r}
+```{r LAD/WARD data}
 setwd(PostcodeLookups)
 lsoa <- read_csv("PCD11_OA11_LSOA11_MSOA11_LAD11_EW_LU_aligned_v2.csv") %>%
   select(LSOA11CD:LAD11NMW) %>% distinct(., LSOA11CD, .keep_all = TRUE)
@@ -122,15 +116,22 @@ rm(wardnames)
 
 Convert shape file to dataframe and join in the LSOA data
 ```{r}
-setwd(LSOAshapedata)
 
-shape <- readOGR(dsn = list.files(pattern = "shp"))
+if(file.exists(file.path(DataFolder,"shapeframe.rds"))){
+ PstCdLSOA.raw <- readRDS(file.path(DataFolder,"shapeframe.rds"))
+} else{
+    setwd(LSOAshapedata)
 
-AG <- fortify(shape, region = "objectid")
+    shape <- readOGR(dsn = list.files(pattern = "shp"))
+  
+    AG <- fortify(shape, region = "objectid")
 
-AG <- AG %>% mutate(id = as.integer(id)) %>% 
-  left_join(., shape@data, by = c("id" = "objectid")) %>% 
-  left_join(., EW2, by = c("lsoa11cd" = "ECODE"))
+    AG <- AG %>% mutate(id = as.integer(id)) %>% 
+      left_join(., shape@data, by = c("id" = "objectid")) %>% 
+    left_join(., EW2, by = c("lsoa11cd" = "ECODE"))
+    
+    saveRDS(AG, file.path(DataFolder,"shapeframe.rds"))
+    }
 
 ```
 
@@ -187,7 +188,8 @@ AG2 <- AG %>% filter(LAD11NM == "Lambeth") %>%
 
 ggplot()+ geom_polygon(data=AG2, aes(long, lat, group = group, fill = EmptPerc), 
 colour = alpha("darkred", 1/2), size = 0.7) + scale_colour_gradient2() +
-  ggtitle("Lambeth coloured by areas of highest % empty Homes")
+  ggtitle("Lambeth coloured by areas of highest % empty Homes")+
+  theme(plot.title = element_text(hjust = 0.5))
 
 
 ```
@@ -211,14 +213,17 @@ Chelsea <- EW2 %>% filter(LAD11NM == "Kensington and Chelsea") %>%
   distinct(Admin_ward_code, .keep_all=TRUE) %>% 
   left_join(., WardDat) %>% ungroup %>% mutate(PercEmpt = LowUse/WardHomes)
 
-AG2 <- AG2 %>% left_join(., WardDat, by = "Admin_ward_code") %>% 
-  filter(Wardname != "Kensal Green")
+AG2 <-AG2 %>% left_join(., WardDat, by = "Admin_ward_code") %>% 
+  filter(Wardname != "Kensal Green")%>% mutate(PercEmpt = LowUse/WardHomes)
 
 
  
 
-ggplot()+ geom_polygon(data=AG2, aes(long, lat, group = group, fill = vallow), 
-colour = alpha("darkred", 1/2), size = 0.7) + scale_colour_gradient2() 
+ggplot()+ geom_polygon(data=AG2, aes(long, lat, group = group, fill = PercEmpt), 
+colour = alpha("darkred", 1/2), size = 0.7) + scale_colour_gradient2() +
+  ggtitle("Kensington and Chelsea low use property")+
+  theme(plot.title = element_text(hjust = 0.5))
+
 ```
 
 
@@ -228,15 +233,18 @@ colour = alpha("darkred", 1/2), size = 0.7) + scale_colour_gradient2()
 
 setwd(DataFolder)
 
-test <-read_csv("pp-2016.csv", col_names = FALSE )
+prices <-read_csv("pp-2016.csv", col_names = FALSE )
 
 #quick and dirty loses half the sales due to missing the postcode
-test <- test %>% left_join(., PstCdLSOA.raw, by = c("X4"="Postcode")) %>% filter(!is.na(lsoa11cd))
+test <- prices %>% mutate(X4 = gsub(" ", "", X4)) %>% left_join(., PstCdLSOA.raw %>% mutate(Postcode = gsub(" ", "", Postcode)), by = c("X4"="Postcode")) %>% filter(!is.na(lsoa11cd))
 
 
-test2 <- test %>% group_by(Admin_ward_code) %>% summarise( MeanPrice = mean(X2), counts =n() )
 
-WardDat2 <- WardDat %>% left_join(., test2) %>% mutate(vallow = LowUse*MeanPrice) %>%
+MeanWardPrice <- test %>% group_by(Admin_ward_code) %>% summarise( MeanPrice = mean(X2), counts =n() )
+
+MeanWardPrice %>% ggplot(., aes(x= counts)) +geom_density()
+
+WardDat2 <- WardDat %>% left_join(., MeanWardPrice) %>% mutate(vallow = LowUse*MeanPrice) %>%
   filter(!is.na(MeanPrice)) 
 
 sum(WardDat2$vallow)/sum(WardDat2$LowUse)
@@ -429,6 +437,7 @@ colour = alpha("darkred", 1/2), size = 0.1) + scale_colour_gradient2() +
   theme(plot.title = element_text(hjust = 0.5))
 
 
+
 AG2 %>% 
   ggplot(.)+ geom_polygon( aes(long, lat, group = group, fill =sqrt(EmptyPerc)), 
 colour = alpha("darkred", 1/2), size = 0.2) + scale_colour_gradient2() 
@@ -463,5 +472,47 @@ test2 <- test %>% left_join(., AG, by = c("LSOA_CODE" = "lsoa11cd")) %>% mutate(
 
 ggplot()+ geom_polygon(data=test2, aes(long, lat, group = group, fill = EmptyPerc), 
 colour = alpha("darkred", 1/2), size = 0.2) + scale_colour_gradient2() + ggtitle("Barrow in Furness Emptyness %")
+```
+
+
+```{r}
+test <- read_excel("South LakelandExemptionsLSOA.XLSX", sheet=1)%>% setNames(make.names(names(.))) %>% .[,1:4] %>%
+  group_by(Exemption.type, LSOA_CODE) %>% summarise(counts = n()) %>% 
+  spread(key= Exemption.type, value = counts, fill = 0) %>% mutate(Empty = rowSums(.[,2:9])) %>%
+  left_join(., EW2, by = c("LSOA_CODE" = "ECODE")) %>% mutate(EmptyPerc = Empty/Homes)
+
+test2 <- test %>% left_join(., AG, by = c("LSOA_CODE" = "lsoa11cd")) 
+
+```
+
+#Cornwall
+
+```{r}
+
+setwd(file.path(RegionsComp, "Region South West"))
+
+list.files()
+
+Cornwall <- read_excel("Cornwall.xlsx", sheet=1)%>% setNames(make.names(names(.))) %>% .[,1:4] %>%
+  group_by(Exemption.type, LSOA_CODE) %>% summarise(counts = n()) %>% 
+  spread(key= Exemption.type, value = counts, fill = 0) %>% 
+  mutate(LowUse = rowSums(.[,c(FALSE,!grepl("exempt",(names(.)[-1])))])) %>%
+  left_join(., EW2, by = c("LSOA_CODE" = "ECODE")) %>% group_by(Admin_ward_code)  %>%
+  mutate(LowUsePerc = LowUse/Homes, WardLowUse = sum(LowUse) ,WardLowUsePerc = WardLowUse/WardHomes) %>% ungroup
+
+Cornwall <- Cornwall %>% left_join(., MeanWardPrice) %>% mutate(ValLow = LowUse*MeanPrice)
+
+Cornwall %>% left_join(., AG, by = c("LSOA_CODE" = "lsoa11cd"))  %>% 
+  ggplot(.)+ 
+  geom_polygon( aes(long, lat, group = group, fill = LowUsePerc), 
+colour = alpha("darkred", 1/2), size = 0.2) + scale_colour_gradient2() + ggtitle("Cornwall Empty and second Homes %")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+ Cornwall %>% filter(Admin_ward_code !="E05009195") %>% summarise(x =cor(MeanPrice, WardLowUsePerc, use = 'complete.obs'))
+ 
+ Cornwall %>% ggplot(., aes(y=MeanPrice, x= WardLowUsePerc )) + geom_point() +
+   labs(title = "Relationshibetween LowUse Percentage and Mean Price in Ward")+
+  theme(plot.title = element_text(hjust = 0.5))
+
 ```
 
