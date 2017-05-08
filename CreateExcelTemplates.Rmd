@@ -198,9 +198,11 @@ shape <- readOGR(dsn = list.files(pattern = "shp"))
 ```
 
 
+#These three blocks are all you need to to generate the templates... I think it needs to be checked when the packages have updated
+
 # Load Post code data
 
-This chunk checks the exiatane of the postcode to lsoa lookup if it doesn't find it, the second part of the code is run that creates the lookup. Creating the lookup takes quite a lot of time so it is good to only have to do it once.
+This chunk checks the existance of the postcode to lsoa lookup if it doesn't find it, the second part of the code is run that creates the lookup. Creating the lookup takes quite a lot of time so it is good to only have to do it once.
 ```{r}
 
 if(file.exists(file.path(DataFolder,"PstCdLSOA.rds"))){
@@ -270,7 +272,7 @@ lapply(unique(PstCdLSOA$RGN15NM), function(n){
     PstCdLSOA.filt <- PstCdLSOA.Reg %>% filter(LAD15NM == LAD)
     print(paste(n, ":", LAD))
       ExemptionsFile <- paste0(LAD,"ExemptionsLSOA.xlsx")
-      CTBandsFile <- paste0(LAD,"CTBandsLSOA.xlsx")
+      DiscountsFile <- paste0(LAD,"DiscountsLSOA.xlsx")
       setwd(basewd)
       wb <- loadWorkbook("Convert Postcode to LSOA.xlsx")
       #input the LSOA lookup table
@@ -281,10 +283,13 @@ lapply(unique(PstCdLSOA$RGN15NM), function(n){
                 colNames = F)
       setwd(file.path(Regions, title))
       saveWorkbook(wb,ExemptionsFile ,overwrite = T)
-      saveWorkbook(wb,CTBandsFile ,overwrite = T)
+      writeData(wb, "Input", "Discount_Class") #So that it says Discounts not exemptions, so nobody gets confused.
+      saveWorkbook(wb,DiscountsFile ,overwrite = T)
     })
 })
 
 
 ```
+
+
 
