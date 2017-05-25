@@ -18,45 +18,10 @@ https://www.ons.gov.uk/peoplepopulationandcommunity/personalandhouseholdfinances
 ```{r setup}
 setwd( "~/Dropbox/SSE/Empty Homes/EmptyHomesCode/SubCode")
 source("Setup.R")
+
+setwd(Functions)
+list.files() %>% map(source)
 ```
-
-#Load completed data
-
-```{r}
-
-setwd(file.path(RegionsComp, "Region East of England"))
-list.files()
-
-
-test <- read.xlsx("FOI IMT178324 SuffolkCoastal.xlsx")
-
-unique(test$Exemption.type)
-
-
-
-
-```
-
-
-```{r}
-# setwd(ShapeFiles)
-# 
-# wards.shp <- readShapeSpatial("London_Ward.shp")
-# coords <- coordinates(wards.shp)
-# WardsAdj <- poly2nb(wards.shp, queen= FALSE)
-# plot(wards.shp, border="grey")
-# plot(WardsAdj, coords, add=TRUE, col="red")
-# 
-# test <- (nb2mat(WardsAdj)>0)*1
-# 
-# 
-# g=graph.data.frame(WardsAdj)
-# get.adjacency(WardsAdj,sparse=FALSE)
-
-
-
-```
-
 
 #VOA data
 
@@ -67,7 +32,6 @@ https://www.gov.uk/government/statistics/council-tax-stock-of-properties-2016
 setwd(DataFolder)
 
 CTtaxstock<- read_csv("Table_CTSOP1.1_2016.csv")
-
 
 pop <- read_csv("SAPE2.csv")
 
@@ -207,6 +171,9 @@ test2 %>% filter(Region.name == "London") %>% mutate(HighRatio = ratio>10) %>%
 #Lambeth
 
 setwd(file.path(RegionsComp, "Region London"))
+
+Lam2 <- read_excel("LambethExemptionsLSOA.xlsx")[,1:4] %>%  
+    StructureData(., lowuse = c(2:5,24,25), empty =  c(4:5,24,25))
 
 Lambeth <- read_excel("LambethExemptionsLSOA.xlsx")[,1:4] %>%
   setNames(make.names(names(.))) %>%

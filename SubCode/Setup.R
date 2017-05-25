@@ -27,6 +27,7 @@ AddGeog <- file.path(basewd, "AdditionalGeographies")
 Regions <- file.path(basewd, "Regions")
 RegionsComp <- file.path(basewd, "Regions-Complete")
 CommonCode <- file.path(basewd, "EmptyHomesCode", "SubCode")
+Functions <- file.path(basewd, "EmptyHomesCode", "Functions")
 SemiLondon <- file.path(basewd, "semi-data-london")
 Figures <- file.path(basewd, "Figures")
 select <-dplyr::select
