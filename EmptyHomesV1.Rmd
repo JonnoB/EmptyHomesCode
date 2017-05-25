@@ -32,6 +32,9 @@ test <- read.xlsx("FOI IMT178324 SuffolkCoastal.xlsx")
 
 unique(test$Exemption.type)
 
+
+
+
 ```
 
 
@@ -395,7 +398,10 @@ BARKDAT <- AG %>% filter(LAD11NM == "Barking and Dagenham") %>%
 #Barnet
 
 Barnet <- read.xlsx( "3386297 Attachment BarnetDiscounts.xlsx"  , colNames = TRUE) %>%
-  setNames(c("Exemption.type", "LSOA_CODE", "X3", "X4")) %>%
+  setNames(c("ExemAG %>% filter(grepl("Kensington", LAD11NM))%>% left_join(., select(Chelsea, Admin_ward_code, LowUse, Empty)) %>% 
+  filter(WD16NM!= "Kensal Green")AG %>% filter(grepl("Kensington", LAD11NM))%>% left_join(., select(Chelsea, Admin_ward_code, LowUse, Empty)) %>% 
+  filter(WD16NM!= "Kensal Green")AG %>% filter(grepl("Kensington", LAD11NM))%>% left_join(., select(Chelsea, Admin_ward_code, LowUse, Empty)) %>% 
+  filter(WD16NM!= "Kensal Green")ption.type", "LSOA_CODE", "X3", "X4")) %>%
   group_by(Exemption.type, LSOA_CODE) %>% summarise(counts = n()) %>% 
   spread(key= Exemption.type, value = counts, fill = 0) %>% 
     setNames(make.names(trimws(names(.)))) %>% 
@@ -438,12 +444,12 @@ test <- wardnames %>% filter(grepl("Kensington", LAD11NM))
 test <- EW2 %>% filter(LAD11NM == "Wandsworth")
 
 
-#Chelsea
-# Chelwards <- wardnames %>% filter(grepl("Kensington", LAD11NM)) 
+# Chelsea
+# Chelwards <- wardnames %>% filter(grepl("Kensington", LAD11NM))
 # 
 # Chelsea <- read_excel("FOI2017-0143.xlsx" ) %>% setNames(make.names(names(.))) %>% slice(1:18) %>%
-#   mutate(Admin_ward_code = Chelwards$Admin_ward_code[c(1:10,12:17,19,18)]) %>% group_by(X.Ward) %>%
-#   mutate(Empty = sum(Empty..unfurnished, Empty..works, Job.related., Empty..50..premium., Moorings , na.rm = TRUE),
+#   mutate(Admin_ward_code = Chelwards$Admin_ward_code[c(1:10,12:17,19,18)]) %>% group_by(Ward) %>%
+#   mutate(Empty = sum(Empty..unfurnished, Empty..works, Job.related, Empty..50..premium, Moorings , na.rm = TRUE),
 #          LowUse = Empty + Second.Homes) %>% ungroup
 # 
 # Chelsea[is.na(Chelsea)] <-0
@@ -456,15 +462,15 @@ test <- EW2 %>% filter(LAD11NM == "Wandsworth")
 # cor(Chel2$MeanPrice, Chel2$LowUsePerc)
 # 
 # Chel2 %>%
-#   mutate(PrimePerc = PrimePerc*100, LowUsePerc = LowUsePerc*100) %>% 
-#   ggplot(.,aes(x= PrimePerc, LowUsePerc)) +geom_point() + 
+#   mutate(PrimePerc = PrimePerc*100, LowUsePerc = LowUsePerc*100) %>%
+#   ggplot(.,aes(x= PrimePerc, LowUsePerc)) +geom_point() +
 #   geom_smooth(method ="lm", se = FALSE) +
-#   labs(title = "Relationship between % of Prime Sales and % Low Use", 
+#   labs(title = "Relationship between % of Prime Sales and % Low Use",
 #        x = "% of properties sold in 2016 over £1M by electoral ward",
 #        y = "% of properties either empty or second homes") +
 #   theme(plot.title = element_text(hjust = 0.5))  +
 #   coord_cartesian(xlim = c(15,78), expand = TRUE)
-#  
+# 
 # 
 # 
 # CHELDAT <-  AG %>% filter(grepl("Kensington", LAD11NM))%>% left_join(., select(Chelsea, Admin_ward_code, LowUse, Empty)) %>% 
@@ -582,13 +588,13 @@ AG2 <- bind_rows(CHELDAT,HAMDAT, WANDAT, LAMDAT, MERDAT,
 
 ggplot()+ geom_polygon(data=AG2, aes(long, lat, group = group, fill = EmptyPerc), 
 colour = alpha("darkred", 1/2), size = 0.1) + scale_colour_gradient2() +
-  labs(title = "9 Boroughs: Ward Level % Empty") +
+  labs(title = "Current London Data") +
   theme(plot.title = element_text(hjust = 0.5))+
   theme(axis.title=element_blank(),
         axis.text=element_blank(),
         axis.ticks=element_blank())
 
-
+SaveFig("London.png")
 
 AG2 %>% 
   ggplot(.)+ geom_polygon( aes(long, lat, group = group, fill =sqrt(EmptyPerc)), 
@@ -596,40 +602,59 @@ colour = alpha("darkred", 1/2), size = 0.2) + scale_colour_gradient2()
 
 AG2 %>% 
   ggplot(.)+ geom_polygon( aes(long, lat, group = group, fill =EmptyPercRank), 
-colour = alpha("darkred", 1/2), size = 0.2) + scale_colour_gradient2() 
+colour = alpha("darkred", 1/2), size = 0.2) + scale_colour_gradient2() +
+  labs(title = "Current London Data Coloured by Percent Rank") +
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(axis.title=element_blank(),
+        axis.text=element_blank(),
+        axis.ticks=element_blank())
+
+SaveFig("LondonPerc.png")
 
 ggplot()+ geom_polygon(data=AG2, aes(long, lat, group = group, fill = LowUse/WardHomes), 
 colour = alpha("darkred", 1/2), size = 0.2) + scale_colour_gradient2() 
 
 #single borough
-CHELDAT %>%
-  mutate(LowUsePerc = LowUse/WardHomes*100, 
-         EmptyPerc = Empty/WardHomes,
-         EmptyPercRank = percent_rank(Empty/WardHomes)) %>%
-ggplot(.)+ geom_polygon( aes(long, lat, group = group, fill = LowUsePerc), 
-colour = alpha("darkred", 1/2), size = 0.2) + scale_colour_gradient2() +
-  labs(title = "Kensington and Chealsea: Ward Level % Low Use") +
-  theme(plot.title = element_text(hjust = 0.5))+ 
-  scale_fill_continuous(name = "Percentage")
+
+SingleB <- AG %>% filter(grepl("Kensington", LAD11NM))%>% 
+  left_join(., select(Chelsea, Admin_ward_code, WardLowUse, WardLowUsePerc)) %>% 
+  filter(WD16NM!= "Kensal Green") %>%
+  mutate(WardLowUsePerc = WardLowUsePerc*100)
+
+ggplot(SingleB) + 
+  geom_polygon( aes(long, lat, group = group, fill = WardLowUsePerc), 
+colour = alpha("black", 1/4), size = 0.2) + 
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = mean(SingleB$WardLowUsePerc, na.rm = TRUE)) +
+  labs(title = "Kensington and Chealsea: Ward Level % Low Use", fill = "Percentage") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+    theme(plot.title = element_text(hjust = 0.5))+
+    theme(axis.title=element_blank(),
+        axis.text=element_blank(),
+        axis.ticks=element_blank())
+
+SaveFig("RBKCLowUse.png")
 
 ggplotly() #STFD!
 #Single borough detail
 
-AG %>% filter(grepl("Kensington", LAD11NM)) %>% 
+Singlevis <- AG %>% filter(grepl("Kensington", LAD11NM)) %>% 
   left_join(., select(Chelsea, LSOA_CODE, LowUse, Empty, Homes), by = c("lsoa11cd"="LSOA_CODE")) %>% 
   ungroup %>%
   filter(WD16NM!= "Kensal Green") %>%
-  mutate(LowUsePerc = LowUse/Homes.y*100, 
-         EmptyPerc = Empty/Homes.y*100,
-         EmptyPercRank = percent_rank(Empty/Homes.y)) %>%
-ggplot(.)+ geom_polygon( aes(long, lat, group = group, fill = LowUsePerc), 
-colour = alpha("darkred", 1/2), size = 0.2) + scale_colour_gradient2() +
+  mutate(LowUsePerc = round(LowUse/Homes.y*100), 
+         EmptyPerc = round(Empty/Homes.y*100),
+         EmptyPercRank = percent_rank(Empty/Homes.y))
+
+ggplot(Singlevis, aes(long, lat, group = group, fill = LowUsePerc))+ 
+  geom_polygon(colour = alpha("black", 1/2), size = 0.2) + 
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = mean(Singlevis$LowUsePerc))+
   theme(plot.title = element_text(hjust = 0.5))+
     theme(axis.title=element_blank(),
         axis.text=element_blank(),
         axis.ticks=element_blank())+ 
-  scale_fill_continuous(name = "Percentage")+
-  ggtitle("Islington Exemptions") 
+  ggtitle("Kensington and Chelsea Low use") 
+
+
 
 Bourough2 <- Chelsea %>% ungroup %>% mutate(LowUsePerc = LowUse/Homes, 
          EmptyPerc = Empty/Homes,
@@ -701,17 +726,26 @@ Cornwall <- read_excel("Cornwall.xlsx", sheet=1)%>% setNames(make.names(names(.)
 
 Cornwall <- Cornwall %>% left_join(., MeanWardPrice) %>% mutate(ValLow = LowUse*MeanPrice)
 
-Cornwall %>% mutate(LowUsePerc = LowUsePerc*100) %>% 
-  left_join(., AG, by = c("LSOA_CODE" = "lsoa11cd"))  %>% 
-  ggplot(.)+ 
-  geom_polygon( aes(long, lat, group = group, fill = LowUsePerc), 
-colour = alpha("darkred", 1/2), size = 0.2) + scale_colour_gradient2() + ggtitle("Cornwall: Ward level Empty and Second Homes %")+
-  theme(plot.title = element_text(hjust = 0.5)) + 
-  scale_fill_continuous(name = "Percentage")
+C2 <- Cornwall %>% 
+  mutate(LowUsePerc = LowUsePerc*100,
+         WardLowUsePerc = WardLowUsePerc*100) %>% 
+  left_join(., AG, by = c("LSOA_CODE" = "lsoa11cd"))
+
+ggplot(C2, aes(long, lat, group = group, fill = WardLowUsePerc))+ 
+  geom_polygon(colour = alpha("black", 1/4), size = 0.2) + 
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = mean(C2$WardLowUsePerc, na.rm = TRUE))+
+    theme(plot.title = element_text(hjust = 0.5))+
+    theme(axis.title=element_blank(),
+        axis.text=element_blank(),
+        axis.ticks=element_blank())+ 
+  labs(title = "Low Use Homes in the County of Cornwall", 
+       fill="Percentage")     
+SaveFig("Cornwall.png")
 
 CornCor <- Cornwall %>% 
   #filter(Admin_ward_code !="E05009195") %>% 
-  summarise(x =cor(MedianPrice, WardLowUsePerc, use = 'complete.obs'))
+  summarise(x =cor(MedianPrice, WardLowUsePerc, use = 'complete.obs')) 
+
  
  Cornwall %>% ggplot(., aes(y=MedianPrice, x= WardLowUsePerc )) + geom_point() +
    labs(title = "Mean Price vs Low Use % by ward in Cornwall",
@@ -721,10 +755,11 @@ CornCor <- Cornwall %>%
     annotate("text", 
              label = paste0("Correlation =", signif(CornCor[1,1],2)), 
              x = 0.35 , y = 2.5e5, size = 5) +
-   geom_smooth(method = "lm", se = FALSE)
+   geom_smooth(method = "lm", se = FALSE)#+
+#   coord_cartesian(xlim=c(0,0.2), ylim= c(1e5, 3.5e+5))
+SaveFig("CornCor.png")
 
- #"Cornwall: Relationship between LowUse\n Percentage and Mean Price in Ward"
- 
+
 ```
 
 
@@ -760,6 +795,22 @@ CoastWave %>%
  CoastWave %>% ggplot(., aes(y=MeanPrice, x= WardLowUsePerc )) + geom_point() +
    labs(title = "Coastal and Waveny: Relationship between LowUse\n Percentage and Mean Price in Ward")+
   theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+
+
+#Hull
+```{r}
+
+test <-read_excel(file.path(RegionsComp, "Region Yorkshire and The Humber",
+                "KINGSTON UPON HULL%2c CITY OFDISCOUNTSLSOA.XLSX"))[-c(c(1:6)),1:4] %>%
+  CleanData(.)
+
+
+
+PlotMap(test,"Hull", variable = "WardLowUsePerc")
+
 
 ```
 

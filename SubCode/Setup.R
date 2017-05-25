@@ -28,4 +28,7 @@ Regions <- file.path(basewd, "Regions")
 RegionsComp <- file.path(basewd, "Regions-Complete")
 CommonCode <- file.path(basewd, "EmptyHomesCode", "SubCode")
 SemiLondon <- file.path(basewd, "semi-data-london")
+Figures <- file.path(basewd, "Figures")
 select <-dplyr::select
+
+
