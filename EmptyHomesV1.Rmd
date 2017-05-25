@@ -249,8 +249,27 @@ Barnetinfo <- read.xlsx( "3386297 Attachment BarnetDiscounts.xlsx"  , colNames =
 Newhaminfo <- read.xlsx( "NewhamExemptionsLSOA.XLSX"  , colNames = TRUE)[,1:4] %>%
   StructureData(2)
 
-test <- ls(pattern = "info") %>% map_df(~eval(parse(text=.x)))
+#City of London
 
+CoLinfo <- read_excel("City of LondonExemptionsLSOAApril2017.xlsx" )[,1:4] %>%
+  StructureData(c(2,3,4,13))
+
+#Southwark
+
+Southwarkinfo <- read_excel("Southwark discounts.xlsx")[1:4] %>%
+  StructureData(empty = -c(1,2,5))
+
+#Croydon
+CroydonInfo
+
+#All London With missing Boroughs
+PlotMap(Southwarkinfo, AG)
+
+ ls(pattern = "info") %>% map_df(~eval(parse(text=.x))) %>%
+  PlotMap(., filter(AG, RGN15NM=="London"), filtermap = FALSE)
+
+
+list.files()
 ```
 
 
