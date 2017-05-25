@@ -172,228 +172,84 @@ test2 %>% filter(Region.name == "London") %>% mutate(HighRatio = ratio>10) %>%
 
 setwd(file.path(RegionsComp, "Region London"))
 
-Lam2 <- read_excel("LambethExemptionsLSOA.xlsx")[,1:4] %>%  
+Lambethinfo <- read_excel("LambethExemptionsLSOA.xlsx")[,1:4] %>%  
     StructureData(., lowuse = c(2:5,24,25), empty =  c(4:5,24,25))
 
-Lambeth <- read_excel("LambethExemptionsLSOA.xlsx")[,1:4] %>%
-  setNames(make.names(names(.))) %>%
-  group_by(Exemption.type, LSOA_CODE) %>% 
-  summarise(Counts = n()) %>% 
-  spread(., Exemption.type, Counts, fill = 0) %>%
-    setNames(make.names(names(.))) %>%
-  mutate(LowUse = rowSums(.[,c(2:5, 24:25)]), Empty = LowUse - Empty.Class.A-Empty.Class.B) %>%
-   left_join(., EW2, by = c("LSOA_CODE" = "ECODE"))
+#Islington is exemptions only
 
-LAMDAT <- AG %>% filter(LAD11NM == "Lambeth") %>% 
-  left_join(., select(Lambeth, LSOA_CODE, LowUse, Empty), by = c("lsoa11cd" = "LSOA_CODE"))
-
-#Islington
-
-Islington <- read_csv("IslingtonExemptionsLSOA as at 2017 03 24.csv"  )[1:4] %>% setNames(make.names(names(.))) %>%
-  group_by(Exemption.type, LSOA_CODE) %>% 
-  summarise(Counts = n()) %>% 
-  spread(., Exemption.type, Counts, fill = 0) %>%
-    setNames(make.names(names(.))) %>%
-  mutate(LowUse = rowSums(.[,-c(1,12,13)]), Empty = LowUse ) %>%
-   left_join(., EW2, by = c("LSOA_CODE" = "ECODE"))
-
-ISL2 <- Islington %>% mutate(LowUsePerc = LowUse/Homes)
-
-ISLDAT <- AG %>% filter(LAD11NM == "Islington") %>% 
-  left_join(., select(Islington, LSOA_CODE, LowUse, Empty), by = c("lsoa11cd" = "LSOA_CODE"))
-
-
+Islingtoninfo <- read_csv("IslingtonExemptionsLSOA as at 2017 03 24.csv"  )[1:4]%>%  
+    StructureData(., lowuse = c(2:11,14:18))
 
 #Greenwhich
-list.files()
-wardnames %>% filter(grepl("city", LAD11NM)) 
 
-Greenwich <- read_excel( "Royal Borough Of Greenwich.xlsx")[1:4] %>% setNames(make.names(names(.))) %>%
-  group_by(Exemption.type, LSOA_CODE) %>% 
-  summarise(Counts = n()) %>% ungroup %>%
-  mutate(Exemption.type = trimws(Exemption.type))  %>%
-  spread(., Exemption.type, Counts, fill = 0) %>%
-    setNames(make.names(names(.))) %>%
-  mutate(LowUse = rowSums(.[,c(2,3,4,21,22)]), Empty = LowUse -  EMPTY.CLASS.B) %>%
-   left_join(., EW2, by = c("LSOA_CODE" = "ECODE"))
-
-Greenwhich2 <- Greenwich %>% mutate(LowUsePerc = signif(LowUse/Homes*100,3))
-  
-GREDAT <- AG %>% filter(grepl("Greenwich", LAD11NM)) %>% left_join(., select(Greenwich, Admin_ward_code, LowUse, Empty))
-
-
+Greenwichinfo <- read_excel( "Royal Borough Of Greenwich.xlsx")[1:4] %>%  
+    StructureData(., c(2,3,4,21,22), c(3,4,21,22))
 
 #Camden
 
-test <- read.xlsx("Camden Exemptions LSOA - 20891480.xlsx")[1:4]
-
-Camden <- read.xlsx("Camden Discounts LSOA - 20891480.xlsx" )[,1:4] %>%
-  group_by(Discount.type, LSOA_CODE) %>% 
-  summarise(Counts = n()) %>% 
-  spread(., Discount.type, Counts, fill = 0) %>% 
-  mutate(LowUse = rowSums(.[,-1]), Empty = LowUse - B) %>%
-   left_join(., EW2, by = c("LSOA_CODE" = "ECODE"))
-
-CAMDAT <- AG %>% filter(LAD11NM == "Camden") %>% 
-  left_join(., select(Camden, LSOA_CODE, LowUse, Empty), by = c("lsoa11cd" = "LSOA_CODE"))
+Camdeninfo <- read.xlsx("Camden Discounts LSOA - 20891480.xlsx" )[,1:4] %>%
+ StructureData()
 
 #Bromley
 
-Bromley <- read.xlsx("Copy of BromleyExemptionsLSOA.xlsx")[,1:4] %>%
-  setNames(make.names(names(.))) %>%
-  group_by(Exemption.type, LSOA_CODE) %>% 
-  summarise(Counts = n()) %>% 
-  spread(., Exemption.type, Counts, fill = 0) %>%
-    setNames(make.names(names(.))) %>%
-  mutate(LowUse = rowSums(.[,c(6:8,29:31)]), Empty=LowUse - Empty.Class.B) %>%
-   left_join(., EW2, by = c("LSOA_CODE" = "ECODE"))
-
-BRODAT <- AG %>% filter(LAD11NM == "Bromley") %>% 
-  left_join(., select(Bromley, LSOA_CODE, LowUse, Empty), by = c("lsoa11cd" = "LSOA_CODE"))
-
+Bromleyinfo <- read.xlsx("Copy of BromleyExemptionsLSOA.xlsx")[,c(1,4:6)] %>%
+  StructureData(c(6:8,29:31))
 
 #Haringey
 
-Haringey <- read.xlsx("Haringey_Exemptions_Discounts_LSOA.xlsx")[c(1,3,5)] %>%
-    setNames(make.names(names(.))) %>%
-  group_by(Exemption...Discount.type, LSOA_CODE) %>% 
-  summarise(Counts = n()) %>%
-  spread(., key = Exemption...Discount.type, 
-         value = Counts, fill = 0) %>%
-    setNames(make.names(names(.))) %>%
-  mutate(LowUse = rowSums(.[,21:25]), Empty=LowUse - PCLB0) %>%
-   left_join(., EW2, by = c("LSOA_CODE" = "ECODE"))
 
-HARDAT <- AG %>% filter(LAD11NM == "Haringey") %>% 
-  left_join(., select(Haringey, LSOA_CODE, LowUse, Empty), by = c("lsoa11cd" = "LSOA_CODE"))
+
+#Haringey is funney and has to be worked over a bit first
+Haringeyinfo <- read.xlsx("Haringey_Exemptions_Discounts_LSOA.xlsx")[c(1,3,5)] 
+
+Haringeyinfo <- data_frame(Discount = rep(Haringey$`Exemption./.Discount.type`, Haringey$Count.of.Exemptions.by.Post.Code),
+           LSOA = rep(Haringey$LSOA_CODE, Haringey$Count.of.Exemptions.by.Post.Code)) %>%
+  mutate( a= NA, b = NA) %>%
+  StructureData(21:25)
 
 
 #Sutton
 
-Sutton <- read_excel("SuttonExemptionsLSOADiscount.xlsx"  )[,1:6] %>%
-    setNames(make.names(names(.))) %>%
-  group_by(Exemption.type, LSOA_CODE) %>% 
-  summarise(Counts = n()) %>%
-  spread(., key = Exemption.type, 
-         value = Counts, fill = 0) %>%
-    setNames(make.names(names(.)))%>%
-  mutate(LowUse = rowSums(.[,-1]), Empty=LowUse - PCLB0) %>%
-   left_join(., EW2, by = c("LSOA_CODE" = "ECODE")) 
-
-SUTDAT <- AG %>% filter(LAD11NM == "Sutton") %>% 
-  left_join(., select(Sutton, LSOA_CODE, LowUse, Empty), by = c("lsoa11cd" = "LSOA_CODE"))
-
-
+Suttoninfo <- read_excel("SuttonExemptionsLSOADiscount.xlsx"  )[,c(1,4:6)] %>%
+  StructureData()
 
 #Richmond
-
-Richmond <- read_csv("Richmond_2.csv" )[1:4] %>% setNames(make.names(names(.))) %>%
-  rename(Exemption.type = Discount.type) %>%
-  mutate(Exemption.type = Exemption.type %>% trimws %>%
-           make.names %>% 
-           gsub("\\.{2,}" , ".", .)) %>%
-  group_by(Exemption.type, LSOA_CODE) %>% summarise(counts = n()) %>% 
-  spread(key= Exemption.type, value = counts, fill = 0) %>% 
-    setNames(make.names(trimws(names(.)))) %>%
-    mutate(LowUse = rowSums(.[,-1]), Empty = LowUse) %>%
-  left_join(., EW2, by = c("LSOA_CODE" = "ECODE")) %>% group_by(Admin_ward_code)  %>%
-  mutate(LowUsePerc = LowUse/Homes, WardLowUse = sum(LowUse) ,WardLowUsePerc = WardLowUse/WardHomes) %>% ungroup %>% left_join(., MeanWardPrice) %>% mutate(ValLow = LowUse*MeanPrice)
-
-
-RICDAT <- AG %>% filter(LAD11NM == "Richmond upon Thames") %>% 
-  left_join(., select(Richmond, LSOA_CODE, LowUse, Empty), by = c("lsoa11cd" = "LSOA_CODE"))
+Richmondinfo <- read_csv("Richmond_2.csv" )[1:4]%>%
+  StructureData()
 
 #Hillingdon
 
-Hillingdon <- read.xlsx("HillingdonDiscountsLSOA.XLSX" )[1:4] %>% mutate(Exemption.type = Exemption.type %>% trimws %>%
-           make.names %>% 
-           gsub("\\.{2,}" , ".", .)) %>%
-  group_by(Exemption.type, LSOA_CODE) %>% summarise(counts = n()) %>% 
-  spread(key= Exemption.type, value = counts, fill = 0) %>% 
-    setNames(make.names(trimws(names(.)))) %>%  
-  mutate(LowUse = rowSums(.[,-1]), Empty = LowUse- Class.B.Second.Home) %>%
-  left_join(., EW2, by = c("LSOA_CODE" = "ECODE")) %>% group_by(Admin_ward_code)  %>%
-  mutate(LowUsePerc = LowUse/Homes, WardLowUse = sum(LowUse) ,WardLowUsePerc = WardLowUse/WardHomes) %>% ungroup %>% left_join(., MeanWardPrice) %>% mutate(ValLow = LowUse*MeanPrice)
-
-HILDAT <- AG %>% filter(LAD11NM == "Hillingdon") %>% 
-  left_join(., select(Hillingdon, LSOA_CODE, LowUse, Empty), by = c("lsoa11cd" = "LSOA_CODE"))
-
+Hillingdoninfo <- read.xlsx("HillingdonDiscountsLSOA.XLSX" )[1:4]%>% 
+  StructureData()
 
 #Bexley
 
 Bexley <- read.xlsx( "Bexley Exemptions.xlsx" , colNames = FALSE) %>%
-  setNames(c("Exemption.type", "LSOA_CODE", "X3", "X4")) %>%
-  group_by(Exemption.type, LSOA_CODE) %>% summarise(counts = n()) %>% 
-  spread(key= Exemption.type, value = counts, fill = 0) %>% 
-    setNames(make.names(trimws(names(.)))) %>% 
-  mutate(LowUse = rowSums(.[,c(2,19,20)]), Empty = LowUse) %>%
-  left_join(., EW2, by = c("LSOA_CODE" = "ECODE")) %>% group_by(Admin_ward_code)  %>%
-  mutate(LowUsePerc = LowUse/Homes, WardLowUse = sum(LowUse) ,WardLowUsePerc = WardLowUse/WardHomes) %>% ungroup %>% left_join(., MeanWardPrice) %>% mutate(ValLow = LowUse*MeanPrice)
-  
-BEXDAT <- AG %>% filter(LAD11NM == "Bexley") %>% 
-  left_join(., select(Bexley, LSOA_CODE, LowUse, Empty), by = c("lsoa11cd" = "LSOA_CODE"))
-  
+StructureData
+
 #RBKC
 
-Chelsea <- read.xlsx( "Kensington and ChelseaDiscountsLSOA.xlsx" , colNames = TRUE) %>%
-  setNames(c("Exemption.type", "LSOA_CODE", "X3", "X4")) %>%
-  group_by(Exemption.type, LSOA_CODE) %>% summarise(counts = n()) %>% 
-  spread(key= Exemption.type, value = counts, fill = 0) %>% 
-    setNames(make.names(trimws(names(.)))) %>% 
-  mutate(LowUse = rowSums(.[,-1]), Empty = LowUse) %>%
-  left_join(., EW2, by = c("LSOA_CODE" = "ECODE")) %>% group_by(Admin_ward_code)  %>%
-  mutate(LowUsePerc = LowUse/Homes, WardLowUse = sum(LowUse) ,WardLowUsePerc = WardLowUse/WardHomes) %>% ungroup %>% left_join(., MeanWardPrice) %>% mutate(ValLow = LowUse*MeanPrice) 
+Chelseainfo <- read_excel( "Kensington and ChelseaDiscountsLSOA.xlsx" )[,1:4] %>%
+  StructureData()
 
-
-CHELDAT <-  AG %>% filter(grepl("Kensington", LAD11NM))%>% left_join(., select(Chelsea, Admin_ward_code, LowUse, Empty)) %>% 
-  filter(WD16NM!= "Kensal Green")
   
 #Barking
-Bark <- read.xlsx( "Barking and DagenhamExemptionsLSOA v3.xlsx" , colNames = FALSE) %>%
-  setNames(c("Exemption.type", "LSOA_CODE", "X3", "X4")) %>%
-  group_by(Exemption.type, LSOA_CODE) %>% summarise(counts = n()) %>% 
-  spread(key= Exemption.type, value = counts, fill = 0) %>% 
-    setNames(make.names(trimws(names(.)))) %>% 
-  mutate(LowUse = rowSums(.[,c(2,3,6,7)]), Empty = LowUse) %>%
-  left_join(., EW2, by = c("LSOA_CODE" = "ECODE")) %>% group_by(Admin_ward_code)  %>%
-  mutate(LowUsePerc = LowUse/Homes, WardLowUse = sum(LowUse) ,WardLowUsePerc = WardLowUse/WardHomes) %>% ungroup %>% left_join(., MeanWardPrice) %>% mutate(ValLow = LowUse*MeanPrice)
-  
-BARKDAT <- AG %>% filter(LAD11NM == "Barking and Dagenham") %>% 
-  left_join(., select(Bark, LSOA_CODE, LowUse, Empty), by = c("lsoa11cd" = "LSOA_CODE"))
-  
+Barkinginfo <- read.xlsx( "Barking and DagenhamExemptionsLSOA v3.xlsx" , colNames = FALSE)[,1:4] %>%
+  StructureData(c(2,3,6,7))
+
 
 #Barnet
 
-Barnet <- read.xlsx( "3386297 Attachment BarnetDiscounts.xlsx"  , colNames = TRUE) %>%
-  setNames(c("ExemAG %>% filter(grepl("Kensington", LAD11NM))%>% left_join(., select(Chelsea, Admin_ward_code, LowUse, Empty)) %>% 
-  filter(WD16NM!= "Kensal Green")AG %>% filter(grepl("Kensington", LAD11NM))%>% left_join(., select(Chelsea, Admin_ward_code, LowUse, Empty)) %>% 
-  filter(WD16NM!= "Kensal Green")AG %>% filter(grepl("Kensington", LAD11NM))%>% left_join(., select(Chelsea, Admin_ward_code, LowUse, Empty)) %>% 
-  filter(WD16NM!= "Kensal Green")ption.type", "LSOA_CODE", "X3", "X4")) %>%
-  group_by(Exemption.type, LSOA_CODE) %>% summarise(counts = n()) %>% 
-  spread(key= Exemption.type, value = counts, fill = 0) %>% 
-    setNames(make.names(trimws(names(.)))) %>% 
-  mutate(LowUse = rowSums(.[,c(2:8)]), Empty = LowUse) %>%
-  left_join(., EW2, by = c("LSOA_CODE" = "ECODE")) %>% group_by(Admin_ward_code)  %>%
-  mutate(LowUsePerc = LowUse/Homes, WardLowUse = sum(LowUse) ,WardLowUsePerc = WardLowUse/WardHomes) %>% ungroup %>% left_join(., MeanWardPrice) %>% mutate(ValLow = LowUse*MeanPrice)
+Barnetinfo <- read.xlsx( "3386297 Attachment BarnetDiscounts.xlsx"  , colNames = TRUE) %>%
+  StructureData(2:8)
 
-BARNDAT <- AG %>% filter(LAD11NM == "Barnet") %>% 
-  left_join(., select(Barnet, LSOA_CODE, LowUse, Empty), by = c("lsoa11cd" = "LSOA_CODE"))
-  
 
 #Newham
 
-Newham <- read.xlsx( "NewhamExemptionsLSOA.XLSX"  , colNames = TRUE) %>%
-  setNames(c("Exemption.type", "LSOA_CODE", "X3", "X4")) %>%
-  group_by(Exemption.type, LSOA_CODE) %>% summarise(counts = n()) %>% 
-  spread(key= Exemption.type, value = counts, fill = 0) %>% 
-    setNames(make.names(trimws(names(.)))) %>% 
-  mutate(LowUse = rowSums(.[,c(2)]), Empty = LowUse) %>%
-  left_join(., EW2, by = c("LSOA_CODE" = "ECODE")) %>% group_by(Admin_ward_code)  %>%
-  mutate(LowUsePerc = LowUse/Homes, WardLowUse = sum(LowUse) ,WardLowUsePerc = WardLowUse/WardHomes) %>% ungroup %>% left_join(., MeanWardPrice) %>% mutate(ValLow = LowUse*MeanPrice)
+Newhaminfo <- read.xlsx( "NewhamExemptionsLSOA.XLSX"  , colNames = TRUE)[,1:4] %>%
+  StructureData(2)
 
-BARNDAT <- AG %>% filter(LAD11NM == "Barnet") %>% 
-  left_join(., select(Barnet, LSOA_CODE, LowUse, Empty), by = c("lsoa11cd" = "LSOA_CODE"))
-  
+test <- ls(pattern = "info") %>% map_df(~eval(parse(text=.x)))
 
 ```
 
@@ -410,38 +266,6 @@ test <- wardnames %>% filter(grepl("Kensington", LAD11NM))
 
 test <- EW2 %>% filter(LAD11NM == "Wandsworth")
 
-
-# Chelsea
-# Chelwards <- wardnames %>% filter(grepl("Kensington", LAD11NM))
-# 
-# Chelsea <- read_excel("FOI2017-0143.xlsx" ) %>% setNames(make.names(names(.))) %>% slice(1:18) %>%
-#   mutate(Admin_ward_code = Chelwards$Admin_ward_code[c(1:10,12:17,19,18)]) %>% group_by(Ward) %>%
-#   mutate(Empty = sum(Empty..unfurnished, Empty..works, Job.related, Empty..50..premium, Moorings , na.rm = TRUE),
-#          LowUse = Empty + Second.Homes) %>% ungroup
-# 
-# Chelsea[is.na(Chelsea)] <-0
-# rm(Chelwards)
-# 
-# Chel2 <- Chelsea %>% left_join(., MeanWardPrice) %>% left_join(., EW2) %>%
-#   mutate(LowUsePerc = LowUse/WardHomes)
-# 
-# cor(Chel2$PrimePerc, Chel2$LowUsePerc)
-# cor(Chel2$MeanPrice, Chel2$LowUsePerc)
-# 
-# Chel2 %>%
-#   mutate(PrimePerc = PrimePerc*100, LowUsePerc = LowUsePerc*100) %>%
-#   ggplot(.,aes(x= PrimePerc, LowUsePerc)) +geom_point() +
-#   geom_smooth(method ="lm", se = FALSE) +
-#   labs(title = "Relationship between % of Prime Sales and % Low Use",
-#        x = "% of properties sold in 2016 over £1M by electoral ward",
-#        y = "% of properties either empty or second homes") +
-#   theme(plot.title = element_text(hjust = 0.5))  +
-#   coord_cartesian(xlim = c(15,78), expand = TRUE)
-# 
-# 
-# 
-# CHELDAT <-  AG %>% filter(grepl("Kensington", LAD11NM))%>% left_join(., select(Chelsea, Admin_ward_code, LowUse, Empty)) %>% 
-#   filter(WD16NM!= "Kensal Green")
 
 #Hackney has provided Census Wards I'm not sure how useable it is. 
 hackney <- read_csv("hackney.csv") %>% setNames(make.names(names(.))) %>% group_by(Exemption.Discount, Ward.Name) %>% summarise(counts = n()) %>% ungroup %>% spread(Exemption.Discount, counts, fill = 0) 
@@ -583,49 +407,12 @@ colour = alpha("darkred", 1/2), size = 0.2) + scale_colour_gradient2()
 
 #single borough
 
-SingleB <- AG %>% filter(grepl("Kensington", LAD11NM))%>% 
-  left_join(., select(Chelsea, Admin_ward_code, WardLowUse, WardLowUsePerc)) %>% 
-  filter(WD16NM!= "Kensal Green") %>%
-  mutate(WardLowUsePerc = WardLowUsePerc*100)
-
-ggplot(SingleB) + 
-  geom_polygon( aes(long, lat, group = group, fill = WardLowUsePerc), 
-colour = alpha("black", 1/4), size = 0.2) + 
-  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = mean(SingleB$WardLowUsePerc, na.rm = TRUE)) +
-  labs(title = "Kensington and Chealsea: Ward Level % Low Use", fill = "Percentage") +
-  theme(plot.title = element_text(hjust = 0.5)) +
-    theme(plot.title = element_text(hjust = 0.5))+
-    theme(axis.title=element_blank(),
-        axis.text=element_blank(),
-        axis.ticks=element_blank())
+PlotMap(Chelsea, "Chelsea")
 
 SaveFig("RBKCLowUse.png")
 
 ggplotly() #STFD!
-#Single borough detail
 
-Singlevis <- AG %>% filter(grepl("Kensington", LAD11NM)) %>% 
-  left_join(., select(Chelsea, LSOA_CODE, LowUse, Empty, Homes), by = c("lsoa11cd"="LSOA_CODE")) %>% 
-  ungroup %>%
-  filter(WD16NM!= "Kensal Green") %>%
-  mutate(LowUsePerc = round(LowUse/Homes.y*100), 
-         EmptyPerc = round(Empty/Homes.y*100),
-         EmptyPercRank = percent_rank(Empty/Homes.y))
-
-ggplot(Singlevis, aes(long, lat, group = group, fill = LowUsePerc))+ 
-  geom_polygon(colour = alpha("black", 1/2), size = 0.2) + 
-  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = mean(Singlevis$LowUsePerc))+
-  theme(plot.title = element_text(hjust = 0.5))+
-    theme(axis.title=element_blank(),
-        axis.text=element_blank(),
-        axis.ticks=element_blank())+ 
-  ggtitle("Kensington and Chelsea Low use") 
-
-
-
-Bourough2 <- Chelsea %>% ungroup %>% mutate(LowUsePerc = LowUse/Homes, 
-         EmptyPerc = Empty/Homes,
-         EmptyPercRank = percent_rank(Empty/Homes))
 
 ```
 
@@ -776,7 +563,7 @@ test <-read_excel(file.path(RegionsComp, "Region Yorkshire and The Humber",
 
 
 
-PlotMap(test,"Hull", variable = "WardLowUsePerc")
+PlotMap(test, AG, variable = "WardLowUsePerc")
 
 
 ```
