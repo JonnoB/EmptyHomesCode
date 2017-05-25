@@ -10,23 +10,23 @@ StructureData <- function(df, lowuse = NULL, empty = NULL, full = TRUE ){
     if(is.null(lowuse)){
       lowuse <- -1
     } else {
-      lowuse <- paste0(lowuse)
+      lowuse <- lowuse
     }
     
     if(is.null(empty)){
       empty <-  lowuse
     } else {
-      empty <- paste0(empty)
+      empty <- empty
     }
     
-    df<- df %>%
+    df <- df %>%
       setNames(c("Exemption.type", "LSOA_CODE", "X3", "X4")) %>%
       group_by(Exemption.type, LSOA_CODE) %>% summarise(counts = n()) %>% 
       spread(key= Exemption.type, value = counts, fill = 0) %>% 
       setNames(make.names(trimws(names(.))))
     
     if(full){
-      df<- df%>%
+      df <- df%>%
         mutate(LowUse = rowSums(.[,lowuse]), 
                Empty = rowSums(.[,empty])) %>%
         left_join(., EW2, by = c("LSOA_CODE" = "ECODE")) %>% 
