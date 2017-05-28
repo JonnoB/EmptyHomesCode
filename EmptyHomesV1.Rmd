@@ -176,7 +176,7 @@ Lambethinfo <- read_excel("LambethExemptionsLSOA.xlsx")[,1:4] %>%
     StructureData(., lowuse = c(2:5,24,25), empty =  c(4:5,24,25))
 
 
-test <- Lambethinfo %>% select(LowUse, WardLowUse, LowuseClass, WardLowuseClass)
+test <- Lambethinfo %>% select(LowUsePerc, WardLowUsePerc, LowuseClass, WardLowuseClass)
 
 #Islington is exemptions only
 
@@ -227,7 +227,7 @@ Hillingdoninfo <- read.xlsx("HillingdonDiscountsLSOA.XLSX" )[1:4]%>%
 
 #Bexley
 
-Bexley <- read.xlsx( "Bexley Exemptions.xlsx" , colNames = FALSE) %>%
+Bexleyinfo <- read.xlsx( "Bexley Exemptions.xlsx" , colNames = FALSE) %>%
 StructureData
 
 #RBKC
@@ -266,17 +266,23 @@ Southwarkinfo <- read_excel("Southwark discounts.xlsx")[1:4] %>%
 CroydonInfo
 
 #All London With missing Boroughs
-PlotMap(Southwarkinfo, AG)
+PlotMap(Lambethinfo, AG)
 
  ls(pattern = "info") %>% map_df(~eval(parse(text=.x))) %>%
   PlotMap(., filter(AG, RGN15NM=="London"), filtermap = FALSE)
+SaveFig("LondonCont.png")
+ 
+ ls(pattern = "info") %>% map_df(~eval(parse(text=.x))) %>%
+  PlotMap(., filter(AG, RGN15NM=="London"), variable = "LowuseClass", filtermap = FALSE)
+SaveFig("LondonDisc.png")
 
-
-list.files()
 ```
 
 
 #Semi data 
+
+The LSOA will be assigned empty and low use homes by percentage
+
 ```{r}
 #ward folder
 setwd(SemiLondon)
@@ -294,89 +300,57 @@ hackney <- read_csv("hackney.csv") %>% setNames(make.names(names(.))) %>% group_
 
 
 #Hammersmith 
-Hammersmith <- read_excel("Hammersmith.xls", skip = 1 ) %>% filter(!is.na(Ward) ) %>% 
+Hammersmithinfo <- read_excel("Hammersmith.xls", skip = 1 ) %>% filter(!is.na(Ward) ) %>% 
   bind_cols(., filter(wardnames,LAD11NM == "Hammersmith and Fulham")) %>% select(-Ward) %>%
-  mutate(LowUse = `Second (B)` + `Empty Unocc`+ LTE + Premium, Empty = LowUse - `Second (B)`)
-  
-Hammersmith2 <- EW2 %>% filter(LAD11NM == "Hammersmith and Fulham") %>% left_join(., select(Hammersmith, Admin_ward_code, LowUse, Empty))
-
-HAMDAT <- AG %>% filter(LAD11NM == "Hammersmith and Fulham")%>% left_join(., select(Hammersmith, Admin_ward_code, LowUse, Empty))
+  mutate(LowUse = `Second (B)` + `Empty Unocc`+ LTE + Premium, Empty = LowUse - `Second (B)`) %>%
+  SemiDataStructure
 
 
 #Wandsworth
 
-wardnames %>% filter(LAD11NM == "Wandsworth")
-
-Wandsworth <- read_excel("wandsworth2.xlsx",  skip = 3 ) %>% select(1,3) %>% 
+Wandsworthinfo <- read_excel("wandsworth2.xlsx",  skip = 3 ) %>% select(1,3) %>% 
   group_by(`Ptc Wardname`) %>% summarise(Empty = sum(`Count Current Occupancy Discounts`)) %>% ungroup %>% 
   arrange(`Ptc Wardname`) %>% 
   filter(!is.na(`Ptc Wardname`)) %>% 
   bind_cols(., wardnames %>% filter(LAD11NM == "Wandsworth") %>% 
               select(Admin_ward_code)) %>%
-  mutate(LowUse = Empty)
-
-Wandsworth2 <- EW2 %>% filter(LAD11NM == "Wandsworth") %>% left_join(., select(Wandsworth, Admin_ward_code, Empty))
-WANDAT <- AG %>% filter(LAD11NM == "Wandsworth")%>% left_join(., select(Wandsworth, Admin_ward_code, LowUse, Empty))
+  mutate(LowUse = Empty) %>%
+  SemiDataStructure
 
 
 #Merton
-wardnames %>% filter(LAD11NM == "Merton")
-Merton <- read_excel("merton1.xlsx" )[,-2] %>%setNames(make.names(names(.))) %>% slice(-1) %>% arrange(X__1) %>%
+
+Mertoninfo <- read_excel("merton1.xlsx" )[,-2] %>%setNames(make.names(names(.))) %>% slice(-1) %>% arrange(X__1) %>%
   filter(X__1 != "Norbury", X__1!="Nightingale", X__1 !="Stonecot") %>% 
     bind_cols(., wardnames %>% filter(LAD11NM == "Merton") %>% 
               select(Admin_ward_code)) %>%
-  mutate(Empty =   Disc.Class.C.Vacant.dwelling + Disc.class.C.Long.term.empty + Premium.Levy, LowUse =  Disc.Class.A.Second.home + Disc.Class.B.second.home )
-
-MERDAT <- AG %>% filter(LAD11NM == "Merton")%>% left_join(., select(Merton, Admin_ward_code, LowUse, Empty))
-
-
-#Southwark
-
-test <- wardnames %>% filter(LAD11NM == "Southwark")
-
-Southwark <- read_excel("southwark.xlsx" , skip = 1) %>% setNames(make.names(names(.))) %>% 
-  filter(Ward.codes != "TOTALS") %>% select(-Ward.codes) %>%
-  mutate(WARDS= na.locf(WARDS)) %>% group_by(WARDS) %>%
-  summarise_all(sum, na.rm = TRUE) %>% ungroup %>%
-  arrange(WARDS) %>%
-    bind_cols(., wardnames %>% filter(LAD11NM == "Southwark") %>% 
-              select(Admin_ward_code)) %>%
-  mutate(Empty =   Unoccupied.and.furnished.lets....0. + Job.related.dwelling...50..discount + Second.Home...unoccupied.and.furnished...0.+Empty.and.unfurnished...0. + Levy.on.long.term.empty...50..Premium + Uninhabitable.Works.required....0., LowUse =  Empty )
-
-Wandsworth2 <- EW2 %>% filter(LAD11NM == "Southwark") %>% left_join(., select(Southwark, Admin_ward_code, Empty))
-
-SOUDAT <- AG %>% filter(LAD11NM == "Southwark")%>% left_join(., select(Southwark, Admin_ward_code, LowUse, Empty))
+  mutate(Empty =   Disc.Class.C.Vacant.dwelling + Disc.class.C.Long.term.empty + Premium.Levy, LowUse =  Disc.Class.A.Second.home + Disc.Class.B.second.home ) %>%
+  SemiDataStructure
 
 #Harrow
 
 test <- read_excel("HarrowCTBandsLSOA. 3118795.xlsx"  )[1:4]%>% setNames(make.names(names(.))) 
 
 #Kingston
-test <- wardnames %>% filter(grepl("Kingston upon Thames", LAD11NM))
 
-Kingston <- read_excel("Kingston1.xlsx"  )%>% setNames(make.names(names(.))) %>%
+Kingstoninfo <- read_excel("Kingston1.xlsx"  )%>% setNames(make.names(names(.))) %>%
   arrange(X__1) %>% slice(1:16) %>%
   bind_cols(., wardnames %>% filter(LAD11NM == "Kingston upon Thames") %>% 
               select(Admin_ward_code)) %>%
-  mutate(Empty = Empty...Furnished..0.. + Empty.Homes.Premium + LONG.TERM.EMPTY..0.. + Structural.Repair..0.., LowUse = Empty + X2nd.Home..0..)
-
-KINDAT <- AG %>% filter(LAD11NM == "Kingston upon Thames")%>% left_join(., select(Kingston, Admin_ward_code, LowUse, Empty))
+  mutate(Empty = Empty...Furnished..0.. + Empty.Homes.Premium + LONG.TERM.EMPTY..0.. + Structural.Repair..0.., LowUse = Empty + X2nd.Home..0..) %>%
+  SemiDataStructure
 
 
 #TowerHamlets
-test <- wardnames %>% filter(grepl("Tower", LAD11NM))
-
-Tower <- read_excel("Towerhamlets.xlsx")[,c(1,3)] %>% 
+Towerinfo <- read_excel("Towerhamlets.xlsx")[,c(1,3)] %>% 
   filter(!is.na(DiscClass)) %>%
   group_by(Ward, DiscClass) %>%
   summarise(count = n()) %>% ungroup %>%
   spread(., key =DiscClass, value = count, fill = 0 ) %>% 
   mutate(Empty = rowSums(.[,4:8]), LowUse = B+BE+Empty) %>% 
   slice(c(1:13, 15:17, 14, 18:20)) %>%
-   bind_cols(., wardnames %>% filter(grepl("Tower", LAD11NM)))
-  
-TOWDAT <- AG %>% filter(grepl("Tower", LAD11NM)) %>% left_join(., select(Tower, Admin_ward_code, LowUse, Empty))
-
+   bind_cols(., wardnames %>% filter(grepl("Tower", LAD11NM))) %>%
+  SemiDataStructure
 
 #Havering Is census wards not electoral ones
 # test <- wardnames %>% filter(grepl("Havering", LAD11NM))
@@ -391,53 +365,48 @@ TOWDAT <- AG %>% filter(grepl("Tower", LAD11NM)) %>% left_join(., select(Tower, 
 
 Plot Map
 ```{r}
-AG2 <- bind_rows(CHELDAT,HAMDAT, WANDAT, LAMDAT, MERDAT, 
-                 SOUDAT, KINDAT, TOWDAT, GREDAT, CAMDAT, 
-                 BRODAT, HARDAT, RICDAT, HILDAT, BEXDAT,
-                 SUTDAT, ISLDAT, BARKDAT, BARNDAT) %>% 
-  mutate(LowUsePerc = LowUse/WardHomes*100, 
-         EmptyPerc = Empty/WardHomes*100,
-         EmptyPercRank = percent_rank(Empty/WardHomes))
 
-ggplot()+ geom_polygon(data=AG2, aes(long, lat, group = group, fill = EmptyPerc), 
-colour = alpha("darkred", 1/2), size = 0.1) + scale_colour_gradient2() +
-  labs(title = "Current London Data") +
-  theme(plot.title = element_text(hjust = 0.5))+
-  theme(axis.title=element_blank(),
-        axis.text=element_blank(),
-        axis.ticks=element_blank())
-
-SaveFig("London.png")
-
-AG2 %>% 
-  ggplot(.)+ geom_polygon( aes(long, lat, group = group, fill =sqrt(EmptyPerc)), 
-colour = alpha("darkred", 1/2), size = 0.2) + scale_colour_gradient2() 
-
-AG2 %>% 
-  ggplot(.)+ geom_polygon( aes(long, lat, group = group, fill =EmptyPercRank), 
-colour = alpha("darkred", 1/2), size = 0.2) + scale_colour_gradient2() +
-  labs(title = "Current London Data Coloured by Percent Rank") +
-  theme(plot.title = element_text(hjust = 0.5))+
-  theme(axis.title=element_blank(),
-        axis.text=element_blank(),
-        axis.ticks=element_blank())
-
-SaveFig("LondonPerc.png")
-
-ggplot()+ geom_polygon(data=AG2, aes(long, lat, group = group, fill = LowUse/WardHomes), 
-colour = alpha("darkred", 1/2), size = 0.2) + scale_colour_gradient2() 
+ ls(pattern = "info") %>% map_df(~eval(parse(text=.x))) %>%
+  PlotMap(., filter(AG, RGN15NM=="London"), 
+          filtermap = FALSE,
+          title = "Map of London with all current data")
+SaveFig("LondonCont.png")
+ 
+ ls(pattern = "info") %>% map_df(~eval(parse(text=.x))) %>%
+  PlotMap(., filter(AG, RGN15NM=="London"), variable = "LowuseClass", 
+          filtermap = FALSE, 
+          title = "Map of London by low-use class")
+SaveFig("LondonDisc.png")
 
 #single borough
 
-PlotMap(Chelsea, "Chelsea")
-
+PlotMap(Chelseainfo, AG, title = "Low-use homes in Kensington and Chelsea")
 SaveFig("RBKCLowUse.png")
+
+PlotMap(CoLinfo, AG, title = "Low-use homes in the city of London")
+SaveFig("CoLLowUse.png")
+
+PlotMap(Lambethinfo, AG, title = "Low-use homes in Lambeth")
+SaveFig("LamLowUse.png")
 
 ggplotly() #STFD!
 
+ChelseaCor <- Chelseainfo %>% 
+  summarise(x =cor(MedianPrice, WardLowUsePerc, use = 'complete.obs')) 
+
+ Chelseainfo %>% ggplot(., aes(y=MedianPrice, x= WardLowUsePerc )) + geom_point() +
+   labs(title = "Median Price vs Low Use % by ward in RBKC",
+        x = "Low Use Percentage by Ward", 
+        y = "Median Price") +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+    annotate("text", 
+             label = paste0("Correlation = ", 
+             signif(ChelseaCor[1,1],2)), 
+             x = 5 , y = 3.5e5, size = 5) +
+   geom_smooth(method = "lm", se = FALSE)
+SaveFig("ChelseaCor.png")
 
 ```
-
 
 #Proper data Barrow
 
@@ -491,32 +460,16 @@ colour = alpha("darkred", 1/2), size = 0.2) + scale_colour_gradient2() +
 
 setwd(file.path(RegionsComp, "Region South West"))
 
-list.files()
-
 Cornwall <- read_excel("Cornwall.xlsx", sheet=1)%>% setNames(make.names(names(.))) %>% .[,1:4] %>%
-  group_by(Exemption.type, LSOA_CODE) %>% summarise(counts = n()) %>% 
-  spread(key= Exemption.type, value = counts, fill = 0) %>% 
-  mutate(LowUse = rowSums(.[,c(FALSE,!grepl("exempt",(names(.)[-1])))])) %>%
-  left_join(., EW2, by = c("LSOA_CODE" = "ECODE")) %>% group_by(Admin_ward_code)  %>%
-  mutate(LowUsePerc = LowUse/Homes, WardLowUse = sum(LowUse) ,WardLowUsePerc = WardLowUse/WardHomes) %>% ungroup
+  StructureData(lowuse = c(2,23:28))
 
-Cornwall <- Cornwall %>% left_join(., MeanWardPrice) %>% mutate(ValLow = LowUse*MeanPrice)
-
-C2 <- Cornwall %>% 
-  mutate(LowUsePerc = LowUsePerc*100,
-         WardLowUsePerc = WardLowUsePerc*100) %>% 
-  left_join(., AG, by = c("LSOA_CODE" = "lsoa11cd"))
-
-ggplot(C2, aes(long, lat, group = group, fill = WardLowUsePerc))+ 
-  geom_polygon(colour = alpha("black", 1/4), size = 0.2) + 
-  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = mean(C2$WardLowUsePerc, na.rm = TRUE))+
-    theme(plot.title = element_text(hjust = 0.5))+
-    theme(axis.title=element_blank(),
-        axis.text=element_blank(),
-        axis.ticks=element_blank())+ 
-  labs(title = "Low Use Homes in the County of Cornwall", 
-       fill="Percentage")     
+PlotMap(Cornwall, AG, title = "Lowuse in Cornwall")
 SaveFig("Cornwall.png")
+
+read_excel("Cornwall.xlsx", sheet=1)%>% setNames(make.names(names(.))) %>% .[,1:4] %>%
+  StructureData(lowuse = c(2,7:16, 21:28) ) %>%
+  PlotMap(., AG,title = "all empties")
+
 
 CornCor <- Cornwall %>% 
   #filter(Admin_ward_code !="E05009195") %>% 
@@ -529,10 +482,9 @@ CornCor <- Cornwall %>%
         y = "Mean Price") +
   theme(plot.title = element_text(hjust = 0.5)) + 
     annotate("text", 
-             label = paste0("Correlation =", signif(CornCor[1,1],2)), 
-             x = 0.35 , y = 2.5e5, size = 5) +
-   geom_smooth(method = "lm", se = FALSE)#+
-#   coord_cartesian(xlim=c(0,0.2), ylim= c(1e5, 3.5e+5))
+             label = paste0("Correlation = ", signif(CornCor[1,1],2)), 
+             x = 5 , y = 3.5e5, size = 5) +
+   geom_smooth(method = "lm", se = FALSE)
 SaveFig("CornCor.png")
 
 
@@ -581,7 +533,7 @@ CoastWave %>%
 
 test <-read_excel(file.path(RegionsComp, "Region Yorkshire and The Humber",
                 "KINGSTON UPON HULL%2c CITY OFDISCOUNTSLSOA.XLSX"))[-c(c(1:6)),1:4] %>%
-  CleanData(.)
+  StructureData(.)
 
 
 
