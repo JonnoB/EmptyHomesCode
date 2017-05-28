@@ -36,10 +36,13 @@ StructureData <- function(df, lowuse = NULL, empty = NULL, full = TRUE ){
                WardLowUsePerc = round(WardLowUse/sum(Homes)*100)) %>% 
         ungroup %>% 
         left_join(., MeanWardPrice, by = "Admin_ward_code") %>% 
-        mutate(ValLow = LowUse*MeanPrice) 
+        mutate(ValLow = LowUse*MeanPrice,
+               LowuseClass = cut(LowUsePerc, c(-1,10,20, 30,100), 
+                                 labels =  c("0-10","11-20","21-30", "30+")),
+               WardLowuseClass = cut(WardLowUsePerc, c(0,10,20, 30, 100), 
+                                     labels = c("0-10","11-20","21-30", "30+")) ) 
     }
     return(df)
   }
   
   
-

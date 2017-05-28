@@ -175,6 +175,9 @@ setwd(file.path(RegionsComp, "Region London"))
 Lambethinfo <- read_excel("LambethExemptionsLSOA.xlsx")[,1:4] %>%  
     StructureData(., lowuse = c(2:5,24,25), empty =  c(4:5,24,25))
 
+
+test <- Lambethinfo %>% select(LowUse, WardLowUse, LowuseClass, WardLowuseClass)
+
 #Islington is exemptions only
 
 Islingtoninfo <- read_csv("IslingtonExemptionsLSOA as at 2017 03 24.csv"  )[1:4]%>%  
