@@ -31,7 +31,7 @@ PlotMap <- function(df, ShapeData, variable = "LowUsePerc", title = "Map of Regi
       geom_polygon(colour = alpha("black", 1/2), size = 0.2) + 
       #scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = value) +
       scale_fill_gradientn(
-        limits = c(0,40),
+        #limits = c(0,55),
         colours = c("blue", "white", "red"), 
         values = c(0,.2,.4,1)
         ) +

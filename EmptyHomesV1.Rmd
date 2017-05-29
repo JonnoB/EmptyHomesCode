@@ -202,7 +202,7 @@ Bromleyinfo <- read.xlsx("Copy of BromleyExemptionsLSOA.xlsx")[,c(1,4:6)] %>%
 
 
 
-#Haringey is funney and has to be worked over a bit first
+#Haringey is funny and has to be worked over a bit first
 Haringeyinfo <- read.xlsx("Haringey_Exemptions_Discounts_LSOA.xlsx")[c(1,3,5)] 
 
 Haringeyinfo <- data_frame(Discount = rep(Haringey$`Exemption./.Discount.type`, Haringey$Count.of.Exemptions.by.Post.Code),
@@ -380,6 +380,11 @@ SaveFig("LondonDisc.png")
 
 #single borough
 
+PlotMap(Lambethinfo, AG, title = "Low-use homes in Kensington and Chelsea")
+
+Chelseainfo %>% mutate(Value = ValLow/1e6) %>%
+  PlotMap(., AG, variable = "Value", title = "Low-use homes in Kensington and Chelsea")
+
 PlotMap(Chelseainfo, AG, title = "Low-use homes in Kensington and Chelsea")
 SaveFig("RBKCLowUse.png")
 
@@ -391,20 +396,12 @@ SaveFig("LamLowUse.png")
 
 ggplotly() #STFD!
 
-ChelseaCor <- Chelseainfo %>% 
-  summarise(x =cor(MedianPrice, WardLowUsePerc, use = 'complete.obs')) 
-
- Chelseainfo %>% ggplot(., aes(y=MedianPrice, x= WardLowUsePerc )) + geom_point() +
-   labs(title = "Median Price vs Low Use % by ward in RBKC",
-        x = "Low Use Percentage by Ward", 
-        y = "Median Price") +
-  theme(plot.title = element_text(hjust = 0.5)) + 
-    annotate("text", 
-             label = paste0("Correlation = ", 
-             signif(ChelseaCor[1,1],2)), 
-             x = 5 , y = 3.5e5, size = 5) +
-   geom_smooth(method = "lm", se = FALSE)
+corplotter(Chelseainfo, "MedianPrice", "WardLowUsePerc", "Median Price vs Low Use % by ward in RBKC",
+           "Low Use Percentage by Ward",
+           "Median Price")
 SaveFig("ChelseaCor.png")
+
+
 
 ```
 
@@ -471,20 +468,10 @@ read_excel("Cornwall.xlsx", sheet=1)%>% setNames(make.names(names(.))) %>% .[,1:
   PlotMap(., AG,title = "all empties")
 
 
-CornCor <- Cornwall %>% 
-  #filter(Admin_ward_code !="E05009195") %>% 
-  summarise(x =cor(MedianPrice, WardLowUsePerc, use = 'complete.obs')) 
-
- 
- Cornwall %>% ggplot(., aes(y=MedianPrice, x= WardLowUsePerc )) + geom_point() +
-   labs(title = "Mean Price vs Low Use % by ward in Cornwall",
-        x = "Low Use Percentage by Ward", 
-        y = "Mean Price") +
-  theme(plot.title = element_text(hjust = 0.5)) + 
-    annotate("text", 
-             label = paste0("Correlation = ", signif(CornCor[1,1],2)), 
-             x = 5 , y = 3.5e5, size = 5) +
-   geom_smooth(method = "lm", se = FALSE)
+corplotter(Cornwall, "MedianPrice", "WardLowUsePerc", 
+           "Median Price vs Low Use % by ward in Cornwall",
+           "Low Use Percentage by Ward",
+           "Median Price")
 SaveFig("CornCor.png")
 
 
@@ -531,14 +518,15 @@ CoastWave %>%
 #Hull
 ```{r}
 
-test <-read_excel(file.path(RegionsComp, "Region Yorkshire and The Humber",
+Hull <-read_excel(file.path(RegionsComp, "Region Yorkshire and The Humber",
                 "KINGSTON UPON HULL%2c CITY OFDISCOUNTSLSOA.XLSX"))[-c(c(1:6)),1:4] %>%
   StructureData(.)
 
+PlotMap(Hull, AG, variable = "WardLowUsePerc")
 
-
-PlotMap(test, AG, variable = "WardLowUsePerc")
-
-
+corplotter(Hull, "MedianPrice", "WardLowUsePerc", 
+           "Median Price vs Low Use % by ward in Hull",
+           "Low Use Percentage by Ward",
+           "Median Price")
 ```
 
