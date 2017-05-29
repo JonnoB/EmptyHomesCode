@@ -151,14 +151,14 @@ IncomeEst <- read_excel("1smallareaincomeestimatesdataupdate.xls", sheet = 4, sk
 test2 <- prices %>% left_join(., select(EW2, ECODE, MSOA11CD), 
                               by =c("lsoa11cd"="ECODE")) %>%
   group_by(MSOA11CD) %>%
-  summarise(MeanPrice = mean(X2), counts = n()) %>%
+  summarise(MedianPrice = median(X2), counts = n()) %>%
   left_join(., IncomeEst, by=c("MSOA11CD"= "MSOA.code")) %>%
-  mutate(Yearly.income= 52 * Total.weekly.income, ratio = MeanPrice/Yearly.income)
+  mutate(Yearly.income= 52 * Total.weekly.income, ratio = MedianPrice/Yearly.income)
 
 test2 %>% ggplot(.,aes(x=ratio)) +geom_density()
 
 sum(test2$ratio>6)/nrow(test2)  #about 50% EW
-test2 %>% filter(Region.name == "London") %>% mutate(HighRatio = ratio>10) %>%
+test2 %>% filter(Region.name == "London") %>% mutate(HighRatio = ratio>6) %>%
   summarise(total = sum(HighRatio)/n())
 
 
@@ -268,13 +268,16 @@ CroydonInfo
 #All London With missing Boroughs
 PlotMap(Lambethinfo, AG)
 
- ls(pattern = "info") %>% map_df(~eval(parse(text=.x))) %>%
-  PlotMap(., filter(AG, RGN15NM=="London"), filtermap = FALSE)
-SaveFig("LondonCont.png")
- 
- ls(pattern = "info") %>% map_df(~eval(parse(text=.x))) %>%
-  PlotMap(., filter(AG, RGN15NM=="London"), variable = "LowuseClass", filtermap = FALSE)
-SaveFig("LondonDisc.png")
+
+```
+
+#Chelsea sums
+```{r}
+
+sum(Chelseainfo$MeanPrice*Chelseainfo$counts)/sum(Chelseainfo$counts)
+
+prices %>% filter(X14== "GREATER LONDON") %>% summarise(mean = mean(X2))
+
 
 ```
 
@@ -380,12 +383,21 @@ SaveFig("LondonDisc.png")
 
 #single borough
 
-PlotMap(Lambethinfo, AG, title = "Low-use homes in Kensington and Chelsea")
 
 Chelseainfo %>% mutate(Value = ValLow/1e6) %>%
+    filter(LAD11NM == "Kensington and Chelsea") %>%
   PlotMap(., AG, variable = "Value", title = "Low-use homes in Kensington and Chelsea")
 
-PlotMap(Chelseainfo, AG, title = "Low-use homes in Kensington and Chelsea")
+Chelseainfo %>% 
+  filter(LAD11NM == "Kensington and Chelsea") %>%
+  group_by(Admin_ward_code) %>%
+  mutate(Value = sum(ValLow)/1e6) %>%
+  PlotMap(., AG, variable = "Value", title = "Low-use homes in Kensington and Chelsea")
+SaveFig("RBKCvalue.png")
+
+Chelseainfo %>% mutate(Value = ValLow/1e6) %>%
+    filter(LAD11NM == "Kensington and Chelsea") %>%
+PlotMap(., AG, title = "Low-use homes in Kensington and Chelsea")
 SaveFig("RBKCLowUse.png")
 
 PlotMap(CoLinfo, AG, title = "Low-use homes in the city of London")

@@ -1,0 +1,123 @@
+---
+title: "Untitled"
+author: "Jonathan Bourne"
+date: "29 May 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+
+setwd("/home/jonno")
+list.files()
+
+states <- geojsonio::geojson_read("us-states.geojson" , what = "sp")
+class(states)
+
+
+m <- leaflet(states) %>%
+  setView(-96, 37.8, 4) %>%
+  addProviderTiles("MapBox", options = providerTileOptions(
+    id = "mapbox.light",
+    accessToken = Sys.getenv('MAPBOX_ACCESS_TOKEN')))
+
+```
+
+
+```{r}
+MyData <- AG %>% filter(grepl("kensington", LAD11NM ,ignore.case = T)) %>%
+  mutate(group = lsoa11cd)
+
+MyData <- SpatialPointsDataFrame(coords =MyData[,c(1,2)], data = MyData,
+                               proj4string = CRS("+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +datum=OSGB36 +units=m +no_defs +ellps=airy +towgs84=446.448,-125.157,542.060,0.1502,0.2470,0.8421,-20.4894"))
+
+#random thing
+stuff <-data.frame(lsoa11cd=unique(MyData$lsoa11cd),row.names=unique(MyData$id))
+
+MyData<- points2polygons(MyData,stuff)
+
+
+plot(spDF,col=spDF$box_id+1)
+
+class(MyData) # data.frame
+
+
+m <- leaflet(MyData) %>%
+  #setView(-96, 37.8, 4) %>%
+  addTiles()
+  
+  addProviderTiles("MapBox", options = providerTileOptions(
+    id = "mapbox.light",
+    accessToken = Sys.getenv('MAPBOX_ACCESS_TOKEN')))
+
+m %>% addPolygons()
+
+```
+
+```{r}
+# this code just creates a sample SpatialPointsDataFrame 
+x <- c(-10,-10,10,10,-10)
+y <- c(-10,10,10,-10,-10)
+df.1 <- data.frame(x,y,id=47, order=1:5,hole=F,piece=1,group=47.1,box_id=1)
+coordinates(df.1)=c("x","y")
+x <- c(+15+3*cos(2*pi/5*(0:5)))
+y <- c(-15+3*sin(2*pi/5*(0:5)))
+df.2 <- data.frame(x,y,id=48, order=1:6,hole=F,piece=1,group=48.1,box_id=2)
+coordinates(df.2)=c("x","y")
+x <- c(-15+2*cos(2*pi/8*(0:8)))
+y <- c(+15+2*sin(2*pi/8*(0:8)))
+df.3.1 <- data.frame(x,y,id=20, order=1:9,hole=F,piece=1,group=20.1,box_id=3)
+coordinates(df.3.1)=c("x","y")
+x <- c(0+2*cos(2*pi/8*(0:8)))
+y <- c(+15+2*sin(2*pi/8*(0:8)))
+df.3.2 <- data.frame(x,y,id=20, order=1:9,hole=F,piece=1,group=20.2,box_id=3)
+coordinates(df.3.2)=c("x","y")
+x <- c(+15+2*cos(2*pi/8*(0:8)))
+y <- c(+15+2*sin(2*pi/8*(0:8)))
+df.3.3 <- data.frame(x,y,id=20, order=1:9,hole=F,piece=1,group=20.3,box_id=3)
+coordinates(df.3.3)=c("x","y")
+df <- rbind(df.1,df.2,df.3.1,df.3.2,df.3.3)
+df
+#              coordinates id order  hole piece group box_id
+# 1             (-10, -10) 47     1 FALSE     1  47.1      1
+# 2              (-10, 10) 47     2 FALSE     1  47.1      1
+# 3               (10, 10) 47     3 FALSE     1  47.1      1
+# 4              (10, -10) 47     4 FALSE     1  47.1      1
+# 5             (-10, -10) 47     5 FALSE     1  47.1      1
+# 6              (18, -15) 48     1 FALSE     1  48.1      2
+# 7  (15.92705, -12.14683) 48     2 FALSE     1  48.1      2
+# 8  (12.57295, -13.23664) 48     3 FALSE     1  48.1      2
+# ...
+data <- data.frame(box_id=unique(df$box_id),row.names=unique(df$id))
+```
+
+
+```{r}
+points2polygons <- function(df,data) {
+  get.grpPoly <- function(group,ID,df) {
+         Polygon(coordinates(df[df$id==ID & df$group==group,]))
+         }
+  get.spPoly  <- function(ID,df) {
+         Polygons(lapply(unique(df[df$id==ID,]$group),get.grpPoly,ID,df),ID)
+         }
+  spPolygons  <- SpatialPolygons(lapply(unique(df$id),get.spPoly,df))
+  SpatialPolygonsDataFrame(spPolygons,match.ID=T,data=data)
+}
+
+
+spDF <- points2polygons(df,data)
+plot(spDF,col=spDF$box_id+1)
+
+library(rgdal)
+writeOGR(spDF,dsn=".",layer="myShapefile", driver="ESRI Shapefile")
+```
+
