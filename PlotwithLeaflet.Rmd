@@ -59,9 +59,11 @@ stuff <-data.frame(LSOA_CODE=unique(MyData$LSOA_CODE),row.names=unique(MyData$id
 
 MyData<- points2polygons(MyData,stuff)
 
-AG2 <- AG %>% group_by(LSOA_CODE) %>% summarise_all(funs(first))
+#AG2 <- AG %>% group_by(LSOA_CODE) %>% summarise_all(funs(first))
 
-MyData <- merge(MyData, Chelseainfo)
+MyData <- Chelseainfo %>%
+  select(LSOA_CODE, LowUsePerc, WD16NM)%>%
+  merge(MyData, .)
 
 class(MyData) # data.frame
 
@@ -104,8 +106,61 @@ z <-m %>% addPolygons(
     position = "bottomright")
 
 
-saveWidget(z, file="m.html" )
-
+#saveWidget(z, file="m.html", selfcontained = FALSE )
+setwd("/home/jonno")
 mapshot(z, url = paste0(getwd(), "/map.html"))
+```
+
+gSimplify
+```{r}
+test <- gSimplify(MyData,tol= .0001, topologyPreserve = T) %>% 
+  SpatialPolygonsDataFrame(.)
+
+library(geojsonio)
+states_json <- geojson_json(MyData,geometry = "polygon")
+
+test <- states_json %>% 
+  ms_simplify(keep = 0.005,keep_shapes = TRUE, explode = TRUE) %>% # Simplify polygon
+  geojson_sp() 
+
+plot(test)
+
+m2 <- leaflet(test) %>%
+    #addTiles()
+    addProviderTiles("MapBox", options = providerTileOptions(
+    id = "mapbox.light",
+    accessToken = v))
+
+
+bins <- c(0, 10, 20, 25, 100)
+pal <- colorBin("YlOrRd", domain = test$LowUsePerc, bins = bins)
+
+labels <- sprintf(
+  "<strong>%s</strong><br/>Low-use  %g &#37",
+  test$WD16NM, test$LowUsePerc
+) %>% lapply(htmltools::HTML)
+
+z2 <-m2 %>% addPolygons(
+  fillColor = ~pal(LowUsePerc),
+  weight = 2,
+  opacity = 1,
+  color = "white",
+  dashArray = "3",
+  fillOpacity = 0.7,
+  highlight = highlightOptions(
+    weight = 5,
+    color = "#666",
+    dashArray = "",
+    fillOpacity = 0.7,
+    bringToFront = TRUE),
+  label = labels,
+  labelOptions = labelOptions(
+    style = list("font-weight" = "normal", padding = "3px 8px"),
+    textsize = "15px",
+    direction = "auto")) %>%
+  addLegend(pal = pal, values = ~density, opacity = 0.7, title = NULL,
+    position = "bottomright")
+saveWidget(z2, file="mapsimple2.html", selfcontained = FALSE )
+mapshot(z2, url = paste0(getwd(), "/mapsimple.html"))
 ```
 
