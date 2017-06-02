@@ -5,6 +5,9 @@ date: "10 February 2017"
 output: html_document
 ---
 
+
+man-whitney
+
 It would have been sensible to separate council and private housing
 
 PCLB0 is second homes, PCLC0 is long term empty, PCLC100 is empty and unfurnished up to six months and PCLD100 is undergoing major repairs up to 12 months.  
@@ -14,6 +17,11 @@ http://www.telegraph.co.uk/personal-banking/mortgages/pensioner-mortgages-boom-b
 
 Mean household income 31920
 https://www.ons.gov.uk/peoplepopulationandcommunity/personalandhouseholdfinances/incomeandwealth/datasets/nowcastinghouseholdincomeintheuk
+
+
+
+#savils definitions of prime also there segmentation of the market
+http://pdf.euro.savills.co.uk/spotlight-on/spotlight-on-london-housing-supply.pdf
 
 ```{r setup}
 setwd( "~/Dropbox/SSE/Empty Homes/EmptyHomesCode/SubCode")
@@ -249,8 +257,8 @@ Barnetinfo <- read.xlsx( "3386297 Attachment BarnetDiscounts.xlsx"  , colNames =
 
 #Newham
 
-Newhaminfo <- read.xlsx( "NewhamExemptionsLSOA.XLSX"  , colNames = TRUE)[,1:4] %>%
-  StructureData(2)
+Newhaminfo <- read.xlsx( "NewhamDiscountsLSOA.xlsx", colNames = TRUE)[,1:4] %>%
+  StructureData(full = F)
 
 #City of London
 
@@ -269,16 +277,63 @@ CroydonInfo
 PlotMap(Lambethinfo, AG)
 
 
+test <-  Chelseainfo %>% left_join(., AG)
+
 ```
 
 #Chelsea sums
 ```{r}
 
-sum(Chelseainfo$MeanPrice*Chelseainfo$counts)/sum(Chelseainfo$counts)
+#T test if there is a significant difference between 
+v <- Chelseainfo %>% filter(LAD11CD =="E09000020")
+
+#low-use value chelsea
+sum(v$MeanPrice*v$LowUse)
+ChelMeanPrice <- (sum(v$MeanPrice*v$counts)/sum(v$counts))
+ChelLowMean<- sum(v$MeanPrice*v$LowUse)/sum(v$LowUse)
+ChelLowMean/ChelMeanPrice
+v<- rep(v$MeanPrice, times = v$LowUse)-ChelMeanPrice
+
+
+t.test(v,alternative = "greater")
 
 prices %>% filter(X14== "GREATER LONDON") %>% summarise(mean = mean(X2))
+Admin_ward_code
+#c("Lower Mainstream", "Mid Mainstream", "Upper Mainstream", "Prime", "Super Prime"),
+test <- prices %>% 
+  filter( Admin_district_code =="E09000020") %>%
+  mutate(class = cut(X2, c(0,  490,      750,   2000, 12000, Inf)*10^3, 
+            labels =     c("Lower", "Mid", "Upper", "Prime", "Super"), 
+             right = F)) %>%
+  select(Admin_ward_code, class) %>%
+  group_by(Admin_ward_code, class) %>% 
+  summarise(Counts = n()) %>%
+  group_by(Admin_ward_code) %>%
+  mutate(WardPerc = Counts/sum(Counts)) %>%
+  ungroup
 
 
+test3 <- Chelseainfo %>% 
+  group_by(Admin_ward_code) %>%
+  summarise_all(funs(first)) %>%
+  select(Admin_ward_code, WardLowUse, WardHomes) %>%
+  left_join(., test, "Admin_ward_code") %>%
+  mutate(LowUseClass = WardLowUse*WardPerc,
+         HomesClass = WardHomes*WardPerc) %>%
+  group_by(class) %>%
+  summarise(LowUseClass = sum(LowUseClass),
+            HomesClass = sum(HomesClass)) %>%
+  filter(complete.cases(.)) %>%
+  mutate(PercOfLowUse = LowUseClass/sum(LowUseClass),
+         PercOfHomes = HomesClass/sum(HomesClass),
+         PercofClass = LowUseClass/HomesClass)
+
+
+
+
+#Percentage over and under of what would be expected if buying was random
+#The differences suggest that people are buying more expensive homes when there is no plan to live in them.
+round(test3$LowUseClass/(sum(test3$LowUseClass)*test3$PercOfHomes),2)
 ```
 
 
@@ -365,6 +420,25 @@ Towerinfo <- read_excel("Towerhamlets.xlsx")[,c(1,3)] %>%
 
 ```
 
+Value of low*use and total low use
+```{r}
+
+test <-  ls(pattern = "info") %>% map_df(~eval(parse(text=.x))) %>%
+  group_by(Admin_ward_code) %>%
+  summarise(LAD11NM = first(LAD11NM),
+            MeanPrice = first(MeanPrice),
+            WardLowUse = first(WardLowUse)) %>%
+  group_by(LAD11NM) %>%
+  summarise(totalLow = sum(MeanPrice*WardLowUse)/1e6,
+            TotalEmpt = sum(WardLowUse))
+
+sum(test$totalLow, na.rm = T)  
+sum(test$TotalEmpt, na.rm = T)  
+length(unique(test$LAD11NM))
+
+```
+
+
 
 Plot Map
 ```{r}
@@ -408,13 +482,17 @@ SaveFig("LamLowUse.png")
 
 ggplotly() #STFD!
 
-corplotter(Chelseainfo, "MedianPrice", "WardLowUsePerc", "Median Price vs Low Use % by ward in RBKC",
+corplotter(Chelseainfo, "MeanPrice", "WardLowUsePerc", "Mean Price vs Low Use % by ward in RBKC",
            "Low Use Percentage by Ward",
-           "Median Price")
+           "Mean Price")
 SaveFig("ChelseaCor.png")
 
 
-
+Chelseainfo %>% filter(WardLowUsePerc != max("WardLowUsePerc"),
+                       MeanPrice != max(MeanPrice)) %>%
+  corplotter(., "MeanPrice", "WardLowUsePerc", "Median Price vs Low Use % by ward in RBKC",
+           "Low Use Percentage by Ward",
+           "Median Price")
 ```
 
 #Proper data Barrow

@@ -164,3 +164,14 @@ saveWidget(z2, file="mapsimple2.html", selfcontained = FALSE )
 mapshot(z2, url = paste0(getwd(), "/mapsimple.html"))
 ```
 
+
+```{r}
+library(ggmap)
+
+map <- get_openstreetmap(bbox = c(left = -0.2587, bottom = 51.4733, right =
+  -0.1295, top = 51.5219))
+
+p <- ggmap(map)
+
+```
+
