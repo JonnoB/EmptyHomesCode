@@ -294,8 +294,23 @@ ChelLowMean<- sum(v$MeanPrice*v$LowUse)/sum(v$LowUse)
 ChelLowMean/ChelMeanPrice
 v<- rep(v$MeanPrice, times = v$LowUse)-ChelMeanPrice
 
-
+#the data is not normal
+plot(density(v))
+#this prob not valid
 t.test(v,alternative = "greater")
+
+#do a bootstrapped mean to see if it is greater than the mean of the homes overall.
+set.seed(1258)
+samps <-10000
+
+bootres <- 1:samps %>% map(~data.frame(res =sample(v, length(v), replace = T))) %>%
+  bind_cols()
+
+sum(colMeans(bootres)>0)/samps
+
+plot(density(colMeans(bootres+ChelMeanPrice)))
+
+#%>% setNames(paste0("samp",.x))
 
 prices %>% filter(X14== "GREATER LONDON") %>% summarise(mean = mean(X2))
 Admin_ward_code
@@ -326,14 +341,78 @@ test3 <- Chelseainfo %>%
   filter(complete.cases(.)) %>%
   mutate(PercOfLowUse = LowUseClass/sum(LowUseClass),
          PercOfHomes = HomesClass/sum(HomesClass),
-         PercofClass = LowUseClass/HomesClass)
+         PercofClass = LowUseClass/HomesClass,
+         `Expected Homes` = PercOfHomes*sum(LowUseClass),
+         `Actual Homes` = PercOfLowUse*sum(LowUseClass))
 
 
 
+sum(test3$LowUseClass)*test3$PercOfHomes
 
 #Percentage over and under of what would be expected if buying was random
 #The differences suggest that people are buying more expensive homes when there is no plan to live in them.
 round(test3$LowUseClass/(sum(test3$LowUseClass)*test3$PercOfHomes),2)
+
+ggplot(test3, aes(x= class, y = PercOfHomes*100)) +geom_bar(stat = "identity") + 
+  labs(title = "Distribution probability of homes in each class", y = "Percentage")
+
+test3 %>%
+  select(class, `Expected Homes`, `Actual Homes`) %>%
+  gather(key = "Type" , value = "Number", -class) %>%
+  ggplot(., aes(x= class, y = Number, fill = Type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Expected Number of low-use homes in each class")
+
+test3 %>%
+  mutate(`Percentage Difference` = (`Actual Homes`/`Expected Homes`)*100-100) %>%
+  ggplot(., aes(x= class, y = `Percentage Difference`)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Percentage difference between expected number of homes per class and actual")+
+  coord_cartesian(ylim=c(-20,20))
+
+
+```
+
+#Chelsea Bootstrapped ratios
+
+
+```{r}
+ ChelPrice <- prices %>% 
+  filter( Admin_district_code =="E09000020") %>%
+  select(lsoa11cd, Price =X2) %>%
+  mutate(class = cut(Price, c(0,  490,      750,   2000, 12000, Inf)*10^3, 
+            labels =     c("Lower", "Mid", "Upper", "Prime", "Super"), 
+             right = F))
+
+set.seed(16544)
+Chelseastrapped <- ClassStrapper(ChelPrice, sum(Chelseainfo$LowUse))
+
+Chelseastrapped %>% ggplot(., aes(x= class, y = Counts, fill = class)) + geom_boxplot()
+
+
+test <- unique(ChelPrice$lsoa11cd)%>% 
+  map(~ ChelPrice %>% 
+        filter(lsoa11cd == .x) %>% 
+  ClassStrapper(., sum((filter(Chelseainfo, LSOA_CODE == .x))$LowUse)) %>%
+    mutate(class = as.character(class),
+           Counts = as.integer(Counts),
+           ID = as.integer(ID)) %>%
+      setNames(c("class", paste0("Counts", .x) ,"ID"))
+  )
+
+
+ChelseaLSOAstrap <- test %>%  
+    Reduce(function(dtf1,dtf2) full_join(dtf1,dtf2, by = c("class", "ID")), .) %>%  
+  mutate(Totals = rowSums(.[,c(-1,-3)], na.rm = TRUE)) %>%
+select(class, ID, Totals)
+
+
+test1 <- Chelseastrapped %>% left_join(., ChelseaLSOAstrap, by = c("class", "ID")) %>%
+  mutate(ratio = Totals/Counts)
+
+test1 %>% ggplot(., aes(x= class, y = ratio, fill = class)) + geom_boxplot() + 
+  labs(title = "Boxplot of bootstrapped Ratios")
+
 ```
 
 
