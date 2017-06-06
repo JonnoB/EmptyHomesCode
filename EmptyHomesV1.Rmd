@@ -384,34 +384,18 @@ test3 %>%
             labels =     c("Lower", "Mid", "Upper", "Prime", "Super"), 
              right = F))
 
-round(table(ChelPrice$class)/nrow(ChelPrice)*100)
 
-set.seed(16544)
-Chelseastrapped <- ClassStrapper(ChelPrice, sum(Chelseainfo$LowUse))
-
-Chelseastrapped %>% group_by(class)%>%
-  summarise(Counts = mean(Counts)) %>%
-  mutate(ratio = Counts/sum(Counts))
-
-Chelseastrapped %>% ggplot(., aes(x= class, y = Counts, fill = class)) + geom_boxplot()
-
-ChelseainfoWard <- Chelseainfo %>%
-  group_by(Admin_ward_code) %>%
-  summarise_all(funs(first))
-
-set.seed(16540)
-ChelseaLSOAstrap1 <- unique(ChelPrice$Admin_ward_code)%>% 
+#bootrapps Chelsea housing stock.
+set.seed(16546)
+ChelseaWardLowUseStrap1 <- unique(ChelPrice$Admin_ward_code)%>% 
   map(~ ChelPrice %>% 
         filter(Admin_ward_code == .x) %>% 
-  ClassStrapper(., sum((filter(ChelseainfoWard, Admin_ward_code == .x))$WardLowUse)) %>%
+  ClassStrapper(., sum((filter(ChelseainfoWard, Admin_ward_code == .x))$WardLowUse), reps = 10000) %>%
     mutate(class = as.character(class),
            Counts = as.integer(Counts),
            ID = as.integer(ID)) %>%
       setNames(c("class", paste0("Counts", .x) ,"ID"))
-  )
-  
-
-ChelseaLSOAstrap <- ChelseaLSOAstrap1 %>%  
+  ) %>%  
     Reduce(function(dtf1,dtf2) full_join(dtf1,dtf2, by = c("class", "ID")), .) %>%  
   mutate(Totals = rowSums(.[,c(-1,-3)], na.rm = TRUE),
          class = fct_relevel(class, "Upper", after = 2)) %>%
@@ -422,7 +406,7 @@ set.seed(16540)
 ChelseaWardHomesStrap1 <- unique(ChelPrice$Admin_ward_code)%>% 
   map(~ ChelPrice %>% 
         filter(Admin_ward_code == .x) %>% 
-  ClassStrapper(., sum((filter(ChelseainfoWard, Admin_ward_code == .x))$WardHomes)) %>%
+  ClassStrapper(., sum((filter(ChelseainfoWard, Admin_ward_code == .x))$WardHomes), reps = 10000) %>%
     mutate(class = as.character(class),
            Counts = as.integer(Counts),
            ID = as.integer(ID)) %>%
@@ -434,10 +418,8 @@ ChelseaWardHomesStrap1 <- unique(ChelPrice$Admin_ward_code)%>%
 select(class, ID, Totals)
 
 
-test1 <- Chelseastrapped %>% left_join(., ChelseaLSOAstrap, by = c("class", "ID")) %>%
-  mutate(ratio = Totals/Counts) 
 
-test1 <- ChelseaWardHomesStrap1  %>% left_join(., ChelseaLSOAstrap, by = c("class", "ID")) %>%
+test1 <- ChelseaWardHomesStrap1  %>% left_join(., ChelseaWardLowUseStrap1, by = c("class", "ID")) %>%
   rename(LowUse = Totals.y,
          Homes = Totals.x) %>%
   group_by(ID)%>%
@@ -451,17 +433,15 @@ test1 <- ChelseaWardHomesStrap1  %>% left_join(., ChelseaLSOAstrap, by = c("clas
 test1 %>% ggplot(., aes(x= class, y = ratio, fill = class)) + geom_boxplot() + 
   labs(title = "Boxplot of bootstrapped Ratios")
 
-test1 %>% ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
-  labs(title = "Boxplot of bootstrapped Ratios")
-
+test1 %>%
+mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
+  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+SaveFig("DistributionPlot.png")
 
 test1 %>% group_by(class) %>%
-  summarise(meanC = mean(Counts), 
-            meanT = mean(Totals), 
-            meanR = mean(ratio))
+  summarise_all(funs(mean))
 
-ChelseaWardHomesStrap1 %>% group_by(class) %>%
-  summarise(meanC = mean(Totals))
 
 ```
 
