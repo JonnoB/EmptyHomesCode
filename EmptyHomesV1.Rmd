@@ -315,7 +315,7 @@ plot(density(colMeans(bootres+ChelMeanPrice)))
 prices %>% filter(X14== "GREATER LONDON") %>% summarise(mean = mean(X2))
 Admin_ward_code
 #c("Lower Mainstream", "Mid Mainstream", "Upper Mainstream", "Prime", "Super Prime"),
-test <- prices %>% 
+ClassCountsPerWard <- prices %>% 
   filter( Admin_district_code =="E09000020") %>%
   mutate(class = cut(X2, c(0,  490,      750,   2000, 12000, Inf)*10^3, 
             labels =     c("Lower", "Mid", "Upper", "Prime", "Super"), 
@@ -332,7 +332,7 @@ test3 <- Chelseainfo %>%
   group_by(Admin_ward_code) %>%
   summarise_all(funs(first)) %>%
   select(Admin_ward_code, WardLowUse, WardHomes) %>%
-  left_join(., test, "Admin_ward_code") %>%
+  left_join(., ClassCountsPerWard, "Admin_ward_code") %>%
   mutate(LowUseClass = WardLowUse*WardPerc,
          HomesClass = WardHomes*WardPerc) %>%
   group_by(class) %>%
@@ -343,7 +343,7 @@ test3 <- Chelseainfo %>%
          PercOfHomes = HomesClass/sum(HomesClass),
          PercofClass = LowUseClass/HomesClass,
          `Expected Homes` = PercOfHomes*sum(LowUseClass),
-         `Actual Homes` = PercOfLowUse*sum(LowUseClass))
+         `Actual Homes` = LowUseClass)
 
 
 
@@ -379,39 +379,89 @@ test3 %>%
 ```{r}
  ChelPrice <- prices %>% 
   filter( Admin_district_code =="E09000020") %>%
-  select(lsoa11cd, Price =X2) %>%
+  select(Admin_ward_code, lsoa11cd, Price =X2) %>%
   mutate(class = cut(Price, c(0,  490,      750,   2000, 12000, Inf)*10^3, 
             labels =     c("Lower", "Mid", "Upper", "Prime", "Super"), 
              right = F))
 
+round(table(ChelPrice$class)/nrow(ChelPrice)*100)
+
 set.seed(16544)
 Chelseastrapped <- ClassStrapper(ChelPrice, sum(Chelseainfo$LowUse))
 
+Chelseastrapped %>% group_by(class)%>%
+  summarise(Counts = mean(Counts)) %>%
+  mutate(ratio = Counts/sum(Counts))
+
 Chelseastrapped %>% ggplot(., aes(x= class, y = Counts, fill = class)) + geom_boxplot()
 
+ChelseainfoWard <- Chelseainfo %>%
+  group_by(Admin_ward_code) %>%
+  summarise_all(funs(first))
 
-test <- unique(ChelPrice$lsoa11cd)%>% 
+set.seed(16540)
+ChelseaLSOAstrap1 <- unique(ChelPrice$Admin_ward_code)%>% 
   map(~ ChelPrice %>% 
-        filter(lsoa11cd == .x) %>% 
-  ClassStrapper(., sum((filter(Chelseainfo, LSOA_CODE == .x))$LowUse)) %>%
+        filter(Admin_ward_code == .x) %>% 
+  ClassStrapper(., sum((filter(ChelseainfoWard, Admin_ward_code == .x))$WardLowUse)) %>%
     mutate(class = as.character(class),
            Counts = as.integer(Counts),
            ID = as.integer(ID)) %>%
       setNames(c("class", paste0("Counts", .x) ,"ID"))
   )
+  
 
-
-ChelseaLSOAstrap <- test %>%  
+ChelseaLSOAstrap <- ChelseaLSOAstrap1 %>%  
     Reduce(function(dtf1,dtf2) full_join(dtf1,dtf2, by = c("class", "ID")), .) %>%  
-  mutate(Totals = rowSums(.[,c(-1,-3)], na.rm = TRUE)) %>%
+  mutate(Totals = rowSums(.[,c(-1,-3)], na.rm = TRUE),
+         class = fct_relevel(class, "Upper", after = 2)) %>%
+select(class, ID, Totals)
+
+#bootrapps Chelsea housing stock.
+set.seed(16540)
+ChelseaWardHomesStrap1 <- unique(ChelPrice$Admin_ward_code)%>% 
+  map(~ ChelPrice %>% 
+        filter(Admin_ward_code == .x) %>% 
+  ClassStrapper(., sum((filter(ChelseainfoWard, Admin_ward_code == .x))$WardHomes)) %>%
+    mutate(class = as.character(class),
+           Counts = as.integer(Counts),
+           ID = as.integer(ID)) %>%
+      setNames(c("class", paste0("Counts", .x) ,"ID"))
+  ) %>%  
+    Reduce(function(dtf1,dtf2) full_join(dtf1,dtf2, by = c("class", "ID")), .) %>%  
+  mutate(Totals = rowSums(.[,c(-1,-3)], na.rm = TRUE),
+         class = fct_relevel(class, "Upper", after = 2)) %>%
 select(class, ID, Totals)
 
 
 test1 <- Chelseastrapped %>% left_join(., ChelseaLSOAstrap, by = c("class", "ID")) %>%
-  mutate(ratio = Totals/Counts)
+  mutate(ratio = Totals/Counts) 
+
+test1 <- ChelseaWardHomesStrap1  %>% left_join(., ChelseaLSOAstrap, by = c("class", "ID")) %>%
+  rename(LowUse = Totals.y,
+         Homes = Totals.x) %>%
+  group_by(ID)%>%
+  mutate(ratio = LowUse/Homes,
+         HomesPerc = Homes/sum(Homes),
+         LowUsePerc = LowUse/sum(LowUse),
+         ClassPerc = LowUse/Homes,
+         ExpectedHomes = HomesPerc*sum(LowUse),
+         RatioExvsAct = LowUse/ExpectedHomes) 
 
 test1 %>% ggplot(., aes(x= class, y = ratio, fill = class)) + geom_boxplot() + 
   labs(title = "Boxplot of bootstrapped Ratios")
+
+test1 %>% ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
+  labs(title = "Boxplot of bootstrapped Ratios")
+
+
+test1 %>% group_by(class) %>%
+  summarise(meanC = mean(Counts), 
+            meanT = mean(Totals), 
+            meanR = mean(ratio))
+
+ChelseaWardHomesStrap1 %>% group_by(class) %>%
+  summarise(meanC = mean(Totals))
 
 ```
 
