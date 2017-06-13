@@ -5,12 +5,20 @@ ClassStrapper <- function(PriceData, LowUseCounts, reps = 1000){
   #reps: The number of samples wanted
   
   #generate random indexes to sample
-  SampBlock <- sample(1:nrow(PriceData), LowUseCounts*reps, replace = TRUE ) %>% 
-    matrix(data = ., ncol = reps)
+  # SampBlock <- sample(1:nrow(PriceData), LowUseCounts*reps, replace = TRUE ) %>% 
+  #   matrix(data = ., ncol = reps)
+  # 
+  # 
+  # Out <- 1:reps %>% map_df(~PriceData[,"class"] %>% 
+  #                            slice(SampBlock[,.x]) %>%
+  #                            group_by(class) %>%
+  #                            summarise(Counts = n()) %>%
+  #                            mutate(ID = .x)
+  # )
+  # 
   
-
-  Out <- 1:reps %>% map_df(~PriceData[,"class"] %>% 
-                             slice(SampBlock[,.x]) %>%
+    Out <- 1:reps %>% map_df(~PriceData[,"class"] %>% 
+                             sample_n(., LowUseCounts, replace = TRUE) %>%
                              group_by(class) %>%
                              summarise(Counts = n()) %>%
                              mutate(ID = .x)

@@ -243,7 +243,10 @@ StructureData
 Chelseainfo <- read_excel( "Kensington and ChelseaDiscountsLSOA.xlsx" )[,1:4] %>%
   StructureData()
 
-  
+Chelseainfo2 <- read_excel( "Kensington and ChelseaDiscountsLSOA.xlsx" )[,1:4] %>%
+  StructureData(full= FALSE)
+colSums(Chelseainfo2[,-1])
+
 #Barking
 Barkinginfo <- read.xlsx( "Barking and DagenhamExemptionsLSOA v3.xlsx" , colNames = FALSE)[,1:4] %>%
   StructureData(c(2,3,6,7))
@@ -283,6 +286,8 @@ test <-  Chelseainfo %>% left_join(., AG)
 
 #Chelsea sums
 ```{r}
+
+sum(Chelseainfo$LowUse)/sum(Chelseainfo$Homes)
 
 #T test if there is a significant difference between 
 v <- Chelseainfo %>% filter(LAD11CD =="E09000020")
@@ -385,6 +390,10 @@ test3 %>%
              right = F))
 
 
+ChelseainfoWard <- Chelseainfo %>% 
+  group_by(Admin_ward_code) %>%
+  summarise_all(funs(first))
+
 #bootrapps Chelsea housing stock.
 set.seed(16546)
 ChelseaWardLowUseStrap1 <- unique(ChelPrice$Admin_ward_code)%>% 
@@ -400,6 +409,8 @@ ChelseaWardLowUseStrap1 <- unique(ChelPrice$Admin_ward_code)%>%
   mutate(Totals = rowSums(.[,c(-1,-3)], na.rm = TRUE),
          class = fct_relevel(class, "Upper", after = 2)) %>%
 select(class, ID, Totals)
+
+ChelseaWardHomesStrap2 <- ClassStrapper(ChelPrice, sum(ChelseainfoWard$WardHomes), 10000)
 
 #bootrapps Chelsea housing stock.
 set.seed(16540)
