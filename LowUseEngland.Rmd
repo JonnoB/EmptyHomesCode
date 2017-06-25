@@ -24,14 +24,14 @@ Cumbria
 ```{r}
 setwd(file.path(RegionsComp, "Region North West"))
 
-BarrowCumbriaDATA <- read_excel("Barrow-in-FurnessExemptionsLSOA.xlsx", sheet=1)[1:4]%>%  
+BarrowCUMBRIADATA <- read_excel("Barrow-in-FurnessExemptionsLSOA.xlsx", sheet=1)[1:4]%>%  
   StructureData(.,lowuse = c(2:6,8))
 
-SLakelandCumbriaDATA <- read_excel("South LakelandExemptionsLSOA.XLSX", sheet=1)[,1:4] %>%
+SLakelandCUMBRIADATA <- read_excel("South LakelandExemptionsLSOA.XLSX", sheet=1)[,1:4] %>%
     StructureData(., lowuse=2:9)
 
 #only inlcudes postcodes so the mergeing needs to be done manually
-CopelandCumbriaDATA <- read_excel("CopelandFOI 5778 data 100517 CBC.XLSX", sheet=1) %>% 
+CopelandCUMBRIADATA <- read_excel("CopelandFOI 5778 data 100517 CBC.XLSX", sheet=1) %>% 
   mutate(Postcode = sub(" ", "", Postcode)) %>%
   left_join(., PstCdLSOA.raw,  by=c("Postcode") ) %>%
   rename(Exemption.type=`Disc Type Ind`, LSOA_CODE = lsoa11cd) %>%
@@ -39,12 +39,12 @@ CopelandCumbriaDATA <- read_excel("CopelandFOI 5778 data 100517 CBC.XLSX", sheet
   StructureData()
 
 
-EdenCumbriaDATA <- read_excel("EdenDiscountsLSOA.xlsx"  , sheet=1)[1:4] %>%  
+EdenCUMBRIADATA <- read_excel("EdenDiscountsLSOA.xlsx"  , sheet=1)[1:4] %>%  
   StructureData(.,lowuse = c(2:6,8))
 
 
 
- ls(pattern = "Cumbria") %>% map_df(~eval(parse(text=.x))) %>%
+ ls(pattern = "CUMBRIA") %>% map_df(~eval(parse(text=.x))) %>%
   PlotMap(., filter(AG,grepl(paste("Barrow-in-Furness", "Allerdale",
                                     "Carlisle","Copeland","Eden",  
                                     "South Lakeland", sep = "|"), 
@@ -61,12 +61,27 @@ EdenCumbriaDATA <- read_excel("EdenDiscountsLSOA.xlsx"  , sheet=1)[1:4] %>%
  
  
  
- ls(pattern = "Cumbria") %>% map_df(~eval(parse(text=.x)))  %>%
+ ls(pattern = "CUMBRIA") %>% map_df(~eval(parse(text=.x)))  %>%
 corplotter(., "MedianPrice", "WardLowUsePerc", 
            "Median Price vs Low Use % by ward in Cumbria",
            "Low Use Percentage by Ward",
            "Median Price")
  
+ 
+ 
+ z1<-   ls(pattern = "CUMBRIA") %>% map_df(~eval(parse(text=.x)))   %>% BootStrapTtest(.)
+
+
+CumbriaStrap <- ls(pattern = "CUMBRIA") %>% map_df(~eval(parse(text=.x))) %>%
+   DistribCompareBootstrapper(., 1652, 100)
+
+CumbriaStrap %>%
+mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
+  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+
+ 
+
 ```
 
 
@@ -95,6 +110,18 @@ corplotter(Cornwall, "MedianPrice", "WardLowUsePerc",
 SaveFig("CornCor.png")
 
 
+ z1<-   ls(pattern = "Cornwall") %>% map_df(~eval(parse(text=.x)))   %>% BootStrapTtest(.)
+
+ 
+CornStrap<- ls(pattern = "Cornwall") %>% map_df(~eval(parse(text=.x))) %>%
+   DistribCompareBootstrapper(., 1652, 1000)
+
+CornStrap %>%
+mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
+  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+
+ 
 ```
 
 
@@ -119,7 +146,7 @@ corplotter(CoastWave, "MedianPrice", "WardLowUsePerc",
            "Low Use Percentage by Ward",
            "Median Price")
 
-
+ z1<-   ls(pattern = "CoastWave") %>% map_df(~eval(parse(text=.x)))   %>% BootStrapTtest(.)
 
 ```
 

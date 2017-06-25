@@ -37,8 +37,8 @@ Bromleyinfo <- read.xlsx("Copy of BromleyExemptionsLSOA.xlsx")[,c(1,4:6)] %>%
 #Haringey is funny and has to be worked over a bit first
 Haringeyinfo <- read.xlsx("Haringey_Exemptions_Discounts_LSOA.xlsx")[c(1,3,5)] 
 
-Haringeyinfo <- data_frame(Discount = rep(Haringey$`Exemption./.Discount.type`, Haringey$Count.of.Exemptions.by.Post.Code),
-                           LSOA = rep(Haringey$LSOA_CODE, Haringey$Count.of.Exemptions.by.Post.Code)) %>%
+Haringeyinfo <- data_frame(Discount = rep(Haringeyinfo $`Exemption./.Discount.type`, Haringeyinfo$Count.of.Exemptions.by.Post.Code),
+                           LSOA = rep(Haringeyinfo$LSOA_CODE, Haringeyinfo$Count.of.Exemptions.by.Post.Code)) %>%
   mutate( a= NA, b = NA) %>%
   StructureData(21:25)
 
