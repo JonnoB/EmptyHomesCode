@@ -1,0 +1,127 @@
+---
+title: "NON-London"
+author: "Jonathan Bourne"
+date: "25 June 2017"
+output: html_document
+---
+
+```{r setup}
+setwd( "~/Dropbox/SSE/Empty Homes/EmptyHomesCode/SubCode")
+source("Setup.R")
+
+setwd(Functions)
+list.files() %>% map(source)
+```
+
+
+
+```{r}
+source(file.path(CommonCode, "AuxdataLoad.R"))
+```
+
+
+Cumbria
+```{r}
+setwd(file.path(RegionsComp, "Region North West"))
+
+BarrowCumbriaDATA <- read_excel("Barrow-in-FurnessExemptionsLSOA.xlsx", sheet=1)[1:4]%>%  
+  StructureData(.,lowuse = c(2:6,8))
+
+SLakelandCumbriaDATA <- read_excel("South LakelandExemptionsLSOA.XLSX", sheet=1)[,1:4] %>%
+    StructureData(., lowuse=2:9)
+
+#only inlcudes postcodes so the mergeing needs to be done manually
+CopelandCumbriaDATA <- read_excel("CopelandFOI 5778 data 100517 CBC.XLSX", sheet=1) %>% 
+  mutate(Postcode = sub(" ", "", Postcode)) %>%
+  left_join(., PstCdLSOA.raw,  by=c("Postcode") ) %>%
+  rename(Exemption.type=`Disc Type Ind`, LSOA_CODE = lsoa11cd) %>%
+  select(Exemption.type, LSOA_CODE, Postcode, Country_code) %>%
+  StructureData()
+
+
+EdenCumbriaDATA <- read_excel("EdenDiscountsLSOA.xlsx"  , sheet=1)[1:4] %>%  
+  StructureData(.,lowuse = c(2:6,8))
+
+
+
+ ls(pattern = "Cumbria") %>% map_df(~eval(parse(text=.x))) %>%
+  PlotMap(., filter(AG,grepl(paste("Barrow-in-Furness", "Allerdale",
+                                    "Carlisle","Copeland","Eden",  
+                                    "South Lakeland", sep = "|"), 
+                             LAD11NM ) ), 
+          filtermap = FALSE,
+          title = "Map of Cumbria with all current data")
+
+#Removing Barrow due to the redevelopment only increases the cor slightly
+#  ls(pattern = "Cumbria")[-1] %>% map_df(~eval(parse(text=.x)))  %>%
+# corplotter(., "MedianPrice", "WardLowUsePerc", 
+#            "Median Price vs Low Use % by ward in Cumbria",
+#            "Low Use Percentage by Ward",
+#            "Median Price")
+ 
+ 
+ 
+ ls(pattern = "Cumbria") %>% map_df(~eval(parse(text=.x)))  %>%
+corplotter(., "MedianPrice", "WardLowUsePerc", 
+           "Median Price vs Low Use % by ward in Cumbria",
+           "Low Use Percentage by Ward",
+           "Median Price")
+ 
+```
+
+
+
+#Cornwall
+
+```{r}
+
+setwd(file.path(RegionsComp, "Region South West"))
+
+Cornwall <- read_excel("Cornwall.xlsx", sheet=1)%>% setNames(make.names(names(.))) %>% .[,1:4] %>%
+  StructureData(lowuse = c(2,23:28))
+
+PlotMap(Cornwall, AG, title = "Lowuse in Cornwall")
+SaveFig("Cornwall.png")
+
+read_excel("Cornwall.xlsx", sheet=1)%>% setNames(make.names(names(.))) %>% .[,1:4] %>%
+  StructureData(lowuse = c(2,7:16, 21:28) ) %>%
+  PlotMap(., AG,title = "all empties")
+
+
+corplotter(Cornwall, "MedianPrice", "WardLowUsePerc", 
+           "Median Price vs Low Use % by ward in Cornwall",
+           "Low Use Percentage by Ward",
+           "Median Price")
+SaveFig("CornCor.png")
+
+
+```
+
+
+
+Suffolk
+
+
+```{r}
+setwd(file.path(RegionsComp, "Region East of England"))
+list.files()
+
+CoastWave <- bind_rows(read.xlsx("FOI IMT178324 SuffolkCoastal.xlsx")[1:4] , read.xlsx("FOI IMT178324 Waveney.xlsx")[1:4]) %>% setNames(make.names(names(.))) %>%
+  mutate(Exemption.type = Exemption.type %>% trimws %>%
+           make.names %>% 
+           gsub("\\.{2,}" , ".", .))  %>%
+  StructureData(., lowuse = c(5,6,13,14,16:18))
+
+PlotMap(CoastWave, AG, title ="Low-use Homes in Coastal Suffolk")
+
+corplotter(CoastWave, "MedianPrice", "WardLowUsePerc", 
+           "Median Price vs Low Use % by ward in Cumbria",
+           "Low Use Percentage by Ward",
+           "Median Price")
+
+
+
+```
+
+
+Hull
