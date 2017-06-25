@@ -148,6 +148,15 @@ corplotter(CoastWave, "MedianPrice", "WardLowUsePerc",
 
  z1<-   ls(pattern = "CoastWave") %>% map_df(~eval(parse(text=.x)))   %>% BootStrapTtest(.)
 
+ 
+ SuffStrap<- ls(pattern = "CoastWave") %>% map_df(~eval(parse(text=.x))) %>%
+   DistribCompareBootstrapper(., 1652, 1000)
+
+SuffStrap %>%
+mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
+  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+ 
 ```
 
 
