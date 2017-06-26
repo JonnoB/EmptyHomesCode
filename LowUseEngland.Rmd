@@ -67,11 +67,6 @@ corplotter(., "MedianPrice", "WardLowUsePerc",
            "Low Use Percentage by Ward",
            "Median Price")
  
- 
- 
- z1<-   ls(pattern = "CUMBRIA") %>% map_df(~eval(parse(text=.x)))   %>% BootStrapTtest(.)
-
-
 CumbriaStrap <- ls(pattern = "CUMBRIA") %>% map_df(~eval(parse(text=.x))) %>%
    DistribCompareBootstrapper(., 1652, 100)
 
@@ -80,7 +75,8 @@ mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>%
   ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
   labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
 
- 
+
+Cumbriattest <- ValueTtest(CumbriaStrap)
 
 ```
 
@@ -98,9 +94,9 @@ Cornwall <- read_excel("Cornwall.xlsx", sheet=1)%>% setNames(make.names(names(.)
 PlotMap(Cornwall, AG, title = "Lowuse in Cornwall")
 SaveFig("Cornwall.png")
 
-read_excel("Cornwall.xlsx", sheet=1)%>% setNames(make.names(names(.))) %>% .[,1:4] %>%
-  StructureData(lowuse = c(2,7:16, 21:28) ) %>%
-  PlotMap(., AG,title = "all empties")
+# read_excel("Cornwall.xlsx", sheet=1)%>% setNames(make.names(names(.))) %>% .[,1:4] %>%
+#   StructureData(lowuse = c(2,7:16, 21:28) ) %>%
+#   PlotMap(., AG,title = "all empties")
 
 
 corplotter(Cornwall, "MedianPrice", "WardLowUsePerc", 
@@ -110,21 +106,20 @@ corplotter(Cornwall, "MedianPrice", "WardLowUsePerc",
 SaveFig("CornCor.png")
 
 
- z1<-   ls(pattern = "Cornwall") %>% map_df(~eval(parse(text=.x)))   %>% BootStrapTtest(.)
-
- 
-CornStrap<- ls(pattern = "Cornwall") %>% map_df(~eval(parse(text=.x))) %>%
-   DistribCompareBootstrapper(., 1652, 1000)
+Cornstrap <-DistribCompareBootstrapper(Cornwall, 1652, 100)
 
 CornStrap %>%
 mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
   ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
   labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
 
- 
+Cornttest <- ValueTtest(Cornstrap)
+
+Cornttest$data.frame %>% select(LowUsePrice,HomesPrice) %>%
+  gather(key ="type", "meanprice") %>%
+  ggplot(., aes(x= type, y = meanprice, fill = type)) + geom_boxplot() 
+
 ```
-
-
 
 Suffolk
 
@@ -146,9 +141,6 @@ corplotter(CoastWave, "MedianPrice", "WardLowUsePerc",
            "Low Use Percentage by Ward",
            "Median Price")
 
- z1<-   ls(pattern = "CoastWave") %>% map_df(~eval(parse(text=.x)))   %>% BootStrapTtest(.)
-
- 
  SuffStrap<- ls(pattern = "CoastWave") %>% map_df(~eval(parse(text=.x))) %>%
    DistribCompareBootstrapper(., 1652, 1000)
 
@@ -157,6 +149,8 @@ mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>%
   ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
   labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
  
+Suffttest <- ValueTtest(SuffStrap)
+
 ```
 
 

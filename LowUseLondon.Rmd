@@ -52,7 +52,8 @@ PlotMap(Lambethinfo, AG)
 
 ```
 
-#Chelsea sums
+
+#Chelsea Bootstrapped ratios
 ```{r}
 
 sum(Chelseainfo$LowUse)/sum(Chelseainfo$Homes)
@@ -67,96 +68,9 @@ ChelLowMean<- sum(v$MeanPrice*v$LowUse)/sum(v$LowUse)
 ChelLowMean/ChelMeanPrice
 v<- rep(v$MeanPrice, times = v$LowUse)-ChelMeanPrice
 
-#the data is not normal
-plot(density(v))
-#this prob not valid
-t.test(v,alternative = "greater")
-
-#do a bootstrapped mean to see if it is greater than the mean of the homes overall.
-set.seed(1258)
-samps <-10000
-
-bootres <- 1:samps %>% map(~data.frame(res =sample(v, length(v), replace = T))) %>%
-  bind_cols()
-
-sum(colMeans(bootres)>0)/samps
-
-Chelseainfo %>% filter(LAD11CD =="E09000020") %>%
-  BootStrapTtest(.)
-
-
-
-plot(density(colMeans(bootres+ChelMeanPrice)))
-
-
-prices %>% filter(X14== "GREATER LONDON") %>% summarise(mean = mean(X2))
-Admin_ward_code
-#c("Lower Mainstream", "Mid Mainstream", "Upper Mainstream", "Prime", "Super Prime"),
-ClassCountsPerWard <- prices %>% 
-  filter( Admin_district_code =="E09000020") %>%
-  mutate(class = cut(X2, c(0,  490,      750,   2000, 12000, Inf)*10^3, 
-            labels =     c("Lower", "Mid", "Upper", "Prime", "Super"), 
-             right = F)) %>%
-  select(Admin_ward_code, class) %>%
-  group_by(Admin_ward_code, class) %>% 
-  summarise(Counts = n()) %>%
-  group_by(Admin_ward_code) %>%
-  mutate(WardPerc = Counts/sum(Counts)) %>%
-  ungroup
-
-
-test3 <- Chelseainfo %>% 
-  group_by(Admin_ward_code) %>%
-  summarise_all(funs(first)) %>%
-  select(Admin_ward_code, WardLowUse, WardHomes) %>%
-  left_join(., ClassCountsPerWard, "Admin_ward_code") %>%
-  mutate(LowUseClass = WardLowUse*WardPerc,
-         HomesClass = WardHomes*WardPerc) %>%
-  group_by(class) %>%
-  summarise(LowUseClass = sum(LowUseClass),
-            HomesClass = sum(HomesClass)) %>%
-  filter(complete.cases(.)) %>%
-  mutate(PercOfLowUse = LowUseClass/sum(LowUseClass),
-         PercOfHomes = HomesClass/sum(HomesClass),
-         PercofClass = LowUseClass/HomesClass,
-         `Expected Homes` = PercOfHomes*sum(LowUseClass),
-         `Actual Homes` = LowUseClass)
-
-
-
-sum(test3$LowUseClass)*test3$PercOfHomes
-
-#Percentage over and under of what would be expected if buying was random
-#The differences suggest that people are buying more expensive homes when there is no plan to live in them.
-round(test3$LowUseClass/(sum(test3$LowUseClass)*test3$PercOfHomes),2)
-
-ggplot(test3, aes(x= class, y = PercOfHomes*100)) +geom_bar(stat = "identity") + 
-  labs(title = "Distribution probability of homes in each class", y = "Percentage")
-
-test3 %>%
-  select(class, `Expected Homes`, `Actual Homes`) %>%
-  gather(key = "Type" , value = "Number", -class) %>%
-  ggplot(., aes(x= class, y = Number, fill = Type)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  labs(title = "Expected Number of low-use homes in each class")
-
-test3 %>%
-  mutate(`Percentage Difference` = (`Actual Homes`/`Expected Homes`)*100-100) %>%
-  ggplot(., aes(x= class, y = `Percentage Difference`)) +
-  geom_bar(stat = "identity") +
-  labs(title = "Percentage difference between expected number of homes per class and actual")+
-  coord_cartesian(ylim=c(-20,20))
-
-
-```
-
-#Chelsea Bootstrapped ratios
-
-
-```{r}
 
 chelstrap <-  Chelseainfo %>% filter(LAD11CD=="E09000020") %>% 
-  DistribCompareBootstrapper(., 1652, 100)
+  DistribCompareBootstrapper(., 1652, 1000)
 
 
 chelstrap %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
@@ -164,12 +78,7 @@ chelstrap %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>%
   labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
 SaveFig("DistributionPlot.png")
 
-test1 %>% group_by(class) %>%
-  summarise_all(funs(mean))
-
- 
-
-
+ Chelttest <- ValueTtest(chelstrap)
 
 ```
 

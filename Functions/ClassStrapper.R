@@ -17,12 +17,12 @@ ClassStrapper <- function(PriceData, LowUseCounts, reps = 1000){
   # )
   # 
   
-    Out <- 1:reps %>% map_df(~PriceData[,"class"] %>% 
-                             sample_n(., LowUseCounts, replace = TRUE) %>%
-                             group_by(class) %>%
-                             summarise(Counts = n()) %>%
-                             mutate(ID = .x)
-  )
-  
+    Out <- 1:reps %>% map_df(~PriceData %>% 
+                               sample_n(., LowUseCounts, replace = TRUE) %>%
+                               group_by(class) %>%
+                               summarise(Counts = n(),
+                                         Value = sum(Price)) %>%
+                               mutate(ID = .x)
+    )
   return(Out)
 }
