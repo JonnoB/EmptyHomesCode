@@ -78,8 +78,25 @@ chelstrap %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>%
   labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
 SaveFig("DistributionPlot.png")
 
+
+
  Chelttest <- ValueTtest(chelstrap)
 
+ 1762724.8-  426694.1 
+ 
+ 
+   test <- chelstrap %>% 
+    select(class,ID, Homes, LowUse, HomesValue, LowUseValue) %>%
+    group_by(ID, class) %>%
+    summarise_all(funs(sum)) %>%
+    mutate(HomesPrice = HomesValue/Homes,
+           LowUsePrice = LowUseValue/LowUse)
+ 
+   
+ggplot(test, aes(x= class, y = LowUsePrice, fill = class)) + geom_boxplot()
+ ggplot(test, aes(x= class, y = HomesPrice, fill = class)) + geom_boxplot()  
+ 
+  ggplot(test, aes(x= log(LowUsePrice), y = log(HomesPrice), colour = class)) + geom_point()  
 ```
 
 
@@ -246,15 +263,31 @@ Chelseainfo %>% filter(WardLowUsePerc != max("WardLowUsePerc"),
 #Hull
 ```{r}
 
-Hull <-read_excel(file.path(RegionsComp, "Region Yorkshire and The Humber",
-                "KINGSTON UPON HULL%2c CITY OFDISCOUNTSLSOA.XLSX"))[-c(c(1:6)),1:4] %>%
-  StructureData(.)
+LambethStrap<-  Lambethinfo %>% filter(LAD11CD == "E09000022") %>% 
+  DistribCompareBootstrapper(., 1652, 100)
 
-PlotMap(Hull, AG, variable = "WardLowUsePerc")
+LambethStrap %>%
+mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
+  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
 
-corplotter(Hull, "MedianPrice", "WardLowUsePerc", 
-           "Median Price vs Low Use % by ward in Hull",
-           "Low Use Percentage by Ward",
-           "Median Price")
+#Why are lambteths results junk?
+LamStrap <- ValueTtest(LambethStrap)
+
+df <- LambethStrap
+
+
+CamdenStrap<-  DistribCompareBootstrapper(Camdeninfo, 1652, 1000)
+
+CamdenStrap %>%
+mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
+  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+
+#Why are lambteths results junk?
+Camttest<- ValueTtest(CamdenStrap)
+
+PlotMap(Camdeninfo,AG)
+
 ```
 

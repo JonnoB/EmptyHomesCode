@@ -42,7 +42,8 @@ CopelandCUMBRIADATA <- read_excel("CopelandFOI 5778 data 100517 CBC.XLSX", sheet
 EdenCUMBRIADATA <- read_excel("EdenDiscountsLSOA.xlsx"  , sheet=1)[1:4] %>%  
   StructureData(.,lowuse = c(2:6,8))
 
-
+CarliseCUMBRIADATA <- read_excel("FOI 5846 5983-CarlisleDiscountsLSOA June 2017.xlsx"  , sheet=1)[1:4] %>%  
+  StructureData(.)
 
  ls(pattern = "CUMBRIA") %>% map_df(~eval(parse(text=.x))) %>%
   PlotMap(., filter(AG,grepl(paste("Barrow-in-Furness", "Allerdale",
@@ -77,6 +78,8 @@ mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>%
 
 
 Cumbriattest <- ValueTtest(CumbriaStrap)
+
+(218977.5-  184071.4 )/184071.4
 
 ```
 
@@ -154,4 +157,29 @@ Suffttest <- ValueTtest(SuffStrap)
 ```
 
 
-Hull
+
+#Hull
+```{r}
+
+Hull <-read_excel(file.path(RegionsComp, "Region Yorkshire and The Humber",
+                "KINGSTON UPON HULL%2c CITY OFDISCOUNTSLSOA.XLSX"))[-c(c(1:6)),1:4] %>%
+  StructureData(.)
+
+PlotMap(Hull, AG, variable = "WardLowUsePerc")
+
+corplotter(Hull, "MedianPrice", "WardLowUsePerc", 
+           "Median Price vs Low Use % by ward in Hull",
+           "Low Use Percentage by Ward",
+           "Median Price")
+
+ HullStrap<-  DistribCompareBootstrapper(Hull, 1652, 1000)
+
+ HullStrap %>%
+mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
+  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+ 
+HullStrap <- ValueTtest(HullStrap)
+
+```
+

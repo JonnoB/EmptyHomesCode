@@ -2,6 +2,7 @@ ValueTtest <- function(df){
 #Performs a t test on the results of the bootstrapping function
   #df: the output from the boostrapping function
   #the percentage difference is relative to regular homes so positvevalue means lowuse more expensive
+  #The test performs a difference of means on the mean values of the homes and the low use homes from each bootstrapped simulation
   
   test <- df %>% 
     select(ID, Homes, LowUse, HomesValue, LowUseValue) %>%

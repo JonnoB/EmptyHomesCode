@@ -44,6 +44,14 @@ setwd("/home/jonno")
 mapshot(z, url = paste0(getwd(), "/map.html"))
 ```
 
+
+```{r}
+z <- MakeLeaflet("Camden", Camdeninfo)
+z
+saveWidget(z, file="CamdenLowUse.html", selfcontained = TRUE )
+```
+
+
 gSimplify
 ```{r}
 test <- gSimplify(MyData,tol= .0001, topologyPreserve = T) %>% 
