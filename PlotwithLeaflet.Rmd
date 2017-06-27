@@ -32,11 +32,11 @@ points2polygons <- function(df,data) {
 
 ```{r}
 setwd(gitpage)
-z <- MakeLeaflet("chelsea", Chelseainfo)
+z <- MakeLeaflet(Chelseainfo)
 z
 saveWidget(z, file="ChelseaLowUse.html", selfcontained = TRUE )
 
-z<- MakeLeaflet("lambeth", Lambethinfo, c(0:5))
+z<- MakeLeaflet(Lambethinfo, c(0:5))
 saveWidget(z, file="LambethLowUSe.html", selfcontained = TRUE )
 
 
@@ -46,7 +46,7 @@ mapshot(z, url = paste0(getwd(), "/map.html"))
 
 
 ```{r}
-z <- MakeLeaflet("Camden", Camdeninfo)
+z <- MakeLeaflet(Camdeninfo)
 z
 saveWidget(z, file="CamdenLowUse.html", selfcontained = TRUE )
 ```

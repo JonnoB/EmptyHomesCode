@@ -12,8 +12,8 @@ dfPrice <- prices %>%
   select(Admin_ward_code, lsoa11cd, Price =X2) %>%
   mutate(class = cut(Price, c(0,  490,      750,   2000, 12000, Inf)*10^3, 
                      labels =     c("Lower", "Mid", "Upper", "Prime", "Super"), 
-                     right = F))
-
+                     right = F),
+         Price = as.numeric(Price)) #there was some number overflow thing changing to numeric solves this
 dfWard <- df %>% 
   group_by(Admin_ward_code) %>%
   summarise_all(funs(first)) %>% filter(!is.na(Admin_ward_code))

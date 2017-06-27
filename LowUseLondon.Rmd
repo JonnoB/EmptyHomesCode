@@ -56,22 +56,16 @@ PlotMap(Lambethinfo, AG)
 #Chelsea Bootstrapped ratios
 ```{r}
 
+#percent of chelsea low-use
 sum(Chelseainfo$LowUse)/sum(Chelseainfo$Homes)
-
-#T test if there is a significant difference between 
-v <- Chelseainfo %>% filter(LAD11CD =="E09000020")
 
 #low-use value chelsea
 sum(v$MeanPrice*v$LowUse)
 ChelMeanPrice <- (sum(v$MeanPrice*v$counts)/sum(v$counts))
-ChelLowMean<- sum(v$MeanPrice*v$LowUse)/sum(v$LowUse)
-ChelLowMean/ChelMeanPrice
-v<- rep(v$MeanPrice, times = v$LowUse)-ChelMeanPrice
 
 
 chelstrap <-  Chelseainfo %>% filter(LAD11CD=="E09000020") %>% 
   DistribCompareBootstrapper(., 1652, 1000)
-
 
 chelstrap %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
   ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
@@ -79,24 +73,22 @@ chelstrap %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>%
 SaveFig("DistributionPlot.png")
 
 
-
  Chelttest <- ValueTtest(chelstrap)
 
- 1762724.8-  426694.1 
  
- 
-   test <- chelstrap %>% 
-    select(class,ID, Homes, LowUse, HomesValue, LowUseValue) %>%
-    group_by(ID, class) %>%
-    summarise_all(funs(sum)) %>%
-    mutate(HomesPrice = HomesValue/Homes,
-           LowUsePrice = LowUseValue/LowUse)
- 
-   
-ggplot(test, aes(x= class, y = LowUsePrice, fill = class)) + geom_boxplot()
- ggplot(test, aes(x= class, y = HomesPrice, fill = class)) + geom_boxplot()  
- 
-  ggplot(test, aes(x= log(LowUsePrice), y = log(HomesPrice), colour = class)) + geom_point()  
+ #boxplot comparison
+Chelttest$data.frame %>%
+  select(HomesPrice, LowUsePrice) %>%
+  gather(key ="type", value = "MeanPrice") %>%
+ggplot(., aes(x= type, y = MeanPrice, fill = type)) + geom_boxplot()
+
+
+#density plot comparison
+Chelttest$data.frame %>%
+  select(HomesPrice, LowUsePrice) %>%
+  gather(key ="type", value = "MeanPrice") %>%
+ggplot(., aes(x = MeanPrice, fill = type)) + geom_density()
+
 ```
 
 

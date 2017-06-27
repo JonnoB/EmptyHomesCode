@@ -1,6 +1,6 @@
-MakeLeaflet <-function(name, dataframe, bins = c(0, 10, 20, 25, 100)){
-  
-  MyData <- AG %>% filter(grepl(name, LAD11NM ,ignore.case = T)) %>%
+MakeLeaflet <-function(dataframe, bins = c(0, 10, 20, 25, 100)){
+
+  MyData <- AG %>% filter(AG$LAD11CD %in%  unique(dataframe$LAD11CD) ) %>%
     rename(LSOA_CODE = lsoa11cd)
   
   MyData <- SpatialPointsDataFrame(coords =MyData[,c(1,2)], data = MyData,

@@ -17,7 +17,7 @@ ValueTtest <- function(df){
   LowUsePrice <- (sum(test$LowUseValue, na.rm = TRUE)/sum(test$LowUse, na.rm = TRUE))
   
   res2 <- (LowUsePrice - HomePrice)
-  res3 <- res2/HomePrice
+  res3 <- (res2/HomePrice)*100
   
   Out <-list(test, res1, res2, res3)
   names(Out) <- c("data.frame", "t.test", "absdiff", "Percdiff")

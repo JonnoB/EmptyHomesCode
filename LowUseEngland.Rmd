@@ -122,6 +122,11 @@ Cornttest$data.frame %>% select(LowUsePrice,HomesPrice) %>%
   gather(key ="type", "meanprice") %>%
   ggplot(., aes(x= type, y = meanprice, fill = type)) + geom_boxplot() 
 
+z <- MakeLeaflet(Cornwall)
+z
+saveWidget(z, file=file.path(gitpage, "CornwallLowUse.html"), selfcontained = TRUE )
+
+
 ```
 
 Suffolk
@@ -153,6 +158,11 @@ mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>%
   labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
  
 Suffttest <- ValueTtest(SuffStrap)
+
+
+z <- MakeLeaflet(CoastWave)
+z
+saveWidget(z, file=file.path(gitpage, "CoastSuffLowUse.html"), selfcontained = TRUE )
 
 ```
 
