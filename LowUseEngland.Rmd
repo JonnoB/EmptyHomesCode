@@ -74,12 +74,14 @@ CumbriaStrap <- ls(pattern = "CUMBRIA") %>% map_df(~eval(parse(text=.x))) %>%
 CumbriaStrap %>%
 mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
   ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
-  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
-
+  labs(title = "Cumbria", y = "% difference from expected")
+SaveFig("CumbriaDistributionPlot.png")
 
 Cumbriattest <- ValueTtest(CumbriaStrap)
 
-(218977.5-  184071.4 )/184071.4
+z <- ls(pattern = "CUMBRIA") %>% map_df(~eval(parse(text=.x))) %>% MakeLeaflet(.)
+z
+saveWidget(z, file=file.path(gitpage, "CumbriaLowUse.html"), selfcontained = TRUE )
 
 ```
 
@@ -114,7 +116,8 @@ Cornstrap <-DistribCompareBootstrapper(Cornwall, 1652, 100)
 CornStrap %>%
 mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
   ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
-  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+  labs(title = "Cornwall", y = "% difference from expected")
+SaveFig("CornwallDistributionPlot.png")
 
 Cornttest <- ValueTtest(Cornstrap)
 
@@ -155,8 +158,9 @@ corplotter(CoastWave, "MedianPrice", "WardLowUsePerc",
 SuffStrap %>%
 mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
   ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
-  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
- 
+  labs(title = "Coastal Suffolk", y = "% difference from expected")
+SaveFig("CoastSuffDistributionPlot.png") 
+
 Suffttest <- ValueTtest(SuffStrap)
 
 
@@ -185,11 +189,17 @@ corplotter(Hull, "MedianPrice", "WardLowUsePerc",
  HullStrap<-  DistribCompareBootstrapper(Hull, 1652, 1000)
 
  HullStrap %>%
-mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+mutate(RatioExvsAct = (RatioExvsAct-1)*100) %>% 
   ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
-  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
- 
-HullStrap <- ValueTtest(HullStrap)
+  labs(title = "Cumbria", y = "% difference from expected")
+SaveFig("HullDistributionPlot.png")
+
+HullTtest <- ValueTtest(HullStrap)
+
+
+z <- MakeLeaflet(Hull)
+z
+saveWidget(z, file=file.path(gitpage, "HullLowUse.html"), selfcontained = TRUE )
 
 ```
 
