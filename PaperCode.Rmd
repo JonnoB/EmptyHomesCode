@@ -1,0 +1,310 @@
+---
+title: "Untitled"
+author: "Jonathan Bourne"
+date: "5 July 2017"
+output: html_document
+---
+
+
+```{r setup}
+setwd( "~/Dropbox/SSE/Empty Homes/EmptyHomesCode/SubCode")
+source("Setup.R")
+
+setwd(Functions)
+list.files() %>% map(source)
+```
+
+
+
+```{r}
+source(file.path(CommonCode, "AuxdataLoad.R"))
+```
+
+
+Cumbria
+```{r}
+setwd(file.path(RegionsComp, "Region North West"))
+
+BarrowCUMBRIADATA <- read_excel("Barrow-in-FurnessExemptionsLSOA.xlsx", sheet=1)[1:4]%>%  
+  StructureData(.,lowuse = c(2:6,8))
+
+SLakelandCUMBRIADATA <- read_excel("South LakelandExemptionsLSOA.XLSX", sheet=1)[,1:4] %>%
+    StructureData(., lowuse=2:9)
+
+#only inlcudes postcodes so the mergeing needs to be done manually
+CopelandCUMBRIADATA <- read_excel("CopelandFOI 5778 data 100517 CBC.XLSX", sheet=1) %>% 
+  mutate(Postcode = sub(" ", "", Postcode)) %>%
+  left_join(., PstCdLSOA.raw,  by=c("Postcode") ) %>%
+  rename(Exemption.type=`Disc Type Ind`, LSOA_CODE = lsoa11cd) %>%
+  select(Exemption.type, LSOA_CODE, Postcode, Country_code) %>%
+  StructureData()
+
+
+EdenCUMBRIADATA <- read_excel("EdenDiscountsLSOA.xlsx"  , sheet=1)[1:4] %>%  
+  StructureData(.,lowuse = c(2:6,8))
+
+CarliseCUMBRIADATA <- read_excel("FOI 5846 5983-CarlisleDiscountsLSOA June 2017.xlsx"  , sheet=1)[1:4] %>%  
+  StructureData(.)
+
+```
+
+
+#Manchester
+
+```{r}
+list.files()
+
+OldhamMANCDATA <- read_excel("FOI 10635 OldhamDiscounts LSOA.xlsx", sheet = 1 )[c(1,4:6)] %>%  
+  StructureData(., c(5:6,8:11))
+
+ManchesterMANCDATA <- read_excel("ManchesterDiscountsLSOA.xlsx", sheet = 1 )[1:4] %>%  
+  StructureData(. )
+
+RochdaleMANCDATA <- read_excel("Rochdale Both.xlsx" , sheet = 1 )[1:4] %>%  
+  StructureData(., c(5,6,14,15,20:22))
+
+TamesideMANCDATA <- read_excel("Tameside FOI 6257A2.xlsx", sheet = 1 )[1:4] %>%  
+  StructureData(. )
+
+TraffordMANCDATA <- read_excel("Trafford Exemption and Levy.xlsx" , sheet = 1 )[1:4] %>%
+  filter(Exemption_type =="LEVY") %>% 
+  bind_rows(.,read_excel("TraffordDiscountsLSOA.XLSX", sheet = 1 )[1:4] %>% rename(Exemption_type = Class)) %>%
+  StructureData()
+
+WiganMANCDATA <- read_excel("Wigan 5528 DISCOUNTS.xlsx", sheet = 1 )[1:4] %>%  
+  StructureData(., lowuse = c(2:3, 5:9) )
+
+ls(pattern = "MANC") %>% map_df(~eval(parse(text=.x))) %>% PlotMap(., AG)
+
+
+```
+
+
+#Cornwall
+
+```{r}
+
+setwd(file.path(RegionsComp, "Region South West"))
+
+CornwallDATA <- read_excel("Cornwall.xlsx", sheet=1)%>% setNames(make.names(names(.))) %>% .[,1:4] %>%
+  StructureData(lowuse = c(2,23:28))
+```
+
+Suffolk
+
+
+```{r}
+setwd(file.path(RegionsComp, "Region East of England"))
+list.files()
+
+
+#Serparete in to the two LADS
+CoastWaveDATA <- bind_rows(read.xlsx("FOI IMT178324 SuffolkCoastal.xlsx")[1:4] , read.xlsx("FOI IMT178324 Waveney.xlsx")[1:4]) %>% setNames(make.names(names(.))) %>%
+  mutate(Exemption.type = Exemption.type %>% trimws %>%
+           make.names %>% 
+           gsub("\\.{2,}" , ".", .))  %>%
+  StructureData(., lowuse = c(5,6,13,14,16:18))
+
+```
+
+
+
+#Hull
+```{r}
+
+HullDATA <-read_excel(file.path(RegionsComp, "Region Yorkshire and The Humber",
+                "KINGSTON UPON HULL%2c CITY OFDISCOUNTSLSOA.XLSX"))[-c(c(1:6)),1:4] %>%
+  StructureData(.)
+
+
+```
+
+# London using the full data
+
+```{r}
+#Source the code from another file as it is very long
+source(file.path(CommonCode, "LondonFullProcesss.R"))
+
+```
+
+
+#Semi data 
+
+The LSOA will be assigned empty and low use homes by percentage
+
+```{r}
+#ward folder
+setwd(SemiLondon)
+
+wardnames <- EW2 %>% group_by(Admin_ward_code, WD16NM) %>% summarise(counts = n(), LAD11NM = first(LAD11NM), LAD11CD = first(LAD11CD)) %>% arrange(WD16NM)
+
+test <- wardnames %>% filter(grepl("Kensington", LAD11NM)) 
+
+test <- EW2 %>% filter(LAD11NM == "Wandsworth")
+
+
+#Wandsworth
+
+WandsworthDATA <- read_excel("wandsworth2.xlsx",  skip = 3 ) %>% select(1,3) %>% 
+  group_by(`Ptc Wardname`) %>% summarise(Empty = sum(`Count Current Occupancy Discounts`)) %>% ungroup %>% 
+  arrange(`Ptc Wardname`) %>% 
+  filter(!is.na(`Ptc Wardname`)) %>% 
+  bind_cols(., wardnames %>% filter(LAD11NM == "Wandsworth") %>% 
+              select(Admin_ward_code)) %>%
+  mutate(LowUse = Empty) %>%
+  SemiDataStructure
+
+
+#Merton
+
+MertonDATA <- read_excel("merton1.xlsx" )[,-2] %>%setNames(make.names(names(.))) %>% slice(-1) %>% arrange(X__1) %>%
+  filter(X__1 != "Norbury", X__1!="Nightingale", X__1 !="Stonecot") %>% 
+    bind_cols(., wardnames %>% filter(LAD11NM == "Merton") %>% 
+              select(Admin_ward_code)) %>%
+  mutate(Empty =   Disc.Class.C.Vacant.dwelling + Disc.class.C.Long.term.empty + Premium.Levy, LowUse =  Disc.Class.A.Second.home + Disc.Class.B.second.home ) %>%
+  SemiDataStructure
+
+#Kingston
+
+KingstonDATA <- read_excel("Kingston1.xlsx"  )%>% setNames(make.names(names(.))) %>%
+  arrange(X__1) %>% slice(1:16) %>%
+  bind_cols(., wardnames %>% filter(LAD11NM == "Kingston upon Thames") %>% 
+              select(Admin_ward_code)) %>%
+  mutate(Empty = Empty...Furnished..0.. + Empty.Homes.Premium + LONG.TERM.EMPTY..0.. + Structural.Repair..0.., LowUse = Empty + X2nd.Home..0..) %>%
+  SemiDataStructure
+
+
+#TowerHamlets
+TowerDATA <- read_excel("Towerhamlets.xlsx")[,c(1,3)] %>% 
+  filter(!is.na(DiscClass)) %>%
+  group_by(Ward, DiscClass) %>%
+  summarise(count = n()) %>% ungroup %>%
+  spread(., key =DiscClass, value = count, fill = 0 ) %>% 
+  mutate(Empty = rowSums(.[,4:8]), LowUse = B+BE+Empty) %>% 
+  slice(c(1:13, 15:17, 14, 18:20)) %>%
+   bind_cols(., wardnames %>% filter(grepl("Tower", LAD11NM))) %>%
+  SemiDataStructure
+
+```
+
+General Stats
+```{r}
+
+ls(pattern = "DATA") %>% map_df(~eval(parse(text=.x))) %>% 
+  summarise(LowUse = sum(LowUse, na.rm = T),
+           Homes = sum(Homes, na.rm = T))
+
+```
+
+
+#Plot stuff
+```{r}
+x <-bind_rows(SouthwarkLONDATA, TowerDATA, LambethLONDATA, CoLLONDATA) %>% MakeLeaflet
+
+MakeLeaflet(IslingtonLONDATA)
+```
+
+
+#Bootstrap
+
+Now all the data is loaded each LAD needs to be bootstrapped
+
+```{r}
+
+setwd(basewd)
+#Boostrap each LAD
+BootStrapRES <- ls(pattern = "DATA") %>% map(~{print(.x)
+  DistribCompareBootstrapper(eval(parse(text=.x)), 1652, 1000)})
+
+saveRDS(BootStrapRES, file = "BootStrapRES.rds")
+
+```
+
+#Analyse Boostrap
+
+```{r}
+#Give the resulting list the name of each LAD
+elementnames <- sub("DATA", "", ls(pattern = "DATA"))
+
+names(BootStrapRES)<- elementnames
+
+#Perform the t-test on the resulting lists
+TtestRESgreater <-BootStrapRES %>% map(~ValueTtest(.x))
+TtestREStwo.sided <-BootStrapRES %>% map(~ValueTtest(.x, alternative = "two.sided"))
+#Tidy results of thejust the ttest
+TtestRES2 <- TtestRESgreater %>% map_df(~.x$t.test %>% tidy) %>%
+  mutate(LAD = elementnames,
+         absdiff = TtestRES %>% map_dbl(~.x$absdiff),
+         Percdiff = TtestRES %>% map_dbl(~.x$Percdiff))
+
+#This is so cool, Also needs to be discussed in great detail, it is probablu due to the demolition and renovation of council housing
+TtestRES2 %>% ggplot(.,aes(x= absdiff, y = Percdiff)) + geom_point() 
+TtestRES2 %>% ggplot(.,aes(x= absdiff, y = p.value)) + geom_point()
+TtestRES2 %>% ggplot(.,aes(x= Percdiff, y = p.value)) + geom_point()
+
+
+#Perform ANOVA on the difference between the ratios of the groups on the bootrapped list
+ANOVARES <- BootStrapRES %>% 
+  map_df(~aov(.x$RatioExvsAct~.x$class) %>% tidy) %>% 
+  filter(term != "Residuals") %>%
+  select(-term) %>%
+  mutate(LAD = elementnames)
+
+WardData <- ls(pattern = "DATA") %>%
+  map_df(~eval(parse(text=.x)) %>%
+           select(WardLowUsePerc) %>%
+        mutate( WardLowUsePerc = ifelse(is.na(WardLowUsePerc),0, WardLowUsePerc)) %>%
+          summarise( maxPerc = max(WardLowUsePerc),
+          minPerc = min(WardLowUsePerc),
+          diffPerc = maxPerc-minPerc,
+          LAD = sub("DATA", "", .x)))
+
+
+skew <- BootStrapRES %>% map_df(~.x %>% group_by(class) %>%
+  summarise(skew = mean(RatioExvsAct, na.rm = TRUE)) %>%
+  summarise(skew = skewness(skew))
+)
+
+
+Combine1 <- left_join(ANOVARES, TtestRES2, by = "LAD" ) %>% bind_cols(skew)
+
+
+
+#look at specific data
+BootStrapRES$Redbridge %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
+  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+```
+
+
+```{r}
+
+Combine1 <- left_join(Combine1, WardData,by = "LAD" )
+
+Combine1 %>% ggplot(.,aes(x= maxPerc, y = abs(Percdiff))) + geom_point()
+
+#P value has an exponential decay
+Combine1 %>% ggplot(.,aes(x= abs(maxPerc), y = p.value.y)) + geom_point()
+
+#P.value is low if diff perc is over 5%
+#Both southwark and Tower of london have concil flat renovation?
+#Southwark the Aylesbury estate is being redeveloped maing emptyness much higher than expected
+#The blackwall an cubitt are being redevleoped with the blackwall reach, some housing is empty others are still occupied demolishin has not occured
+Combine1 %>% ggplot(.,aes(x= diffPerc, y = p.value.y)) + geom_point()
+
+test <- Combine1 %>%
+  select(LAD, p.value.y, absdiff , maxPerc, minPerc,diffPerc, skew)
+
+
+Combine1 %>% ggplot(.,aes(x= skew, y= p.value.y)) + geom_point()
+
+```
+
+
+
+```{r}
+
+
+test <- Combine1 %>% filter(p.value.y>0.05)
+```
+

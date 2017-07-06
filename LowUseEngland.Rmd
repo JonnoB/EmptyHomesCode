@@ -5,6 +5,16 @@ date: "25 June 2017"
 output: html_document
 ---
 
+housing studies
+internat jouranl housing policy
+
+becky tunstall housing space inequality
+
+niall may - between 1990 - 1995 hoomes built loads of homes built small number owned
+
+positive money
+
+
 ```{r setup}
 setwd( "~/Dropbox/SSE/Empty Homes/EmptyHomesCode/SubCode")
 source("Setup.R")
@@ -82,6 +92,61 @@ Cumbriattest <- ValueTtest(CumbriaStrap)
 z <- ls(pattern = "CUMBRIA") %>% map_df(~eval(parse(text=.x))) %>% MakeLeaflet(.)
 z
 saveWidget(z, file=file.path(gitpage, "CumbriaLowUse.html"), selfcontained = TRUE )
+
+```
+
+#business rates
+```{r}
+setwd(file.path(basewd, "Business rates"))
+SlakelBuss <- read_csv("sldc-business-rates-full-list-07042017.csv")
+
+test <- SlakelBuss %>% group_by(PropertyDescription) %>% 
+  summarise(counts = n())
+
+test2 <- test %>% filter(grepl("SELF", PropertyDescription))
+
+test2$counts %>% sum
+
+SlakelBuss<-SlakelBuss %>% 
+  rename(Postcode = PropPostCode) %>%
+  mutate(Postcode = gsub(" ", "" , Postcode)) %>%
+  filter(grepl("SELF", PropertyDescription)) %>% left_join(., PstCdLSOA.raw, by = "Postcode") %>%
+    mutate(LSOA_CODE = lsoa11cd,
+         `Exemption type` = "Discount Class B (Furnished & Unocc)") %>%
+  select(LSOA_CODE, `Exemption type`)
+
+
+    test <- SlakelBuss %>% group_by(LSOA_CODE) %>%
+    summarise(HomesB = n())
+
+#several hundred un-matchable postcodes
+test2 <- SlakelBuss%>% 
+  mutate(testme = is.na(lsoa11cd)) %>%
+  group_by(AccountName, testme) %>% 
+  summarise(count = n()) %>%
+  rename
+
+setwd(file.path(RegionsComp, "Region North West"))
+SLakelandCUMBRIADATA2 <- read_excel("South LakelandExemptionsLSOA.XLSX", sheet=1)[,1:4] %>%
+  bind_rows(SlakelBuss) %>%
+    StructureData(., lowuse=2:9)
+
+SLakelandCUMBRIADATA3 <- read_excel("South LakelandExemptionsLSOA.XLSX", sheet=1)[,1:4] %>%
+    StructureData2(., lowuse=2:9, Business = SlakelBuss)
+
+
+MakeLeaflet(SLakelandCUMBRIADATA2)
+
+MakeLeaflet(SLakelandCUMBRIADATA3)
+
+plot(SLakelandCUMBRIADATA$LowUsePerc,SLakelandCUMBRIADATA3$LowUsePerc)
+
+
+test <- data.frame(Biz =SLakelandCUMBRIADATA3$LowUsePerc, Norm = SLakelandCUMBRIADATA$LowUsePerc ) %>%
+  mutate(diff = Biz-Norm)
+
+
+test %>% ggplot(aes(x= diff)) + geom_density()
 
 ```
 

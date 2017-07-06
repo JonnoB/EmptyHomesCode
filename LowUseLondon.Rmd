@@ -48,7 +48,19 @@ source(file.path(CommonCode, "LondonFullProcesss.R"))
 
 
 #All London With missing Boroughs
-PlotMap(Lambethinfo, AG)
+PlotMap(Hammersmithinfo, AG)
+
+
+ test <- list("Hammersmithinfo", "Chelseainfo") %>% map_df(~eval(parse(text=.x))) 
+
+ Hammersmithinfo %>% filter(LSOA_CODE!="E01001866") %>% 
+   bind_rows(Chelseainfo) %>%
+   MakeLeaflet(.)
+ 
+ PlotMap(test, AG)
+test %>% MakeLeaflet(.)
+
+test2 <- filter(test, LSOA_CODE=="E01001866")
 
 ```
 
@@ -75,6 +87,8 @@ SaveFig("DistributionPlot.png")
 
  Chelttest <- ValueTtest(chelstrap)
 
+ 
+ 
  
  #boxplot comparison
 Chelttest$data.frame %>%
@@ -112,11 +126,11 @@ test <- EW2 %>% filter(LAD11NM == "Wandsworth")
 hackney <- read_csv("hackney.csv") %>% setNames(make.names(names(.))) %>% group_by(Exemption.Discount, Ward.Name) %>% summarise(counts = n()) %>% ungroup %>% spread(Exemption.Discount, counts, fill = 0) 
 
 
-#Hammersmith 
-Hammersmithinfo <- read_excel("Hammersmith.xls", skip = 1 ) %>% filter(!is.na(Ward) ) %>% 
-  bind_cols(., filter(wardnames,LAD11NM == "Hammersmith and Fulham")) %>% select(-Ward) %>%
-  mutate(LowUse = `Second (B)` + `Empty Unocc`+ LTE + Premium, Empty = LowUse - `Second (B)`) %>%
-  SemiDataStructure
+# #Hammersmith 
+# Hammersmithinfo <- read_excel("Hammersmith.xls", skip = 1 ) %>% filter(!is.na(Ward) ) %>% 
+#   bind_cols(., filter(wardnames,LAD11NM == "Hammersmith and Fulham")) %>% select(-Ward) %>%
+#   mutate(LowUse = `Second (B)` + `Empty Unocc`+ LTE + Premium, Empty = LowUse - `Second (B)`) %>%
+#   SemiDataStructure
 
 
 #Wandsworth

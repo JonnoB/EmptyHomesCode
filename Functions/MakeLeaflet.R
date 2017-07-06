@@ -1,5 +1,19 @@
 MakeLeaflet <-function(dataframe, bins = c(0, 10, 20, 25, 100)){
 
+  #These two functions are necessary for Points to polygons
+  get.grpPoly <- function(group,ID,df) {
+    Polygon(coordinates(df[df$id==ID & df$group==group,]))
+  }
+  get.spPoly  <- function(ID,df) {
+    Polygons(lapply(unique(df[df$id==ID,]$group),get.grpPoly,ID,df),ID)
+  }
+  
+  #this function is necessary for the rest of the function
+  points2polygons <- function(df,data) {
+    spPolygons  <- SpatialPolygons(lapply(unique(df$id),get.spPoly,df))
+    SpatialPolygonsDataFrame(spPolygons,match.ID=T,data=data)
+  }
+  
   MyData <- AG %>% filter(AG$LAD11CD %in%  unique(dataframe$LAD11CD) ) %>%
     rename(LSOA_CODE = lsoa11cd)
   
