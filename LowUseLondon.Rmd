@@ -192,7 +192,7 @@ Towerinfo <- read_excel("Towerhamlets.xlsx")[,c(1,3)] %>%
 Value of low*use and total low use
 ```{r}
 
-test <-  ls(pattern = "info") %>% map_df(~eval(parse(text=.x))) %>%
+test <-  ls(pattern = "LON") %>% map_df(~eval(parse(text=.x))) %>%
   group_by(Admin_ward_code) %>%
   summarise(LAD11NM = first(LAD11NM),
             MeanPrice = first(MeanPrice),
@@ -212,7 +212,7 @@ length(unique(test$LAD11NM))
 Plot Map
 ```{r}
 
- ls(pattern = "info") %>% map_df(~eval(parse(text=.x))) %>%
+ ls(pattern = "LON") %>% map_df(~eval(parse(text=.x))) %>%
   PlotMap(., filter(AG, RGN15NM=="London"), 
           filtermap = FALSE,
           title = "Map of London with all current data")

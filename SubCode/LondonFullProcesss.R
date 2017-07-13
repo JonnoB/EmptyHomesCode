@@ -11,9 +11,9 @@ LambethLONDATA <- read_excel("LambethExemptionsLSOA.xlsx")[,1:4] %>%
 test <- LambethLONDATA %>% select(LowUsePerc, WardLowUsePerc, LowuseClass, WardLowuseClass)
 
 #Islington is exemptions only
-
-IslingtonLONDATA <- read_csv("IslingtonExemptionsLSOA as at 2017 03 24.csv"  )[1:4]%>%  
-  StructureData(., lowuse = c(2:11,14:18))
+#data is exemptions not discounts
+# IslingtonLONDATA <- read_csv("IslingtonExemptionsLSOA as at 2017 03 24.csv"  )[1:4]%>%  
+#   StructureData(., lowuse = c(2:11,14:18))
 
 #Greenwhich
 
@@ -79,10 +79,8 @@ BarnetLONDATA <- read.xlsx( "3386297 Attachment BarnetDiscounts.xlsx"  , colName
 
 
 #Newham
-# NewhamLONDATA <- read.xlsx("NewhamExemptionsLSOA.XLSX"  , colNames = TRUE)[,1:4]%>%
-#   StructureData(full = F)
-# NewhamLONDATA <- read.xlsx( "NewhamDiscountsLSOA.xlsx", colNames = TRUE)[,1:4] %>%
-#   StructureData(full = F)
+NewhamLONDATA <- read.xlsx("NewhamDiscountsLSOA - updated.xlsx"  , colNames = TRUE)[,1:4]%>%
+  StructureData(., lowuse = c(2,4:8))
 
 #City of London
 
