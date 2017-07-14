@@ -8,6 +8,8 @@ output: html_document
 
 Islington should be removed and put back in when they send the correct data, it is giving a false negative
 
+Should type B be included? or just type A?
+
 ```{r setup}
 setwd( "~/Dropbox/SSE/Empty Homes/EmptyHomesCode/SubCode")
 source("Setup.R")
@@ -150,24 +152,42 @@ BrightonDATA <- read_excel("Copy of Brighton and HoveDiscountsLSOA (4).xlsx", sh
 
 
 
-#Hull
+#Yorkshire and the Humber
 ```{r}
+setwd(file.path(RegionsComp, "Region Yorkshire and The Humber"))
 
-HullDATA <-read_excel(file.path(RegionsComp, "Region Yorkshire and The Humber",
-                "KINGSTON UPON HULL%2c CITY OFDISCOUNTSLSOA.XLSX"))[-c(c(1:6)),1:4] %>%
+#Hull
+
+HullDATA <-read_excel("KINGSTON UPON HULL%2c CITY OFDISCOUNTSLSOA.XLSX")[-c(c(1:6)),1:4] %>%
   StructureData(.)
+
+#Harrowgate
+
+HarrogateDATA <-read_excel("Harrogate DiscountsExemptionsLSOA.xlsx" )[,1:4] %>%
+  StructureData(.,3:10)
 
 
 ```
+
+#Wales
+
+```{r}
+
+setwd(file.path(RegionsComp, "Region Wales"))
+list.files()
+
+
+CeredigionDATA <- read_excel("CTAX - Ceredigion Discounts LSOA.xlsx", sheet=1)%>% .[,1:4] %>%
+  StructureData(lowuse =c(8:13,15))
+
+```
+
 
 # London using the full data
 
 ```{r}
 #Source the code from another file as it is very long
 source(file.path(CommonCode, "LondonFullProcesss.R"))
-
-
-
 
 #MakeLeaflet(NewhamLONDATA)
 
@@ -238,6 +258,7 @@ General Stats
 
 #number of LUPS and Total Homes
 ls(pattern = "DATA") %>% map_df(~eval(parse(text=.x))) %>% 
+  filter(!is.na(LAD11NM)) %>%
   summarise(
            TotalLads = length(unique(LAD11CD)),
            LowUse = sum(LowUse, na.rm = T),
@@ -249,6 +270,10 @@ ls(pattern = "DATA") %>% map_df(~eval(parse(text=.x))) %>%
 #Percentage of EW LADS
 length(ls(pattern = "DATA"))/(EW2$LAD11NM %>% unique %>% length())
 
+#check which lads are present even though I don't have data due to postcode matching
+#test <- ls(pattern = "DATA") %>% map_df(~eval(parse(text=.x)))  %>% arrange(LAD11NM)
+#unique(test$LAD11NM)
+
 ```
 
 
@@ -256,8 +281,10 @@ length(ls(pattern = "DATA"))/(EW2$LAD11NM %>% unique %>% length())
 ```{r}
 x <-bind_rows(SouthwarkLONDATA, TowerDATA, LambethLONDATA, CoLLONDATA, NewhamLONDATA) %>% MakeLeaflet
 
-#MakeLeaflet(SouthwarkLONDATA)
+z<- MakeLeaflet(CeredigionDATA)
+z
 
+saveWidget(z, file=file.path(basewd, "CeredigionDATA"), selfcontained = TRUE )
 
 #testSouth <- DistribCompareBootstrapper(SouthwarkLONDATA, 1652, 1000)
 testSouth %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100) %>% 
@@ -314,7 +341,90 @@ saveRDS(BootStrapRES, file = "BootStrapRES.rds")
 
 elementnames<- names(BootStrapRES)
 
+
+
+
+
 ```
+
+
+#Investigating Ceredigion
+
+```{r}
+
+
+CeredPrice <- prices %>% 
+  filter( grepl("W06000008", Admin_district_code)) %>%
+  select(Admin_ward_code, lsoa11cd, Price =X2, X15) %>%
+  #filter(X15 == "A") %>%
+  mutate(class = cut(Price, c(0,  490,      750,   2000, 12000, Inf)*10^3, 
+                     labels =     c("Lower", "Mid", "Upper", "Prime", "Super"), 
+                     right = F),
+         Price = as.numeric(Price)) 
+
+CeredPrice2 <- CeredPrice %>%
+  group_by(lsoa11cd, class) %>%
+  summarise(Admin_ward_code = first(Admin_ward_code),
+            LSOAcounts = n()) 
+
+CeredPrice2 <- CeredPrice2  %>%
+  group_by(Admin_ward_code, class) %>%
+  summarise(counts = n()) %>%
+  group_by(class) %>%
+  mutate(ClassPercent = counts/sum(counts)) %>%
+  ungroup %>% group_by(Admin_ward_code) %>%
+  mutate(WardPercent = counts/sum(counts))%>%
+  left_join(CeredPrice2,. ,by=c("Admin_ward_code", "class")) %>%
+  rename(LSOA_CODE = lsoa11cd)
+
+RBKCPrice <- prices %>% 
+  filter( grepl("E09000020", Admin_district_code)) %>%
+    select(Admin_ward_code, lsoa11cd, Price =X2, X15) %>%
+  #filter(X15 == "A") %>%
+  mutate(class = cut(Price, c(0,  490,      750,   2000, 12000, Inf)*10^3, 
+                     labels =     c("Lower", "Mid", "Upper", "Prime", "Super"), 
+                     right = F),
+         Price = as.numeric(Price)) 
+
+RBKCPrice2 <- RBKCPrice %>%
+  group_by(lsoa11cd, class) %>%
+  summarise(Admin_ward_code = first(Admin_ward_code),
+            LSOAcounts = n()) 
+
+RBKCPrice2 <- RBKCPrice  %>%
+  group_by(Admin_ward_code, class) %>%
+  summarise(counts = n()) %>%
+  group_by(class) %>%
+  mutate(ClassPercent = counts/sum(counts)) %>%
+  ungroup %>% group_by(Admin_ward_code) %>%
+  mutate(WardPercent = counts/sum(counts))%>%
+  left_join(RBKCPrice2,. ,by=c("Admin_ward_code", "class")) %>%
+  rename(LSOA_CODE = lsoa11cd)
+
+RBKCtot <- RBKCPrice2 %>%
+  group_by(class) %>%
+  summarise(counts = sum(counts))
+
+
+summary(CeredPrice$Price)
+summary(RBKCPrice$Price)
+
+RBKCPrice %>% group_by(X15) %>%
+  summarise(mean = mean(Price))
+
+CeredPrice %>% group_by(X15) %>%
+  summarise(mean = mean(Price))
+
+ RBKCPrice2 %>%
+   filter(class == "Prime") %>%
+   PlotMap(.,AG,  "ClassPercent")
+
+  CeredPrice2 %>%
+   filter(class == "Mid") %>%
+   PlotMap(.,filter(AG, LAD11CD=="W06000008"), variable = "ClassPercent", filtermap = FALSE)
+ 
+```
+
 
 #Analyse Boostrap
 
@@ -363,11 +473,13 @@ skew <- BootStrapRES %>% map_df(~.x %>% group_by(class) %>%
 Combine1 <- left_join(ANOVARES, TtestRES2, by = "LAD" ) %>% left_join(WardData,by = "LAD" ) %>% bind_cols(skew)
 
 
-test <- BootStrapRES$CoastWave
+test <- BootStrapRES$Ceredigion
 #look at specific data
-BootStrapRES$SouthwarkLON %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+BootStrapRES$Ceredigion %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
   ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
   labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+
+prices %>% 
 
 ```
 

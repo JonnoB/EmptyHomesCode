@@ -2,14 +2,15 @@ PlotMap <- function(df, ShapeData, variable = "LowUsePerc", title = "Map of Regi
   
   
   Singlevis <- ShapeData %>% 
-    left_join(., df, #select(df, LSOA_CODE, LowUsePerc, WardLowUsePerc, LowUse, Empty, Homes),
-              by = c("lsoa11cd"="LSOA_CODE")) %>% 
+    left_join(., df, by = c("lsoa11cd"="LSOA_CODE")) %>% 
         ungroup
   
   if(filtermap){
-  Singlevis <- Singlevis %>% filter(!is.na(LowUsePerc))
+  Singlevis <- Singlevis %>% filter(!is.na(eval(parse(text = paste0("Singlevis$",variable)))
+))
   }
-  
+  #Just neccessary variables  
+  Singlevis <-Singlevis %>% select_("long", "lat", "group", variable)
   
   if(df %>% select_(variable) %>% unlist %>% class == "factor"){
     
