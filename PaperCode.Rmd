@@ -126,6 +126,15 @@ WaveneySUFFDATA <- read.xlsx("FOI IMT178324 Waveney.xlsx")[1:4] %>% setNames(mak
 
 ```
 
+#Norfolk
+```{r}
+#Broadlands is unsuable, due to lack of data collection.
+#This is being checked
+# BroadlandsDATA <- read_excel("BroadlandDiscountsLSOA.xlsx", sheet=1)[1:4] %>%
+#   StructureData()
+
+```
+
 
 #Cambridge
 ```{r}
@@ -179,6 +188,12 @@ list.files()
 
 CeredigionDATA <- read_excel("CTAX - Ceredigion Discounts LSOA.xlsx", sheet=1)%>% .[,1:4] %>%
   StructureData(lowuse =c(8:13,15))
+
+MonmouthDATA <- read_excel("MCC Discounts Jul 17.xlsx", sheet=1)%>% .[,1:4] %>%
+  StructureData(lowuse = c(4:8))
+
+CarmarthenDATA <- read_excel("CarmarthenshireDiscountsLSOA.XLSX" , sheet=1)%>% .[,1:4] %>%
+  StructureData(2:4)
 
 ```
 
@@ -281,10 +296,10 @@ length(ls(pattern = "DATA"))/(EW2$LAD11NM %>% unique %>% length())
 ```{r}
 x <-bind_rows(SouthwarkLONDATA, TowerDATA, LambethLONDATA, CoLLONDATA, NewhamLONDATA) %>% MakeLeaflet
 
-z<- MakeLeaflet(CeredigionDATA)
+z<- MakeLeaflet(MonmouthDATA)
 z
-
-saveWidget(z, file=file.path(basewd, "CeredigionDATA"), selfcontained = TRUE )
+# 
+# saveWidget(z, file=file.path(basewd, "CeredigionDATA"), selfcontained = TRUE )
 
 #testSouth <- DistribCompareBootstrapper(SouthwarkLONDATA, 1652, 1000)
 testSouth %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100) %>% 
@@ -350,6 +365,8 @@ elementnames<- names(BootStrapRES)
 
 #Investigating Ceredigion
 
+Ceredigion has cheaper LUps even though it has areas with high LUP. When investigating I changed the classes to take account of the different pricing levels in the LAD. This made no difference. However re-running the bootstrapping including only A type purchases in the LAD gave the expected result of high LUP prices. What appeared to be happening was a lot of property was being transferred in unsual ways. 
+
 ```{r}
 
 
@@ -408,6 +425,28 @@ RBKCtot <- RBKCPrice2 %>%
 
 summary(CeredPrice$Price)
 summary(RBKCPrice$Price)
+
+CeredBootAnorm <- DistribCompareBootstrapper(CeredigionDATA, 1652,1000, type = "A" )
+CeredBootAB <- DistribCompareBootstrapper(CeredigionDATA, 1652,1000, c(0, 60, 120, 200, 500, Inf)*10^3 )
+
+CeredBootA <- DistribCompareBootstrapper(CeredigionDATA, 1652,1000, c(0, 60, 120, 200, 500, Inf)*10^3, type = "A" )
+
+
+ValueTtest(CeredBootAB)
+ValueTtest(CeredBootA)
+ValueTtest(CeredBootAnorm)
+
+CeredBootAB %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
+  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+
+CeredBootA %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
+  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+
+CeredBootAnorm %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
+  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
 
 RBKCPrice %>% group_by(X15) %>%
   summarise(mean = mean(Price))
@@ -479,7 +518,6 @@ BootStrapRES$Ceredigion %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>%
   ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
   labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
 
-prices %>% 
 
 ```
 
@@ -495,7 +533,6 @@ Also check deprivation,
 
 Combine1 %>% ggplot(.,aes(x= maxPerc, y = abs(Percdiff))) + geom_point()
 
-#P value has an exponential decay
 Combine1 %>% ggplot(.,aes(x= abs(maxPerc), y = p.value.y)) + geom_point()
 
 #P.value is low if diff perc is over 5%

@@ -2,7 +2,7 @@
 
 
 packages <- c("tidyverse", "spdep", "igraph", "maptools", "openxlsx", "readxl", "sp","rgdal", "rgeos", "raster", "broom", "leaflet",
-              "forcats", "e1071")
+              "forcats", "e1071", "hmtlwidgets")
 
 new.packages <- packages[!(packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)

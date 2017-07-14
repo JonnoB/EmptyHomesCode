@@ -1,16 +1,21 @@
 
-DistribCompareBootstrapper <-function(df, seed, samples=100){
+DistribCompareBootstrapper <-function(df, seed, samples=100, PriceCuts = c(0,  490,      750,   2000, 12000, Inf)*10^3, type = NULL){
 #df:data frame of processed area/s data
 #LADCD: The LAD code to fetch the correct price data
 # Random seed
 #Number of Bootstrap samples.
 
 LADCD <- unique(df$LAD11CD)
-  
+
+if(!is.null(type)){
+  prices <- prices %>%
+    filter(X15 == type)
+}
+
 dfPrice <- prices %>% 
   filter( grepl(paste(LADCD, collapse="|"), Admin_district_code)) %>%
   select(Admin_ward_code, lsoa11cd, Price =X2) %>%
-  mutate(class = cut(Price, c(0,  490,      750,   2000, 12000, Inf)*10^3, 
+  mutate(class = cut(Price, PriceCuts , 
                      labels =     c("Lower", "Mid", "Upper", "Prime", "Super"), 
                      right = F),
          Price = as.numeric(Price)) #there was some number overflow thing changing to numeric solves this
