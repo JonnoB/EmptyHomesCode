@@ -332,10 +332,7 @@ BootStrapRESA <-LoadAddDistribCompare("BootStrapRES_B.rds", type = "B")
 
 elementnames<- names(BootStrapRES)
 
-
-
-
-
+   
 ```
 
 
@@ -444,48 +441,10 @@ CeredPrice %>% group_by(X15) %>%
 
 ```{r}
 
-
-
-#Perform the t-test on the resulting lists
-TtestRESgreater <-BootStrapRES %>% map(~ValueTtest(.x))
-TtestREStwo.sided <-BootStrapRES %>% map(~ValueTtest(.x, alternative = "two.sided"))
-#Tidy results of thejust the ttest
-TtestRES2 <- TtestRESgreater %>% map_df(~.x$t.test %>% tidy) %>%
-  mutate(LAD = elementnames,
-         absdiff = TtestRESgreater %>% map_dbl(~.x$absdiff),
-         Percdiff = TtestRESgreater %>% map_dbl(~.x$Percdiff))
+Combine1 <- BootResSummaryData(BootStrapRES)
 
 #This is so cool, Also needs to be discussed in great detail, it is probablu due to the demolition and renovation of council housing
-TtestRES2 %>% ggplot(.,aes(x= absdiff, y = Percdiff)) + geom_point() 
-TtestRES2 %>% ggplot(.,aes(x= absdiff, y = p.value)) + geom_point()
-TtestRES2 %>% ggplot(.,aes(x= Percdiff, y = p.value)) + geom_point()
-
-
-#Perform ANOVA on the difference between the ratios of the groups on the bootrapped list
-ANOVARES <- BootStrapRES %>% 
-  map_df(~aov(.x$RatioExvsAct~.x$class) %>% tidy) %>% 
-  filter(term != "Residuals") %>%
-  select(-term) %>%
-  mutate(LAD = elementnames)
-
-WardData <- ls(pattern = "DATA") %>%
-  map_df(~eval(parse(text=.x)) %>%
-           select(WardLowUsePerc) %>%
-        mutate( WardLowUsePerc = ifelse(is.na(WardLowUsePerc),0, WardLowUsePerc)) %>%
-          summarise( maxPerc = max(WardLowUsePerc, na.rm=TRUE),
-          minPerc = min(WardLowUsePerc, na.rm=TRUE),
-          diffPerc = maxPerc-minPerc,
-          LAD = sub("DATA", "", .x)))
-
-
-skew <- BootStrapRES %>% map_df(~.x %>% group_by(class) %>%
-  summarise(skew = mean(RatioExvsAct, na.rm = TRUE)) %>%
-  summarise(skew = skewness(skew))
-)
-
-
-Combine1 <- left_join(ANOVARES, TtestRES2, by = "LAD" ) %>% left_join(WardData,by = "LAD" ) %>% bind_cols(skew)
-
+Combine1 %>% ggplot(.,aes(x= absdiff, y = Ttest.p.value)) + geom_point()
 
 test <- BootStrapRES$Ceredigion
 #look at specific data
@@ -508,27 +467,27 @@ Also check deprivation,
 
 Combine1 %>% ggplot(.,aes(x= maxPerc, y = abs(Percdiff))) + geom_point()
 
-Combine1 %>% ggplot(.,aes(x= abs(maxPerc), y = p.value.y)) + geom_point()
+Combine1 %>% ggplot(.,aes(x= abs(maxPerc), y = Ttest.p.value)) + geom_point()
 
 #P.value is low if diff perc is over 5%
 #Both southwark and Tower of london have concil flat renovation?
 #Southwark the Aylesbury estate is being redeveloped making emptyness much higher than expected
 #The blackwall an cubitt are being redevleoped with the blackwall reach, some housing is empty others are still occupied demolishin has not occured
-Combine1 %>% ggplot(.,aes(x= diffPerc, y = p.value.y)) + geom_point()
+Combine1 %>% ggplot(.,aes(x= diffPerc, y = Ttest.p.value)) + geom_point()
 
-Combine1 %>% ggplot(.,aes(x= maxPerc, y = p.value.y)) + geom_point() +
+Combine1 %>% ggplot(.,aes(x= maxPerc, y = Ttest.p.value)) + geom_point() +
   labs(title = "Comparing tatistical Significance of LUPs being more expensive than RHs and the maximum concentration of LUPs in a ")
 
 #Boring doesn't show anything interesting
-Combine1 %>% ggplot(.,aes(x= p.value.x, y = p.value.y, colour =diffPerc>5 )) + geom_point()
+Combine1 %>% ggplot(.,aes(x= p.value.x, y = Ttest.p.value, colour =diffPerc>5 )) + geom_point()
 
-Combine1 %>% ggplot(.,aes(x= maxPerc, y = p.value.y, colour =absdiff>0 )) + geom_point()
+Combine1 %>% ggplot(.,aes(x= maxPerc, y = Ttest.p.value, colour =absdiff>0 )) + geom_point()
 
 test <- Combine1 %>%
-  select(LAD,p.value.x, p.value.y, absdiff , maxPerc, minPerc,diffPerc, skew)
+  select(LAD,p.value.x, Ttest.p.value, absdiff , maxPerc, minPerc,diffPerc, skew)
 
 
-Combine1 %>% ggplot(.,aes(x= skew, y= p.value.y)) + geom_point()
+Combine1 %>% ggplot(.,aes(x= skew, y= Ttest.p.value)) + geom_point()
 
 ```
 
@@ -537,6 +496,6 @@ Combine1 %>% ggplot(.,aes(x= skew, y= p.value.y)) + geom_point()
 ```{r}
 
 
-test <- Combine1 %>% filter(p.value.y>0.05)
+test <- Combine1 %>% filter(Ttest.p.value>0.05)
 ```
 

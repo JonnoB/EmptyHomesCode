@@ -1,10 +1,13 @@
 
-DistribCompareBootstrapper <-function(df, seed, samples=100, PriceCuts = NULL, type = NULL){
+DistribCompareBootstrapper <-function(df, seed, samples=100, type = NULL, PriceCuts = NULL){
 #df:data frame of processed area/s data
 #LADCD: The LAD code to fetch the correct price data
 # Random seed
 #Number of Bootstrap samples.
-
+#type: whether all purchese or only classes A or b are taken, enter a character "A" or "B" or leave NULL for all
+#PriceCuts: the cut points for the different classes of housing, used only occaisionally has to start with 0 and end with Inf
+  #and in total have 6 elements
+  
 LADCD <- unique(df$LAD11CD)
 
 if(!is.null(type)){
