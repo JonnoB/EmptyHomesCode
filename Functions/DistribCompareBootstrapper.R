@@ -1,5 +1,5 @@
 
-DistribCompareBootstrapper <-function(df, seed, samples=100, PriceCuts = c(0,  490,      750,   2000, 12000, Inf)*10^3, type = NULL){
+DistribCompareBootstrapper <-function(df, seed, samples=100, PriceCuts = NULL, type = NULL){
 #df:data frame of processed area/s data
 #LADCD: The LAD code to fetch the correct price data
 # Random seed
@@ -11,6 +11,11 @@ if(!is.null(type)){
   prices <- prices %>%
     filter(X15 == type)
 }
+
+if(is.null(PriceCuts)){
+  PriceCuts<-c(0,  490,      750,   2000, 12000, Inf)*10^3
+}
+
 
 dfPrice <- prices %>% 
   filter( grepl(paste(LADCD, collapse="|"), Admin_district_code)) %>%

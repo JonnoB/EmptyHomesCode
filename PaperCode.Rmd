@@ -320,39 +320,15 @@ Now all the data is loaded each LAD needs to be bootstrapped
 ```{r}
 
 setwd(basewd)
-#Boostrap each LAD
-elementnames <- sub("DATA", "", ls(pattern = "DATA"))
 
-if(file.exists("BootStrapRES.rds")){
- #this sectio of code loads the old list and appends the new LADs
-  
-  BootStrapRES<- readRDS("BootStrapRES.rds")
-  newLADsnames <- sub("DATA", "", ls(pattern = "DATA")) %>% 
-  .[!(. %in% names(BootStrapRES))] 
-  newLADs <- paste0(newLADsnames, "DATA") 
-  
-    #only bootstrap if there is something to add.
-    if(length(newLADsnames)>0){
-       newLADsBoot <- newLADs  %>% map(~{print(.x)
-          DistribCompareBootstrapper(eval(parse(text=.x)), 1652, 1000)})  
-          names(newLADsBoot) <- newLADsnames
-          BootStrapRES <- c(BootStrapRES, newLADsBoot)
-     }
- 
- #re-roder the whole lot to be alphabetical
- BootStrapRES <- BootStrapRES [order(names(BootStrapRES))]
-  
-}else{
-  #If the list is not found it bootstrapps all the LADs at once, beware this can take a long time
-  
-  BootStrapRES <- ls(pattern = "DATA") %>% map(~{print(.x)
-  DistribCompareBootstrapper(eval(parse(text=.x)), 1652, 1000)})
-  #Give the resulting list the name of each LAD
-  names(BootStrapRES)<- elementnames
-  
-}
-#SAve the file or updated file with the additional elements
-saveRDS(BootStrapRES, file = "BootStrapRES.rds")
+#load full data
+BootStrapRES <-LoadAddDistribCompare("BootStrapRES.rds")
+
+#Include only full price standard purchases
+BootStrapRESA <-LoadAddDistribCompare("BootStrapRES_A.rds", type = "A")
+
+#Inlcude only transfers and Buy-to-let and purcheses to non-private individuals
+BootStrapRESA <-LoadAddDistribCompare("BootStrapRES_B.rds", type = "B")
 
 elementnames<- names(BootStrapRES)
 
@@ -464,7 +440,6 @@ CeredPrice %>% group_by(X15) %>%
  
 ```
 
-
 #Analyse Boostrap
 
 ```{r}
@@ -514,7 +489,7 @@ Combine1 <- left_join(ANOVARES, TtestRES2, by = "LAD" ) %>% left_join(WardData,b
 
 test <- BootStrapRES$Ceredigion
 #look at specific data
-BootStrapRES$Ceredigion %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+BootStrapRESA$Ceredigion %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
   ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
   labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
 
