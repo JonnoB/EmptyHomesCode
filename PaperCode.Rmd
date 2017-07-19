@@ -8,6 +8,9 @@ output: html_document
 
 Islington should be removed and put back in when they send the correct data, it is giving a false negative
 
+
+
+
 Should type B be included? or just type A?
 
 ```{r setup}
@@ -96,6 +99,34 @@ CornwallDATA <- read_excel("Cornwall.xlsx", sheet=1)%>% setNames(make.names(name
   StructureData(lowuse = c(2,23:28))
 ```
 
+#Devon
+
+
+```{r}
+
+NorthDevonDATA <- read_excel("North DevonDiscountsLSOA.XLSX", sheet=1)[1:4] %>%
+  StructureData  
+
+
+```
+
+#Somerset
+
+```{r}
+NorthSomsertDATA <- read_excel("1501796 North SomersetDiscountsLSOA.xlsx" , sheet=1)[1:4] %>%
+  StructureData(lowuse= 2:6)  
+
+```
+
+
+#Dorset
+
+```{r}
+BournemouthDATA <- read_excel("Copy of FOI - 265 - Bourne - PooleDiscountsLSOA.xlsx" , sheet=1)[1:4] %>%
+  StructureData(lowuse = c(5,11:14,18))
+```
+
+
 #Suffolk
 
 
@@ -123,6 +154,11 @@ WaveneySUFFDATA <- read.xlsx("FOI IMT178324 Waveney.xlsx")[1:4] %>% setNames(mak
            gsub("\\.{2,}" , ".", .))  %>%
   StructureData(., lowuse = c(5,6,13,14,16:18))
 
+StEdmundsDATA <- read.xlsx("se FOI 146  3948502_Copy+of+St+EdmundsburyDiscountsLSOA.xlsx")[1:4] %>%
+  StructureData()
+
+ForestHeathDATA <- read.xlsx("FH FOI 146 Discounts.xlsx")[1:4] %>%
+  StructureData()
 
 ```
 
@@ -130,8 +166,16 @@ WaveneySUFFDATA <- read.xlsx("FOI IMT178324 Waveney.xlsx")[1:4] %>% setNames(mak
 ```{r}
 #Broadlands is unsuable, due to lack of data collection.
 #This is being checked
-# BroadlandsDATA <- read_excel("BroadlandDiscountsLSOA.xlsx", sheet=1)[1:4] %>%
-#   StructureData()
+BroadlandsDATA <- read_excel("BroadlandDiscountsLSOA.xlsx", sheet=1)[1:4] %>%
+  StructureData(4:9)
+
+KingsLynnDATA <- read_excel("197782 - King s Lynn and West NorfolkDiscountsLSOA (2).xlsx" , sheet=1)[1:4] %>%
+  StructureData(2:11)
+
+NorthNorfolkDATA <- read_excel("North NorfolkDiscountsLSOA.XLSX" , sheet=1)[1:4] %>%
+  StructureData()
+
+
 
 ```
 
@@ -140,6 +184,11 @@ WaveneySUFFDATA <- read.xlsx("FOI IMT178324 Waveney.xlsx")[1:4] %>% setNames(mak
 ```{r}
 EastCambsDATA <- read_excel("EC FOI 130 - DISC_FOI_0_3944413b.xlsx", sheet=1)[1:4] %>%
   StructureData()
+
+
+FenlandDATA <- read_excel("FL FOI 4544 DISCOUNTS.XLSX" , sheet=1)[1:4] %>%
+  StructureData()
+
 
 ```
 
@@ -151,14 +200,11 @@ EastCambsDATA <- read_excel("EC FOI 130 - DISC_FOI_0_3944413b.xlsx", sheet=1)[1:
 setwd(file.path(RegionsComp, "Region South East"))
 list.files()
 
-
 BrightonDATA <- read_excel("Copy of Brighton and HoveDiscountsLSOA (4).xlsx", sheet=1)%>% .[,c(2,3:5)] %>%
   StructureData(lowuse = 2:8)
-
-#MakeLeaflet(BrightonDATA)
+#MakeLeaflet(BournemouthDATA)
 
 ```
-
 
 
 #Yorkshire and the Humber
@@ -175,6 +221,10 @@ HullDATA <-read_excel("KINGSTON UPON HULL%2c CITY OFDISCOUNTSLSOA.XLSX")[-c(c(1:
 HarrogateDATA <-read_excel("Harrogate DiscountsExemptionsLSOA.xlsx" )[,1:4] %>%
   StructureData(.,3:10)
 
+#Selby
+SelbyDATA <-read_excel("SelbyExemptionsLSOA.xlsx" )[,1:4]%>%
+  StructureData(20:27)
+
 
 ```
 
@@ -185,6 +235,7 @@ HarrogateDATA <-read_excel("Harrogate DiscountsExemptionsLSOA.xlsx" )[,1:4] %>%
 setwd(file.path(RegionsComp, "Region Wales"))
 list.files()
 
+#Ceredigion completed some major Student Halls which were transferred to the University, this created some very large B type transfers which artificially push the cost of second homes lower than the price of regular homes.
 
 CeredigionDATA <- read_excel("CTAX - Ceredigion Discounts LSOA.xlsx", sheet=1)%>% .[,1:4] %>%
   StructureData(lowuse =c(8:13,15))
@@ -192,8 +243,11 @@ CeredigionDATA <- read_excel("CTAX - Ceredigion Discounts LSOA.xlsx", sheet=1)%>
 MonmouthDATA <- read_excel("MCC Discounts Jul 17.xlsx", sheet=1)%>% .[,1:4] %>%
   StructureData(lowuse = c(4:8))
 
-CarmarthenDATA <- read_excel("CarmarthenshireDiscountsLSOA.XLSX" , sheet=1)%>% .[,1:4] %>%
-  StructureData(2:4)
+
+#includes the zero class which is descibeed as 
+#ZERO – tis is a 50% reduction which applies after exemptions that are time limited, have expired. They are awarded on the basis that the property remains unoccupied and unfurnished.
+  CarmarthenDATA <- read_excel("CarmarthenshireDiscountsLSOA.XLSX" , sheet=1)%>% .[,1:4] %>%
+    StructureData()
 
 ```
 
@@ -296,12 +350,13 @@ length(ls(pattern = "DATA"))/(EW2$LAD11NM %>% unique %>% length())
 ```{r}
 x <-bind_rows(SouthwarkLONDATA, TowerDATA, LambethLONDATA, CoLLONDATA, NewhamLONDATA) %>% MakeLeaflet
 
-z<- MakeLeaflet(MonmouthDATA)
+z<- MakeLeaflet(CeredigionDATA)
 z
 # 
-# saveWidget(z, file=file.path(basewd, "CeredigionDATA"), selfcontained = TRUE )
+setwd(basewd)
+ saveWidget(z, file=file.path(basewd, "CeredigionDATA.html"), selfcontained = TRUE )
 
-#testSouth <- DistribCompareBootstrapper(SouthwarkLONDATA, 1652, 1000)
+#testSouth <- DistribCompareBootstrapper(SouthwarkLONDAls(pattern = "DATA")TA, 1652, 1000)
 testSouth %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100) %>% 
   ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
   labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
@@ -328,11 +383,12 @@ BootStrapRES <-LoadAddDistribCompare("BootStrapRES.rds")
 BootStrapRESA <-LoadAddDistribCompare("BootStrapRES_A.rds", type = "A")
 
 #Inlcude only transfers and Buy-to-let and purcheses to non-private individuals
-BootStrapRESA <-LoadAddDistribCompare("BootStrapRES_B.rds", type = "B")
+BootStrapRESB <-LoadAddDistribCompare("BootStrapRES_B.rds", type = "B")
 
 elementnames<- names(BootStrapRES)
 
-   
+ls(pattern = "DATA")[(ls(pattern = "DATA") %>% map_dbl(~get(.x) %>%ncol))==4]
+
 ```
 
 
@@ -344,7 +400,7 @@ Ceredigion has cheaper LUps even though it has areas with high LUP. When investi
 
 
 CeredPrice <- prices %>% 
-  filter( grepl("W06000008", Admin_district_code)) %>%
+  filter( grepl("E09000001", Admin_district_code)) %>%
   select(Admin_ward_code, lsoa11cd, Price =X2, X15) %>%
   #filter(X15 == "A") %>%
   mutate(class = cut(Price, c(0,  490,      750,   2000, 12000, Inf)*10^3, 
@@ -399,25 +455,25 @@ RBKCtot <- RBKCPrice2 %>%
 summary(CeredPrice$Price)
 summary(RBKCPrice$Price)
 
-CeredBootAnorm <- DistribCompareBootstrapper(CeredigionDATA, 1652,1000, type = "A" )
-CeredBootAB <- DistribCompareBootstrapper(CeredigionDATA, 1652,1000, c(0, 60, 120, 200, 500, Inf)*10^3 )
-
-CeredBootA <- DistribCompareBootstrapper(CeredigionDATA, 1652,1000, c(0, 60, 120, 200, 500, Inf)*10^3, type = "A" )
+# CeredBootAnorm <- DistribCompareBootstrapper(CeredigionDATA, 1652,1000, type = "A" )
+# CeredBootAB <- DistribCompareBootstrapper(CeredigionDATA, 1652,1000, c(0, 60, 120, 200, 500, Inf)*10^3 )
+# 
+# CeredBootA <- DistribCompareBootstrapper(CeredigionDATA, 1652,1000, c(0, 60, 120, 200, 500, Inf)*10^3, type = "A" )
 
 
 ValueTtest(CeredBootAB)
 ValueTtest(CeredBootA)
 ValueTtest(CeredBootAnorm)
 
-CeredBootAB %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+BootStrapRES$Ceredigion %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
   ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
   labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
 
-CeredBootA %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+BootStrapRESA$Ceredigion %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
   ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
   labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
 
-CeredBootAnorm %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+BootStrapRESB$Ceredigion %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
   ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
   labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
 
@@ -441,14 +497,50 @@ CeredPrice %>% group_by(X15) %>%
 
 ```{r}
 
+#check any that are accidently not processed
+ls(pattern = "DATA")[(ls(pattern = "DATA") %>% map_dbl(~.x %>% get %>% ncol))<10]
+
 Combine1 <- BootResSummaryData(BootStrapRES)
+
+Combine2 <- BootResSummaryData(BootStrapRESA)
+
+Combine3 <- BootResSummaryData(BootStrapRESB)
 
 #This is so cool, Also needs to be discussed in great detail, it is probablu due to the demolition and renovation of council housing
 Combine1 %>% ggplot(.,aes(x= absdiff, y = Ttest.p.value)) + geom_point()
+Combine2 %>% ggplot(.,aes(x= absdiff, y = Ttest.p.value)) + geom_point()
+
 
 test <- BootStrapRES$Ceredigion
 #look at specific data
 BootStrapRESA$Ceredigion %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
+  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+
+
+
+BootStrapRES$ChelseaLON %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
+  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+
+BootStrapRESA$ChelseaLON %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
+  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+
+BootStrapRESB$ChelseaLON %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
+  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+
+
+BootStrapRES$CoLLON %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
+  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+
+BootStrapRESA$CoLLON %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
+  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+
+BootStrapRESB$CoLLON %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
   ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
   labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
 
@@ -467,6 +559,20 @@ Also check deprivation,
 
 Combine1 %>% ggplot(.,aes(x= maxPerc, y = abs(Percdiff))) + geom_point()
 
+sum(Combine1$Ttest.p.value>0.5)/nrow(Combine1)
+sum(Combine1$Ttest.p.value>0.5 & Combine1$maxPerc>5)/sum(Combine1$maxPerc>5)
+
+Combine1[Combine1$Ttest.p.value>0.5 & Combine1$maxPerc>5,]
+Combine2[Combine2$Ttest.p.value>0.5 & Combine2$maxPerc>5,]
+Combine3[Combine3$Ttest.p.value>0.5 & Combine3$maxPerc>5,]
+
+table(Combine2$Ttest.p.value>0.5 & Combine2$maxPerc>5, Combine1$Ttest.p.value>0.5 & Combine1$maxPerc>5)
+
+
+
+LADAB <- ChelseaLONDATA%>% SubsetPrice
+  table(LADAB$X15, LADAB$class)
+
 Combine1 %>% ggplot(.,aes(x= abs(maxPerc), y = Ttest.p.value)) + geom_point()
 
 #P.value is low if diff perc is over 5%
@@ -477,6 +583,10 @@ Combine1 %>% ggplot(.,aes(x= diffPerc, y = Ttest.p.value)) + geom_point()
 
 Combine1 %>% ggplot(.,aes(x= maxPerc, y = Ttest.p.value)) + geom_point() +
   labs(title = "Comparing tatistical Significance of LUPs being more expensive than RHs and the maximum concentration of LUPs in a ")
+
+Combine2 %>% ggplot(.,aes(x= maxPerc, y = Ttest.p.value)) + geom_point() +
+  labs(title = "Comparing tatistical Significance of LUPs being more expensive than RHs and the maximum concentration of LUPs in a ")
+
 
 #Boring doesn't show anything interesting
 Combine1 %>% ggplot(.,aes(x= p.value.x, y = Ttest.p.value, colour =diffPerc>5 )) + geom_point()
