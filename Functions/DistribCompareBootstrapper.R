@@ -1,5 +1,5 @@
 
-DistribCompareBootstrapper <-function(df, seed, samples=100, type = NULL, PriceCuts = NULL){
+DistribCompareBootstrapper <-function(df, seed, samples=100, type = NULL, PropertyTypes = NULL){
 #df:data frame of processed area/s data
 #LADCD: The LAD code to fetch the correct price data
 # Random seed
@@ -7,26 +7,9 @@ DistribCompareBootstrapper <-function(df, seed, samples=100, type = NULL, PriceC
 #type: whether all purchese or only classes A or b are taken, enter a character "A" or "B" or leave NULL for all
 #PriceCuts: the cut points for the different classes of housing, used only occaisionally has to start with 0 and end with Inf
   #and in total have 6 elements
+ 
+  dfPrice <- SubsetPrice(df, type, PropertyTypes)
   
-LADCD <- df$LAD11CD[which.max(table(df$LAD11CD) %>% as.matrix)] 
-
-if(!is.null(type)){
-  prices <- prices %>%
-    filter(X15 == type)
-}
-
-if(is.null(PriceCuts)){
-  PriceCuts<-c(0,  490,      750,   2000, 12000, Inf)*10^3
-}
-
-
-dfPrice <- prices %>% 
-  filter( grepl(paste(LADCD, collapse="|"), Admin_district_code)) %>%
-  select(Admin_ward_code, lsoa11cd, Price =X2) %>%
-  mutate(class = cut(Price, PriceCuts , 
-                     labels =     c("Lower", "Mid", "Upper", "Prime", "Super"), 
-                     right = F),
-         Price = as.numeric(Price)) #there was some number overflow thing changing to numeric solves this
 dfWard <- df %>% 
   group_by(Admin_ward_code) %>%
   summarise_all(funs(first)) %>% filter(!is.na(Admin_ward_code))

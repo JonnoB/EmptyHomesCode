@@ -416,6 +416,10 @@ Now all the data is loaded each LAD needs to be bootstrapped
 
 setwd(basewd)
 
+#ExO excluding Other
+#A only A type sales
+#B only Btype sales
+
 #load full data
 BootStrapRES <-LoadAddDistribCompare("BootStrapRES.rds")
 
@@ -425,9 +429,23 @@ BootStrapRESA <-LoadAddDistribCompare("BootStrapRES_A.rds", type = "A")
 #Inlcude only transfers and Buy-to-let and purcheses to non-private individuals
 BootStrapRESB <-LoadAddDistribCompare("BootStrapRES_B.rds", type = "B")
 
+#Repeat excluding all the properties classed as other
+
+BootStrapRESExO <-LoadAddDistribCompare("BootStrapRESExO.rds", 
+                                         PropertyTypes = c("D", "S", "T", "F"))
+
+BootStrapRESExOA <-LoadAddDistribCompare("BootStrapRESExOA.rds", type = "A", 
+                                         PropertyTypes = c("D", "S", "T", "F"))
+
+BootStrapRESExOB <-LoadAddDistribCompare("BootStrapRESExOB.rds", type = "B", 
+                                         PropertyTypes = c("D", "S", "T", "F"))
+
+
 elementnames<- names(BootStrapRES)
 
+
 ls(pattern = "DATA")[(ls(pattern = "DATA") %>% map_dbl(~get(.x) %>%ncol))==4]
+
 
 ```
 

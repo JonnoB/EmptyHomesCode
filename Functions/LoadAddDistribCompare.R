@@ -1,4 +1,4 @@
-LoadAddDistribCompare<-function(FileName = "BootStrapRES.rds", type = NULL){
+LoadAddDistribCompare<-function(FileName = "BootStrapRES.rds", type = NULL, PropertyTypes = NULL, PriceCuts = NULL){
 # This function smooths the process of loading the BootStrapRES file and adding new LADs to it
 #   It Also allows for type A and B purchases only to be bootstrapped
 #   This gives a more nuanced picture of the purchases and some analysis suggests
@@ -24,7 +24,7 @@ if(file.exists(FileName)){
   #only bootstrap if there is something to add.
   if(length(newLADsnames)>0){
     newLADsBoot <- newLADs  %>% map(~{print(.x)
-      DistribCompareBootstrapper(get(.x), 1652, 1000, type = type)})  
+      DistribCompareBootstrapper(get(.x), 1652, 1000, type, PropertyTypes, PriceCuts)})  
     names(newLADsBoot) <- newLADsnames
     BootStrapRES <- c(BootStrapRES, newLADsBoot)
   }
