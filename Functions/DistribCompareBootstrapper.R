@@ -8,7 +8,7 @@ DistribCompareBootstrapper <-function(df, seed, samples=100, type = NULL, PriceC
 #PriceCuts: the cut points for the different classes of housing, used only occaisionally has to start with 0 and end with Inf
   #and in total have 6 elements
   
-LADCD <- unique(df$LAD11CD)
+LADCD <- df$LAD11CD[which.max(table(df$LAD11CD) %>% as.matrix)] 
 
 if(!is.null(type)){
   prices <- prices %>%

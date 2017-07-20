@@ -83,13 +83,15 @@ TraffordMANCDATA <- read_excel("Trafford Exemption and Levy.xlsx" , sheet = 1 )[
 WiganMANCDATA <- read_excel("Wigan 5528 DISCOUNTS.xlsx", sheet = 1 )[1:4] %>%  
   StructureData(., lowuse = c(2:3, 5:9) )
 
-ls(pattern = "MANC") %>% map_df(~eval(parse(text=.x))) %>% PlotMap(., AG)
+#hide plot
+#ls(pattern = "MANC") %>% map_df(~eval(parse(text=.x))) %>% PlotMap(., AG)
 
 
 ```
 
+#SouthWest
 
-#Cornwall
+##Cornwall
 
 ```{r}
 
@@ -99,18 +101,19 @@ CornwallDATA <- read_excel("Cornwall.xlsx", sheet=1)%>% setNames(make.names(name
   StructureData(lowuse = c(2,23:28))
 ```
 
-#Devon
-
+##Devon
 
 ```{r}
 
 NorthDevonDATA <- read_excel("North DevonDiscountsLSOA.XLSX", sheet=1)[1:4] %>%
   StructureData  
 
+PlymouthDATA <- read_excel("PlymouthDiscountsLSOA.XLSX" , sheet=1)[1:4] %>%
+  StructureData(lowuse = 4:8)
 
 ```
 
-#Somerset
+##Somerset
 
 ```{r}
 NorthSomsertDATA <- read_excel("1501796 North SomersetDiscountsLSOA.xlsx" , sheet=1)[1:4] %>%
@@ -119,15 +122,33 @@ NorthSomsertDATA <- read_excel("1501796 North SomersetDiscountsLSOA.xlsx" , shee
 ```
 
 
-#Dorset
+##Dorset
 
 ```{r}
 BournemouthDATA <- read_excel("Copy of FOI - 265 - Bourne - PooleDiscountsLSOA.xlsx" , sheet=1)[1:4] %>%
   StructureData(lowuse = c(5,11:14,18))
+
+ChristchurchDATA <- read_excel("Christchurch FOI17 - 0312 - Bourne - Ctax Discounts and Exemptions.xls",
+                               sheet=1)[1:4] %>%
+  StructureData(lowuse = c(6,12:17,20))
+
+  
+
 ```
 
 
-#Suffolk
+##Wiltshire
+
+```{r}
+#Wiltshire have not included everything
+# WiltshireDATA <- read_excel("Wiltshire ENQ07536 - Council tax discounts.xlsx",
+#                                sheet=1)[1:4] %>%
+#   StructureData()
+```
+
+#East of England
+
+##Suffolk
 
 
 ```{r}
@@ -162,7 +183,7 @@ ForestHeathDATA <- read.xlsx("FH FOI 146 Discounts.xlsx")[1:4] %>%
 
 ```
 
-#Norfolk
+##Norfolk
 ```{r}
 #Broadlands is unsuable, due to lack of data collection.
 #This is being checked
@@ -180,7 +201,7 @@ NorthNorfolkDATA <- read_excel("North NorfolkDiscountsLSOA.XLSX" , sheet=1)[1:4]
 ```
 
 
-#Cambridge
+##Cambridge
 ```{r}
 EastCambsDATA <- read_excel("EC FOI 130 - DISC_FOI_0_3944413b.xlsx", sheet=1)[1:4] %>%
   StructureData()
@@ -228,6 +249,21 @@ SelbyDATA <-read_excel("SelbyExemptionsLSOA.xlsx" )[,1:4]%>%
 
 ```
 
+#North East
+
+##Tyneside
+
+```{r}
+
+setwd(file.path(RegionsComp, "Region North East"))
+#Not sure all are there ask for confirmation
+# SunderlandDATA <- read_excel("Sunderland Freedom of Informaton Request from Jonathan Bourne- 17-07-21-Discounts.xlsx"  , sheet=1)%>% .[,1:4] %>%
+#   StructureData(lowuse = c(2:4,6,8:10))
+
+
+```
+
+
 #Wales
 
 ```{r}
@@ -248,6 +284,10 @@ MonmouthDATA <- read_excel("MCC Discounts Jul 17.xlsx", sheet=1)%>% .[,1:4] %>%
 #ZERO – tis is a 50% reduction which applies after exemptions that are time limited, have expired. They are awarded on the basis that the property remains unoccupied and unfurnished.
   CarmarthenDATA <- read_excel("CarmarthenshireDiscountsLSOA.XLSX" , sheet=1)%>% .[,1:4] %>%
     StructureData()
+
+#Strangely low numbers checking
+# PowysDATA <- read_excel("PowysDiscountsLSOA.XLSX"    , sheet=1)%>% .[,1:4] %>%
+#   StructureData(lowuse = c(3,5:6))
 
 ```
 
@@ -495,16 +535,26 @@ CeredPrice %>% group_by(X15) %>%
 
 #Analyse Boostrap
 
+land registry 
+sue gambles
+
 ```{r}
+
+
+#gets the list of LADs we currently have data for in alphabetical order so they can be joined to the combine
+CurrentLADS <- ls(pattern = "DATA") %>%
+  map_chr(~{df<- get(.x)
+  df$LAD11CD[which.max(table(df$LAD11CD) %>% as.matrix)] }
+)
 
 #check any that are accidently not processed
 ls(pattern = "DATA")[(ls(pattern = "DATA") %>% map_dbl(~.x %>% get %>% ncol))<10]
 
-Combine1 <- BootResSummaryData(BootStrapRES)
+Combine1 <- BootResSummaryData(BootStrapRES) %>% mutate(LAD11CD = CurrentLADS)
 
-Combine2 <- BootResSummaryData(BootStrapRESA)
+Combine2 <- BootResSummaryData(BootStrapRESA) %>% mutate(LAD11CD = CurrentLADS)
 
-Combine3 <- BootResSummaryData(BootStrapRESB)
+Combine3 <- BootResSummaryData(BootStrapRESB) %>% mutate(LAD11CD = CurrentLADS)
 
 #This is so cool, Also needs to be discussed in great detail, it is probablu due to the demolition and renovation of council housing
 Combine1 %>% ggplot(.,aes(x= absdiff, y = Ttest.p.value)) + geom_point()
@@ -544,6 +594,99 @@ BootStrapRESB$CoLLON %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>%
   ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
   labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
 
+HouseMatch <- data_frame(PropType = "D,S,T,F,O" %>% str_split(",") %>% unlist,
+type = "Detached,Semi-Detached,Terraced,Flats/Maisonettes,Other"%>% str_split(",") %>% unlist)
+
+#test CoL after adding in filtering for other LADs
+testCol <- DistribCompareBootstrapper(CoLLONDATA,1652, 1000)
+testColA <- DistribCompareBootstrapper(CoLLONDATA,1652, 1000, "A")
+testColB <- DistribCompareBootstrapper(CoLLONDATA,1652, 1000, "B")
+
+testColA %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
+  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+
+
+testColA %>% 
+  group_by(class) %>%
+  summarise_all(funs(mean(., na.rm = TRUE)))
+
+test <- CoLLONDATA %>% SubsetPrice() %>% left_join(HouseMatch)
+testB <- CoLLONDATA %>% SubsetPrice("B") %>% left_join(HouseMatch)
+testA <- CoLLONDATA %>% SubsetPrice("A") %>% left_join(HouseMatch)
+
+testB <- ChelseaLONDATA %>% SubsetPrice("B") %>% left_join(HouseMatch)
+testA <- ChelseaLONDATA %>% SubsetPrice("A") %>% left_join(HouseMatch)
+
+testB <- ChelseaLONDATA %>% SubsetPrice("B") %>% left_join(HouseMatch)
+testA <- ChelseaLONDATA %>% SubsetPrice("A") %>% left_join(HouseMatch)
+
+test <- CoLLONDATA %>% SubsetPrice("A")
+
+CoLnums <- BootStrapRES$CoLLON %>% 
+  group_by(class) %>%
+  summarise_all(funs(mean(., na.rm = TRUE)))
+
+
+CoLnumsA <- BootStrapRESA$CoLLON %>% 
+  group_by(class) %>%
+  summarise_all(funs(mean(., na.rm = TRUE)))
+
+table(test$type, test$class)
+table(testA$type, testA$class)
+table(testB$type, testB$class)
+
+LADNMs <- EW2 %>% group_by(LAD11CD) %>%
+  summarise(LAD11NM = first(LAD11NM))
+
+PropertyTypes <- c("D", "S", "T", "F")
+
+ABratio <- prices %>% 
+  filter(X5 %in% PropertyTypes) %>%
+  group_by(Admin_district_code, X15) %>%
+  summarise(count = n(), 
+            mean = mean(X2)) %>%
+  rename(LAD11CD = Admin_district_code)
+
+ABratio2 <- ABratio%>%
+  select(-mean) %>%
+spread(key = X15, value = count) %>%
+  mutate(Countratio = B/(A+B))
+
+ABratio3 <- ABratio%>%
+  select(-count) %>%
+spread(key = X15, value = mean) %>%
+  mutate(Valueratio = B/(A))
+
+
+ABratio4 <-  left_join(ABratio2, ABratio3, by = "LAD11CD") %>%
+  left_join(LADNMs) %>%
+  left_join(prices %>% 
+  group_by(Admin_district_code) %>%
+summarise(mean = mean(X2)) %>%
+  rename(LAD11CD = Admin_district_code))
+
+
+
+sum(prices$X15 == "B")/nrow(prices)
+
+test <- ABratio4 %>% 
+  filter(LAD11CD %in% CurrentLADS)
+
+ABratio3 %>% ggplot(., aes(x = Valueratio)) +geom_density()
+
+
+test <- Combine1 %>% 
+  left_join(ABratio4) 
+
+test %>%
+  ggplot(.,aes(x= diffPerc, y = Ttest.p.value, colour = Valueratio>1)) + geom_point()
+
+test %>%
+  ggplot(.,aes(x= diffPerc, y = Ttest.p.value, colour = Countratio>0.2)) + geom_point()
+
+test %>%
+  ggplot(.,aes(x= diffPerc, y = Ttest.p.value, colour = mean)) + geom_point()
 
 ```
 
@@ -556,8 +699,6 @@ All the areas are Urban
 Also check deprivation,
 
 ```{r}
-
-Combine1 %>% ggplot(.,aes(x= maxPerc, y = abs(Percdiff))) + geom_point()
 
 sum(Combine1$Ttest.p.value>0.5)/nrow(Combine1)
 sum(Combine1$Ttest.p.value>0.5 & Combine1$maxPerc>5)/sum(Combine1$maxPerc>5)
