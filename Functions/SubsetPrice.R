@@ -27,19 +27,12 @@ SubsetPrice <- function(df, type = NULL, PropertyTypes = NULL, PriceCuts = NULL)
     PriceCuts<-c(0,  490,      750,   2000, 12000, Inf)*10^3
   }
   
-  
-    
-  filter(prices, grepl(Code, Admin_district_code)) %>%
+  #The  model used to take multiple councils if there was overlap, but this caused some strange
+  #Problems So I removed it. The current version only takes a single LAD
+  prices %>%
+  filter(., grepl(Code, Admin_district_code)) %>%
     select(Admin_ward_code, lsoa11cd, Price =X2, X15, PropType = X5) %>%
     mutate(class = cut(Price, PriceCuts, 
-                       labels =     c("Lower", "Mid", "Upper", "Prime", "Super"), 
-                       right = F),
-           Price = as.numeric(Price)) 
-  
-  dfPrice <- prices %>% 
-    filter( grepl(paste(LADCD, collapse="|"), Admin_district_code)) %>%
-    select(Admin_ward_code, lsoa11cd, Price =X2) %>%
-    mutate(class = cut(Price, PriceCuts , 
                        labels =     c("Lower", "Mid", "Upper", "Prime", "Super"), 
                        right = F),
            Price = as.numeric(Price)) #there was some number overflow thing changing to numeric solves this

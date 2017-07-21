@@ -440,7 +440,6 @@ BootStrapRESExOA <-LoadAddDistribCompare("BootStrapRESExOA.rds", type = "A",
 BootStrapRESExOB <-LoadAddDistribCompare("BootStrapRESExOB.rds", type = "B", 
                                          PropertyTypes = c("D", "S", "T", "F"))
 
-
 elementnames<- names(BootStrapRES)
 
 
@@ -449,107 +448,6 @@ ls(pattern = "DATA")[(ls(pattern = "DATA") %>% map_dbl(~get(.x) %>%ncol))==4]
 
 ```
 
-
-#Investigating Ceredigion
-
-Ceredigion has cheaper LUps even though it has areas with high LUP. When investigating I changed the classes to take account of the different pricing levels in the LAD. This made no difference. However re-running the bootstrapping including only A type purchases in the LAD gave the expected result of high LUP prices. What appeared to be happening was a lot of property was being transferred in unsual ways. 
-
-```{r}
-
-
-CeredPrice <- prices %>% 
-  filter( grepl("E09000001", Admin_district_code)) %>%
-  select(Admin_ward_code, lsoa11cd, Price =X2, X15) %>%
-  #filter(X15 == "A") %>%
-  mutate(class = cut(Price, c(0,  490,      750,   2000, 12000, Inf)*10^3, 
-                     labels =     c("Lower", "Mid", "Upper", "Prime", "Super"), 
-                     right = F),
-         Price = as.numeric(Price)) 
-
-CeredPrice2 <- CeredPrice %>%
-  group_by(lsoa11cd, class) %>%
-  summarise(Admin_ward_code = first(Admin_ward_code),
-            LSOAcounts = n()) 
-
-CeredPrice2 <- CeredPrice2  %>%
-  group_by(Admin_ward_code, class) %>%
-  summarise(counts = n()) %>%
-  group_by(class) %>%
-  mutate(ClassPercent = counts/sum(counts)) %>%
-  ungroup %>% group_by(Admin_ward_code) %>%
-  mutate(WardPercent = counts/sum(counts))%>%
-  left_join(CeredPrice2,. ,by=c("Admin_ward_code", "class")) %>%
-  rename(LSOA_CODE = lsoa11cd)
-
-RBKCPrice <- prices %>% 
-  filter( grepl("E09000020", Admin_district_code)) %>%
-    select(Admin_ward_code, lsoa11cd, Price =X2, X15) %>%
-  #filter(X15 == "A") %>%
-  mutate(class = cut(Price, c(0,  490,      750,   2000, 12000, Inf)*10^3, 
-                     labels =     c("Lower", "Mid", "Upper", "Prime", "Super"), 
-                     right = F),
-         Price = as.numeric(Price)) 
-
-RBKCPrice2 <- RBKCPrice %>%
-  group_by(lsoa11cd, class) %>%
-  summarise(Admin_ward_code = first(Admin_ward_code),
-            LSOAcounts = n()) 
-
-RBKCPrice2 <- RBKCPrice  %>%
-  group_by(Admin_ward_code, class) %>%
-  summarise(counts = n()) %>%
-  group_by(class) %>%
-  mutate(ClassPercent = counts/sum(counts)) %>%
-  ungroup %>% group_by(Admin_ward_code) %>%
-  mutate(WardPercent = counts/sum(counts))%>%
-  left_join(RBKCPrice2,. ,by=c("Admin_ward_code", "class")) %>%
-  rename(LSOA_CODE = lsoa11cd)
-
-RBKCtot <- RBKCPrice2 %>%
-  group_by(class) %>%
-  summarise(counts = sum(counts))
-
-
-summary(CeredPrice$Price)
-summary(RBKCPrice$Price)
-
-# CeredBootAnorm <- DistribCompareBootstrapper(CeredigionDATA, 1652,1000, type = "A" )
-# CeredBootAB <- DistribCompareBootstrapper(CeredigionDATA, 1652,1000, c(0, 60, 120, 200, 500, Inf)*10^3 )
-# 
-# CeredBootA <- DistribCompareBootstrapper(CeredigionDATA, 1652,1000, c(0, 60, 120, 200, 500, Inf)*10^3, type = "A" )
-
-
-ValueTtest(CeredBootAB)
-ValueTtest(CeredBootA)
-ValueTtest(CeredBootAnorm)
-
-BootStrapRES$Ceredigion %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
-  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
-  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
-
-BootStrapRESA$Ceredigion %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
-  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
-  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
-
-BootStrapRESB$Ceredigion %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
-  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
-  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
-
-RBKCPrice %>% group_by(X15) %>%
-  summarise(mean = mean(Price))
-
-CeredPrice %>% group_by(X15) %>%
-  summarise(mean = mean(Price))
-
- RBKCPrice2 %>%
-   filter(class == "Prime") %>%
-   PlotMap(.,AG,  "ClassPercent")
-
-  CeredPrice2 %>%
-   filter(class == "Mid") %>%
-   PlotMap(.,filter(AG, LAD11CD=="W06000008"), variable = "ClassPercent", filtermap = FALSE)
- 
-```
 
 #Analyse Boostrap
 
@@ -574,56 +472,43 @@ Combine2 <- BootResSummaryData(BootStrapRESA) %>% mutate(LAD11CD = CurrentLADS)
 
 Combine3 <- BootResSummaryData(BootStrapRESB) %>% mutate(LAD11CD = CurrentLADS)
 
+#Excluding Other
+Combine1ExO <- BootResSummaryData(BootStrapRESExO) %>% mutate(LAD11CD = CurrentLADS)
+
+Combine2ExO <- BootResSummaryData(BootStrapRESExOA) %>% mutate(LAD11CD = CurrentLADS)
+
+Combine3ExO <- BootResSummaryData(BootStrapRESExOB) %>% mutate(LAD11CD = CurrentLADS)
+
 #This is so cool, Also needs to be discussed in great detail, it is probablu due to the demolition and renovation of council housing
 Combine1 %>% ggplot(.,aes(x= absdiff, y = Ttest.p.value)) + geom_point()
 Combine2 %>% ggplot(.,aes(x= absdiff, y = Ttest.p.value)) + geom_point()
 
-
-test <- BootStrapRES$Ceredigion
-#look at specific data
-BootStrapRESA$Ceredigion %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
-  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
-  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+```
 
 
+#Explore results
 
-BootStrapRES$ChelseaLON %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
-  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
-  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+```{r}
 
-BootStrapRESA$ChelseaLON %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
-  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
-  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
-
-BootStrapRESB$ChelseaLON %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
-  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
-  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
-
-
-BootStrapRES$CoLLON %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
-  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
-  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
-
-BootStrapRESA$CoLLON %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
-  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
-  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
-
-BootStrapRESB$CoLLON %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
-  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
-  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+BootStrapRES$CoLLON %>% PlotClassDiff()
+BootStrapRESExO$CoLLON %>% PlotClassDiff()
+BootStrapRESA$CoLLON %>% PlotClassDiff()
+BootStrapRESB$CoLLON %>% PlotClassDiff()
 
 HouseMatch <- data_frame(PropType = "D,S,T,F,O" %>% str_split(",") %>% unlist,
 type = "Detached,Semi-Detached,Terraced,Flats/Maisonettes,Other"%>% str_split(",") %>% unlist)
 
 #test CoL after adding in filtering for other LADs
-testCol <- DistribCompareBootstrapper(CoLLONDATA,1652, 1000)
-testColA <- DistribCompareBootstrapper(CoLLONDATA,1652, 1000, "A")
-testColB <- DistribCompareBootstrapper(CoLLONDATA,1652, 1000, "B")
+testCol <- DistribCompareBootstrapper(CoLLONDATA,1652, 1000, PropertyTypes = c("D", "S", "T", "F"))
 
-testColA %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
-  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
-  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+testColA <- DistribCompareBootstrapper(CoLLONDATA,1652, 1000, "A", PropertyTypes = c("D", "S", "T", "F"))
+testColB <- DistribCompareBootstrapper(CoLLONDATA,1652, 1000, "B", PropertyTypes = c("D", "S", "T", "F"))
 
+all_equal(Boottest$CoLLON, testCol)
+
+all_equal(Boottest$CoLLON, BootStrapRES$CoLLON)
+
+testCol %>% PlotClassDiff()
 
 testColA %>% 
   group_by(class) %>%
@@ -633,13 +518,10 @@ test <- CoLLONDATA %>% SubsetPrice() %>% left_join(HouseMatch)
 testB <- CoLLONDATA %>% SubsetPrice("B") %>% left_join(HouseMatch)
 testA <- CoLLONDATA %>% SubsetPrice("A") %>% left_join(HouseMatch)
 
-testB <- ChelseaLONDATA %>% SubsetPrice("B") %>% left_join(HouseMatch)
-testA <- ChelseaLONDATA %>% SubsetPrice("A") %>% left_join(HouseMatch)
+table(test$type, test$class)
+table(testA$type, testA$class)
+table(testB$type, testB$class)
 
-testB <- ChelseaLONDATA %>% SubsetPrice("B") %>% left_join(HouseMatch)
-testA <- ChelseaLONDATA %>% SubsetPrice("A") %>% left_join(HouseMatch)
-
-test <- CoLLONDATA %>% SubsetPrice("A")
 
 CoLnums <- BootStrapRES$CoLLON %>% 
   group_by(class) %>%
@@ -650,9 +532,6 @@ CoLnumsA <- BootStrapRESA$CoLLON %>%
   group_by(class) %>%
   summarise_all(funs(mean(., na.rm = TRUE)))
 
-table(test$type, test$class)
-table(testA$type, testA$class)
-table(testB$type, testB$class)
 
 LADNMs <- EW2 %>% group_by(LAD11CD) %>%
   summarise(LAD11NM = first(LAD11NM))

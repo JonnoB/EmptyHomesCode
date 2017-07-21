@@ -24,7 +24,7 @@ if(file.exists(FileName)){
   #only bootstrap if there is something to add.
   if(length(newLADsnames)>0){
     newLADsBoot <- newLADs  %>% map(~{print(.x)
-      DistribCompareBootstrapper(get(.x), 1652, 1000, type, PropertyTypes, PriceCuts)})  
+      DistribCompareBootstrapper(get(.x), 1652, 1000, type, PropertyTypes)})  
     names(newLADsBoot) <- newLADsnames
     BootStrapRES <- c(BootStrapRES, newLADsBoot)
   }
@@ -36,7 +36,7 @@ if(file.exists(FileName)){
   #If the list is not found it bootstrapps all the LADs at once, beware this can take a long time
   
   BootStrapRES <- ls(pattern = "DATA",envir = globalenv()) %>% map(~{print(.x)
-    DistribCompareBootstrapper(get(.x), 1652, 1000, type = type)})
+    DistribCompareBootstrapper(get(.x), 1652, 1000, type = type, PropertyTypes)})
   #Give the resulting list the name of each LAD
   names(BootStrapRES)<- elementnames
   
