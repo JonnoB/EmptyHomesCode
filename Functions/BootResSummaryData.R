@@ -20,11 +20,16 @@ BootResSummaryData <- function(BootStrapRES){
   
   WardData <- ls(pattern = "DATA", envir = globalenv()) %>%
     map_df(~eval(parse(text=.x)) %>%
-             select(WardLowUsePerc) %>%
+             select(WardLowUsePerc, WardLowUse) %>%
              mutate( WardLowUsePerc = ifelse(is.na(WardLowUsePerc),0, WardLowUsePerc)) %>%
              summarise( maxPerc = max(WardLowUsePerc, na.rm=TRUE),
                         minPerc = min(WardLowUsePerc, na.rm=TRUE),
                         diffPerc = maxPerc-minPerc,
+                        max = max(WardLowUse, na.rm=TRUE),
+                        min = min(WardLowUse, na.rm=TRUE),
+                        diff = max-min,
+                        mean = mean(WardLowUse, na.rm=TRUE),
+                        median = median(WardLowUse, na.rm=TRUE),
                         LAD = sub("DATA", "", .x)))
   
   

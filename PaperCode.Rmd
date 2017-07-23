@@ -408,6 +408,40 @@ ValueTtest(test)
 ```
 
 
+#Overall price data 
+```{r}
+#Other property is massively more valuable on average than the rest of the property types
+#mean value is 10 Million as such it has to be excluded
+prices %>% group_by(X5) %>% 
+  mutate(X2 = as.numeric(X2)) %>%
+  summarise(count = n(),
+            Value = sum(X2, na.rm =T),
+            mean = mean(X2, na.rm = T)) %>%
+mutate(countperc = (count/sum(count)),
+       ValuePerc = Value/sum(Value))  
+
+#Looking at A and B property we can see that B properties are more expensive than A type
+prices %>% group_by(X15) %>% 
+  mutate(X2 = as.numeric(X2)) %>%
+  summarise(count = n(),
+            Value = sum(X2, na.rm =T),
+            mean = mean(X2, na.rm = T)) %>%
+mutate(countperc = (count/sum(count)),
+       ValuePerc = Value/sum(Value))  
+
+#Other only appears in the B type sales never in A type
+prices %>% 
+  mutate(X2 = as.numeric(X2)) %>%
+    group_by(X15, X5) %>% 
+  summarise(count = n(),
+            Value = sum(X2, na.rm =T),
+            mean = mean(X2, na.rm = T)) %>%
+  ungroup %>%
+mutate(countperc = (count/sum(count)),
+       ValuePerc = Value/sum(Value))  
+```
+
+
 #Bootstrap
 
 Now all the data is loaded each LAD needs to be bootstrapped
@@ -460,7 +494,10 @@ sue gambles
 #gets the list of LADs we currently have data for in alphabetical order so they can be joined to the combine
 CurrentLADS <- ls(pattern = "DATA") %>%
   map_chr(~{df<- get(.x)
-  df$LAD11CD[which.max(table(df$LAD11CD) %>% as.matrix)] }
+  df <- df %>%
+  group_by(LAD11CD) %>%
+  summarise(count = n())
+df$LAD11CD[which.max(df$count)]}
 )
 
 #check any that are accidently not processed
@@ -492,27 +529,12 @@ Combine2 %>% ggplot(.,aes(x= absdiff, y = Ttest.p.value)) + geom_point()
 
 BootStrapRES$CoLLON %>% PlotClassDiff()
 BootStrapRESExO$CoLLON %>% PlotClassDiff()
-BootStrapRESA$CoLLON %>% PlotClassDiff()
-BootStrapRESB$CoLLON %>% PlotClassDiff()
+BootStrapRESExOA$CoLLON %>% PlotClassDiff()
+BootStrapRESExOB$CoLLON %>% PlotClassDiff()
 
 HouseMatch <- data_frame(PropType = "D,S,T,F,O" %>% str_split(",") %>% unlist,
 type = "Detached,Semi-Detached,Terraced,Flats/Maisonettes,Other"%>% str_split(",") %>% unlist)
 
-#test CoL after adding in filtering for other LADs
-testCol <- DistribCompareBootstrapper(CoLLONDATA,1652, 1000, PropertyTypes = c("D", "S", "T", "F"))
-
-testColA <- DistribCompareBootstrapper(CoLLONDATA,1652, 1000, "A", PropertyTypes = c("D", "S", "T", "F"))
-testColB <- DistribCompareBootstrapper(CoLLONDATA,1652, 1000, "B", PropertyTypes = c("D", "S", "T", "F"))
-
-all_equal(Boottest$CoLLON, testCol)
-
-all_equal(Boottest$CoLLON, BootStrapRES$CoLLON)
-
-testCol %>% PlotClassDiff()
-
-testColA %>% 
-  group_by(class) %>%
-  summarise_all(funs(mean(., na.rm = TRUE)))
 
 test <- CoLLONDATA %>% SubsetPrice() %>% left_join(HouseMatch)
 testB <- CoLLONDATA %>% SubsetPrice("B") %>% left_join(HouseMatch)
@@ -573,17 +595,154 @@ test <- ABratio4 %>%
 ABratio3 %>% ggplot(., aes(x = Valueratio)) +geom_density()
 
 
-test <- Combine1 %>% 
-  left_join(ABratio4) 
+CombineAB <- Combine1ExO %>% 
+  left_join(ABratio4, by = "LAD11CD") 
 
-test %>%
+CombineAB %>%
   ggplot(.,aes(x= diffPerc, y = Ttest.p.value, colour = Valueratio>1)) + geom_point()
 
-test %>%
+CombineAB %>%
   ggplot(.,aes(x= diffPerc, y = Ttest.p.value, colour = Countratio>0.2)) + geom_point()
 
-test %>%
+CombineAB %>%
   ggplot(.,aes(x= diffPerc, y = Ttest.p.value, colour = mean)) + geom_point()
+
+
+
+
+```
+
+
+#Inlcuding deprivation
+```{r}
+setwd(file.path(basewd, "Deprivation"))
+list.files()
+LADDep<-read_excel("File_10_ID2015_Local_Authority_District_Summaries.xlsx", sheet = 2) %>%
+  setNames(make.names(names(.)) %>% gsub("IMD...", "",.) %>% trimws ) %>%
+  rename(LAD11CD = Local.Authority.District.code..2013.)
+
+LSOADomDep<-read_excel("File_2_ID_2015_Domains_of_deprivation.xlsx" , sheet = 2) %>%
+  setNames(make.names(names(.))) %>%
+  setNames(make.names(names(.)) %>% gsub("Index.of.Multiple.Deprivation..IMD..", "",.) %>% trimws ) %>%
+  rename(LAD11CD = Local.Authority.District.code..2013.)
+
+LSOADep<-read_excel("File_1_ID_2015_Index_of_Multiple_Deprivation.xlsx", sheet = 2) %>%
+  setNames(make.names(names(.))) %>%
+  setNames(make.names(names(.)) %>% gsub("Index.of.Multiple.Deprivation..IMD..", "",.) %>% trimws ) %>%
+  rename(LAD11CD = Local.Authority.District.code..2013.,
+         LSOA_CODE = LSOA.code..2011.)
+
+
+CombineAB <- CombineAB %>% left_join(LADDep, by = "LAD11CD")
+
+CombineAB %>%
+  ggplot(.,aes(x= diffPerc, y = Ttest.p.value, color =Rank.of.extent<100)) + geom_jitter()
+
+
+#Look Kings Lynn and harrogate as they are strange results
+
+KingsLynnDep <- KingsLynnDATA %>% left_join(LSOADep, by = "LSOA_CODE") %>% 
+  mutate(deprank = rank(Decile..where.1.is.most.deprived.10..of.LSOAs.))
+  
+HarrogateDep <- HarrogateDATA %>% left_join(LSOADep, by = "LSOA_CODE") %>%
+  mutate(deprank = rank(Decile..where.1.is.most.deprived.10..of.LSOAs.))
+
+
+#creating the empty deprivation extent
+maxLSOA <- max(LSOADep$Rank..where.1.is.most.deprived.)
+
+ExtentWeight <- LSOADep%>%
+  mutate(percentile = (Rank..where.1.is.most.deprived./maxLSOA),
+         perc2 = percentile-0.11,
+         weight = ifelse(percentile<.11|percentile>.3,0, 0.95 - (0.95/.20)*perc2 ),
+         weight = ifelse(percentile<0.11, 1, weight)) %>%
+  select(LSOA_CODE, weight)
+
+
+test <- KingsLynnDep %>% 
+  left_join(., ExtentWeight, by= "LSOA_CODE")  %>%
+  mutate(WeightedLUP = (LowUse*weight)/sum(LowUse))
+
+test <- BromleyLONDATA %>% 
+  left_join(., ExtentWeight, by= "LSOA_CODE")  %>%
+  mutate(WeightedLUP = (LowUse*weight)/sum(LowUse))
+
+sum(test$WeightedLUP, na.rm = TRUE)
+
+LUPdepExt <- ls(pattern = "DATA") %>% map_dbl(~{
+df <- get(.x)
+test <- df %>% 
+  left_join(., ExtentWeight, by= "LSOA_CODE")  %>%
+  mutate(WeightedLUP = (LowUse*weight)/sum(LowUse))
+
+sum(test$WeightedLUP, na.rm = TRUE)
+})
+
+
+Combine1ExO2 <- CombineAB%>%
+  mutate(LUPdepExt) 
+
+Combine1ExO2 %>% ggplot(.,aes(x= maxPerc, y = LUPdepExt, colour = absdiff>0)) +
+  geom_point()
+
+Combine1ExO2 %>% ggplot(.,aes(x= maxPerc, y =Ttest.p.value, colour = LUPdepExt>0.10)) +
+  geom_point()
+
+LADprice <- prices %>%
+  filter(X5!= "O") %>%
+  group_by(Admin_district_code) %>%
+summarise(price = mean(X2)) %>%
+  mutate(meandiff = price-mean(price),
+         pricepercent = percent_rank(price))
+
+test <- Combine1ExO2 %>%
+  left_join(LADprice, by = c("LAD11CD"="Admin_district_code"))%>%
+  #filter out wales
+  filter(!grepl("W", LAD11CD))%>%
+  select(LAD, absdiff, LUPdepExt, Extent, maxPerc,Ttest.p.value, pricepercent) %>%
+  mutate(outcome = LUPdepExt>Extent) 
+
+
+test %>% ggplot(.,aes(x= maxPerc, y =Ttest.p.value, colour = outcome)) +
+  geom_point()
+
+
+svm.model <- svm(as.factor(absdiff>0) ~ LUPdepExt+ maxPerc, test)
+#why do the two rforest models have such different results
+rpart.model <- randomForest(as.factor((absdiff>0))~ LUPdepExt+ maxPerc, test)
+rpart.model <- rpart(as.factor(absdiff>0) ~ LUPdepExt+ maxPerc, test)
+
+confusionMatrix(predict(svm.model, test, type = class),as.factor(test$absdiff>0))
+
+confusionMatrix( predict(rpart.model, test, type = "class"),as.factor(test$absdiff>0))
+
+```
+
+
+```{r}
+
+library(e1071)
+ library(rpart)
+ data(Glass, package="mlbench")
+ ## split data into a train and test set
+ index <- 1:nrow(Glass)
+ testindex <- sample(index, trunc(length(index)/3))
+ testset <- Glass[testindex,]
+ trainset <- Glass[-testindex,]
+
+svm.model <- svm(Type ~ ., data = trainset, cost = 100, gamma = 1)
+svm.pred <- predict(svm.model, testset[,-10])
+
+rpart.model <- rpart(Type ~ ., data = trainset)
+rpart.pred <- predict(rpart.model, testset[,-10], type = "class")
+ 
+confusionMatrix( rpart.pred, testset$Type)
+confusionMatrix( svm.pred, testset$Type)
+```
+
+
+
+```{r}
 
 ```
 
@@ -600,9 +759,9 @@ Also check deprivation,
 sum(Combine1$Ttest.p.value>0.5)/nrow(Combine1)
 sum(Combine1$Ttest.p.value>0.5 & Combine1$maxPerc>5)/sum(Combine1$maxPerc>5)
 
-Combine1[Combine1$Ttest.p.value>0.5 & Combine1$maxPerc>5,]
-Combine2[Combine2$Ttest.p.value>0.5 & Combine2$maxPerc>5,]
-Combine3[Combine3$Ttest.p.value>0.5 & Combine3$maxPerc>5,]
+Combine1ExO[Combine1ExO$Ttest.p.value>0.5 & Combine1ExO$maxPerc>5,]
+Combine2ExO[Combine2ExO$Ttest.p.value>0.5 & Combine2ExO$maxPerc>5,]
+Combine3ExO[Combine3ExO$Ttest.p.value>0.5 & Combine3ExO$maxPerc>5,]
 
 table(Combine2$Ttest.p.value>0.5 & Combine2$maxPerc>5, Combine1$Ttest.p.value>0.5 & Combine1$maxPerc>5)
 
@@ -619,7 +778,7 @@ Combine1 %>% ggplot(.,aes(x= abs(maxPerc), y = Ttest.p.value)) + geom_point()
 #The blackwall an cubitt are being redevleoped with the blackwall reach, some housing is empty others are still occupied demolishin has not occured
 Combine1 %>% ggplot(.,aes(x= diffPerc, y = Ttest.p.value)) + geom_point()
 
-Combine1 %>% ggplot(.,aes(x= maxPerc, y = Ttest.p.value)) + geom_point() +
+Combine1ExO %>% ggplot(.,aes(x= maxPerc, y = Ttest.p.value)) + geom_point() +
   labs(title = "Comparing tatistical Significance of LUPs being more expensive than RHs and the maximum concentration of LUPs in a ")
 
 Combine2 %>% ggplot(.,aes(x= maxPerc, y = Ttest.p.value)) + geom_point() +
@@ -642,8 +801,6 @@ Combine1 %>% ggplot(.,aes(x= skew, y= Ttest.p.value)) + geom_point()
 
 
 ```{r}
-
-
 test <- Combine1 %>% filter(Ttest.p.value>0.05)
 ```
 

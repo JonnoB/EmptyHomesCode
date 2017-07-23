@@ -1,0 +1,131 @@
+---
+title: "Untitled"
+author: "Jonathan Bourne"
+date: "23 July 2017"
+output: html_document
+---
+
+This file find out whether an are is more or less expensive than the local average, where local is defined as the number of x hops from the root node in the LAD network of main land UK
+
+source: http://geoportal.statistics.gov.uk/datasets/osni-open-data-largescale-boundaries-local-government-districts-2012
+
+
+```{r}
+library(shp2graph)
+
+
+setwd( "~/Dropbox/SSE/Empty Homes/EmptyHomesCode/SubCode")
+source("Setup.R")
+
+setwd(Functions)
+list.files() %>% map(source)
+
+
+```
+
+```{r}
+
+NILADshapedata <- file.path(basewd,"ShapeFiles","OSNI_Open_Data_Largescale_Boundaries__Local_Government_Districts_2012")
+setwd(NILADshapedata)
+
+LADshape <- readOGR(dsn = list.files(pattern = "shp"))
+
+Adjmat <- Shape2Adjmat(LADshape, "LGDCode")
+
+g1 <- graph_from_adjacency_matrix(Adjmat, mode = "undirected")
+
+plot(g1)
+
+BFS1 <- bfs(g1, root = 1, unreachable = FALSE, rank = TRUE, dist = TRUE)
+
+BFS1$dist
+
+NetworkDist <- 1:length(V(g1)) %>% 
+  map(~{
+  bfs(g1, root = .x, unreachable = FALSE, rank = TRUE, dist = TRUE)$rank %>%
+      as.matrix %>% t %>% as.data.frame
+  }) %>% 
+  bind_rows()
+
+
+
+test <- prices %>% filter(grepl("N", Admin_district_code))
+  filter(Admin_district_code == "N09000001")
+
+```
+
+
+```{r}
+
+
+
+LADshapedata <- file.path(basewd,"ShapeFiles","Local_Authority_Districts_December_2016_Full_Extent_Boundaries_in_Great_Britain")
+setwd(LADshapedata)
+
+LADshape <- readOGR(dsn = list.files(pattern = "shp"))
+
+Adjmat <- Shape2Adjmat(LADshape, "lad16cd")
+
+g1 <- graph_from_adjacency_matrix(Adjmat, mode = "undirected")
+
+#plot the graph
+plot(g1)
+
+#Construct a distance network across all the LADs
+NetworkDist <- 1:length(V(g1)) %>% 
+  map(~{
+  bfs(g1, root = .x, unreachable = FALSE, rank = TRUE, dist = TRUE)$rank %>%
+      as.matrix %>% t %>% as.data.frame
+  }) %>% 
+  bind_rows() %>% mutate(LAD11CD = names(.))
+
+
+
+
+
+LADprice <- prices %>%
+  filter(X5!= "O") %>%
+  group_by(Admin_district_code) %>%
+summarise(price = mean(X2)) %>%
+  mutate(meandiff = price-mean(price),
+         pricepercent = percent_rank(price))
+
+
+
+#Filter the data to only LADs that I have data for
+
+LocalMean <- NetworkDist %>% 
+  gather(key= "LAD11CD2", value = "distance", -LAD11CD) %>%
+  filter(LAD11CD %in% CombineAB$LAD11CD, distance <=3) %>%
+#join on the average prices per LAD
+  left_join(LADprice, by = c("LAD11CD2"="Admin_district_code")) %>%
+  #find local mean
+  group_by(LAD11CD) %>%
+  summarise(LocalMean = mean(price,na.rm = TRUE))
+
+test <- Combine1ExO2 %>%
+  left_join(LADprice, by = c("LAD11CD"="Admin_district_code"))%>%
+  #filter out wales
+  filter(!grepl("W", LAD11CD))%>%
+  select(LAD11NM, absdiff, LUPdepExt, Extent, maxPerc,Ttest.p.value, pricepercent, LAD11CD) %>%
+  mutate(outcome = LUPdepExt>Extent)  %>% 
+  left_join(LocalMean, by = "LAD11CD") %>%
+  left_join(LADprice, by = c("LAD11CD"="Admin_district_code")) %>%
+  mutate(priceRatio = (price/LocalMean)) #%>%
+  #select(LAD11CD, LAD11NM, priceRatio, price, LocalMean, absdiff, Ttest.p.value, maxPerc, LUPdepExt)
+
+test %>%
+  ggplot(.,aes(x= maxPerc, y = Ttest.p.value, colour = priceRatio>1)) + geom_jitter()
+
+rpart.model <- rpart(as.factor(absdiff>0) ~ maxPerc, test)
+rpart.model1 <- rpart(as.factor(absdiff>0) ~ LUPdepExt+ maxPerc, test)
+rpart.model2 <- rpart(as.factor(absdiff>0) ~ priceRatio+ maxPerc, test)
+rpart.model3 <- rpart(as.factor(absdiff>0) ~ LUPdepExt+ maxPerc + priceRatio, test)
+
+confusionMatrix( predict(rpart.model, test, type = "class"),as.factor(test$absdiff>0))
+confusionMatrix( predict(rpart.model1, test, type = "class"),as.factor(test$absdiff>0))
+confusionMatrix( predict(rpart.model2, test, type = "class"),as.factor(test$absdiff>0))
+confusionMatrix( predict(rpart.model3, test, type = "class"),as.factor(test$absdiff>0))
+
+```
+

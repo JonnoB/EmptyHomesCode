@@ -1,5 +1,11 @@
-PlotMap <- function(df, ShapeData, variable = "LowUsePerc", title = "Map of Region", filtermap = TRUE){
-  
+PlotMap <- function(df, ShapeData = AG, variable = "LowUsePerc", title = "Map of Region", filtermap = TRUE){
+  # 
+  # df: The LAD dataframe
+  # ShapeData: The Shape file, defaults to AG becuase that is what I called the shape file for some reason
+  # variable = the variable to choose
+  # title: map title
+  # filtermap: whether teh shape file should be filtered to include only the the data being inputted or everything
+  #             It should only be set to FALSE if the shape file has been pre-filtered
   
   Singlevis <- ShapeData %>% 
     left_join(., df, by = c("lsoa11cd"="LSOA_CODE")) %>% 
