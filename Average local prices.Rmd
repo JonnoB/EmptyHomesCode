@@ -10,6 +10,8 @@ This file find out whether an are is more or less expensive than the local avera
 source: http://geoportal.statistics.gov.uk/datasets/osni-open-data-largescale-boundaries-local-government-districts-2012
 
 
+#this uses rank I think it should be dist check this
+
 ```{r}
 library(shp2graph)
 
@@ -99,6 +101,14 @@ LocalMean <- NetworkDist %>%
   filter(LAD11CD %in% CombineAB$LAD11CD, distance <=3) %>%
 #join on the average prices per LAD
   left_join(LADprice, by = c("LAD11CD2"="Admin_district_code")) %>%
+  filter(LAD11CD=="E07000029")
+
+
+LocalMean <- NetworkDist %>% 
+  gather(key= "LAD11CD2", value = "distance", -LAD11CD) %>%
+  filter(LAD11CD %in% CombineAB$LAD11CD, distance <=3) %>%
+#join on the average prices per LAD
+  left_join(LADprice, by = c("LAD11CD2"="Admin_district_code")) %>%
   #find local mean
   group_by(LAD11CD) %>%
   summarise(LocalMean = mean(price,na.rm = TRUE))
@@ -111,21 +121,41 @@ test <- Combine1ExO2 %>%
   mutate(outcome = LUPdepExt>Extent)  %>% 
   left_join(LocalMean, by = "LAD11CD") %>%
   left_join(LADprice, by = c("LAD11CD"="Admin_district_code")) %>%
-  mutate(priceRatio = (price/LocalMean)) #%>%
-  #select(LAD11CD, LAD11NM, priceRatio, price, LocalMean, absdiff, Ttest.p.value, maxPerc, LUPdepExt)
+  mutate(priceRatio = (price/LocalMean)) %>%
+  mutate(LUPdepExt.Extent = LUPdepExt-Extent, price.LocalMean = price>LocalMean ) #%>%
+#select(LAD11CD, LAD11NM, priceRatio, price, LocalMean, absdiff, Ttest.p.value, maxPerc, LUPdepExt)
+#remove barrow
+#filter(LAD11CD !="E07000027")
 
 test %>%
+  filter(maxPerc<10) %>%
   ggplot(.,aes(x= maxPerc, y = Ttest.p.value, colour = priceRatio>1)) + geom_jitter()
+
+test %>%
+  filter(maxPerc<10) %>%
+  ggplot(.,aes(x= Extent, y = LUPdepExt, colour = absdiff>0)) + geom_jitter()
+
+test2 <- test %>% 
+  select(LAD11NM, absdiff, LUPdepExt, Extent, LocalMean, price, priceRatio, maxPerc) %>%
+  mutate(LUPdepExt.Extent = LUPdepExt>Extent, price.LocalMean = price>LocalMean ) %>%
+  filter( price.LocalMean == FALSE)
+
+table(test$maxPerc>5, test$LUPdepExt.Extent>0, test$absdiff>0)
 
 rpart.model <- rpart(as.factor(absdiff>0) ~ maxPerc, test)
 rpart.model1 <- rpart(as.factor(absdiff>0) ~ LUPdepExt+ maxPerc, test)
-rpart.model2 <- rpart(as.factor(absdiff>0) ~ priceRatio+ maxPerc, test)
-rpart.model3 <- rpart(as.factor(absdiff>0) ~ LUPdepExt+ maxPerc + priceRatio, test)
+rpart.model2 <- rpart(as.factor(absdiff>0) ~ LUPdepExt.Extent + maxPerc + priceRatio, test)
+rpart.model3 <- svm(as.factor(absdiff>0) ~ LUPdepExt+Extent + maxPerc + priceRatio, test, type = "C", kernel = "radial")
+rpart.model3 <- svm(as.factor(absdiff>0) ~ maxPerc + LUPdepExt+ Extent, test, type = "C", kernel = "radial")
 
 confusionMatrix( predict(rpart.model, test, type = "class"),as.factor(test$absdiff>0))
 confusionMatrix( predict(rpart.model1, test, type = "class"),as.factor(test$absdiff>0))
 confusionMatrix( predict(rpart.model2, test, type = "class"),as.factor(test$absdiff>0))
 confusionMatrix( predict(rpart.model3, test, type = "class"),as.factor(test$absdiff>0))
+
+test2 <- test[predict(rpart.model2, test, type = "class")!=as.factor(test$absdiff>0),]
+
+
 
 ```
 

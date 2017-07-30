@@ -8,7 +8,7 @@ output: html_document
 
 Islington should be removed and put back in when they send the correct data, it is giving a false negative
 
-
+#this uses rank for distance from LAD I think it should be dist check this
 
 
 Should type B be included? or just type A?
@@ -141,9 +141,9 @@ ChristchurchDATA <- read_excel("Christchurch FOI17 - 0312 - Bourne - Ctax Discou
 
 ```{r}
 #Wiltshire have not included everything
-# WiltshireDATA <- read_excel("Wiltshire ENQ07536 - Council tax discounts.xlsx",
-#                                sheet=1)[1:4] %>%
-#   StructureData()
+WiltshireDATA <- read_excel("Wiltshire ENQ07536 - Council tax discounts 2.xlsx",
+                               sheet=1)[1:4] %>%
+  StructureData(lowuse = 3:8)
 ```
 
 #East of England
@@ -196,7 +196,12 @@ KingsLynnDATA <- read_excel("197782 - King s Lynn and West NorfolkDiscountsLSOA 
 NorthNorfolkDATA <- read_excel("North NorfolkDiscountsLSOA.XLSX" , sheet=1)[1:4] %>%
   StructureData()
 
+BrecklandsDATA <- read_excel("BFOI-003031 BrecklandDiscountsLSOA.xlsx" , sheet=1)[1:4] %>%
+  StructureData()
 
+#they deleted the classes
+SNorfolkDATA <- read_excel("SNorfolk 17-307 Discounts.xlsx"  , sheet=1)[1:4] %>%
+  StructureData()
 
 ```
 
@@ -210,6 +215,11 @@ EastCambsDATA <- read_excel("EC FOI 130 - DISC_FOI_0_3944413b.xlsx", sheet=1)[1:
 FenlandDATA <- read_excel("FL FOI 4544 DISCOUNTS.XLSX" , sheet=1)[1:4] %>%
   StructureData()
 
+HuntingdonDATA <- read_excel("Huntingdonshire  FOI 568discounts.xlsx" , sheet=1)[1:4] %>%
+  StructureData(lowuse = 2:8)
+
+PeterboroughDATA <- read_excel("Peterborough 1707267585 completed.xlsx" , sheet=1)[1:4] %>%
+  StructureData(lowuse = c(4,6:7,11))
 
 ```
 
@@ -247,6 +257,13 @@ SelbyDATA <-read_excel("SelbyExemptionsLSOA.xlsx" )[,1:4]%>%
   StructureData(20:27)
 
 
+# HambletonDATA <- read_excel("HDC1088.xlsx")[,1:4] %>%
+#  StructureData()
+
+ScarboroughDATA <- read_excel("FOIA 5156 Scarborough Discounts LSOA.xlsx"  )[,1:4]%>%
+  StructureData(2:8)
+
+
 ```
 
 #North East
@@ -256,10 +273,30 @@ SelbyDATA <-read_excel("SelbyExemptionsLSOA.xlsx" )[,1:4]%>%
 ```{r}
 
 setwd(file.path(RegionsComp, "Region North East"))
+list.files()
 #Not sure all are there ask for confirmation
 # SunderlandDATA <- read_excel("Sunderland Freedom of Informaton Request from Jonathan Bourne- 17-07-21-Discounts.xlsx"  , sheet=1)%>% .[,1:4] %>%
 #   StructureData(lowuse = c(2:4,6,8:10))
 
+
+NewcastleDATA <- read_excel("Newcastle upon TyneDiscountsLSOA.xlsx", sheet=1)%>% .[,c(1,3:5)] %>%
+    StructureData(lowuse = 2:7)
+
+
+#FOr some reason Gateshead has the wrong LAD11CD I don't know why. I have changed it to the right one but feel that perhaps I should check them all, but how?
+GatesheadDATA <- read_excel("Copy of GatesheadExemptionsLSOA.XLSX"   , sheet=1)%>% .[,1:4] %>%
+   StructureData(lowuse = c(2:3, 20,22:25)) %>%
+  mutate(LAD11CD = ifelse(is.na(LAD11CD), NA, "E08000037"))
+
+```
+
+##Durham
+```{r}
+  DarlingtonDATA <- read_excel("Darlington DBC-0809-17.xlsx" , sheet=1) %>% .[,1:4] %>%
+    StructureData()
+
+  HartlepoolData <- read_csv("FOI 7942 HartlepoolDiscountsLSOA.csv") %>% .[,1:4] %>%
+    StructureData(2:7)
 
 ```
 
@@ -288,6 +325,15 @@ MonmouthDATA <- read_excel("MCC Discounts Jul 17.xlsx", sheet=1)%>% .[,1:4] %>%
 #Strangely low numbers checking
 # PowysDATA <- read_excel("PowysDiscountsLSOA.XLSX"    , sheet=1)%>% .[,1:4] %>%
 #   StructureData(lowuse = c(3,5:6))
+
+#Conway have sen the wrong stuff  
+# ConwayDATA <- read_excel("Conwy FOI 0260-17.xlsx" , sheet=1) %>%
+#   rename(Postcode = geo_postcode) %>%
+#   mutate(Postcode = sub(" ", "", Postcode)) %>%
+#   left_join(., PstCdLSOA.raw,  by=c("Postcode") ) %>%
+#   rename(Exemption.type=disc_type_desc, LSOA_CODE = lsoa11cd) %>%
+#   select(Exemption.type, LSOA_CODE, Postcode, Country_code) %>%
+#   StructureData()
 
 ```
 
@@ -454,14 +500,14 @@ setwd(basewd)
 #A only A type sales
 #B only Btype sales
 
-#load full data
-BootStrapRES <-LoadAddDistribCompare("BootStrapRES.rds")
-
-#Include only full price standard purchases
-BootStrapRESA <-LoadAddDistribCompare("BootStrapRES_A.rds", type = "A")
-
-#Inlcude only transfers and Buy-to-let and purcheses to non-private individuals
-BootStrapRESB <-LoadAddDistribCompare("BootStrapRES_B.rds", type = "B")
+# #load full data
+# BootStrapRES <-LoadAddDistribCompare("BootStrapRES.rds")
+# 
+# #Include only full price standard purchases
+# BootStrapRESA <-LoadAddDistribCompare("BootStrapRES_A.rds", type = "A")
+# 
+# #Inlcude only transfers and Buy-to-let and purcheses to non-private individuals
+# BootStrapRESB <-LoadAddDistribCompare("BootStrapRES_B.rds", type = "B")
 
 #Repeat excluding all the properties classed as other
 
@@ -474,8 +520,7 @@ BootStrapRESExOA <-LoadAddDistribCompare("BootStrapRESExOA.rds", type = "A",
 BootStrapRESExOB <-LoadAddDistribCompare("BootStrapRESExOB.rds", type = "B", 
                                          PropertyTypes = c("D", "S", "T", "F"))
 
-elementnames<- names(BootStrapRES)
-
+elementnames<- names(BootStrapRESExO)
 
 ls(pattern = "DATA")[(ls(pattern = "DATA") %>% map_dbl(~get(.x) %>%ncol))==4]
 
@@ -521,6 +566,19 @@ Combine1 %>% ggplot(.,aes(x= absdiff, y = Ttest.p.value)) + geom_point()
 Combine2 %>% ggplot(.,aes(x= absdiff, y = Ttest.p.value)) + geom_point()
 
 ```
+
+```{r}
+test <- BootStrapRESExO$ChelseaLON %>% 
+  group_by(class) %>%
+  summarise_all(funs(mean))
+
+
+test2 <- test %>%
+  select(-class) %>%
+  summarise_all(funs(sum)) %>%
+  mutate(LowUseValue = LowUseValue/1e9)
+```
+
 
 
 #Explore results
@@ -683,10 +741,10 @@ Combine1ExO2 <- CombineAB%>%
   mutate(LUPdepExt) 
 
 Combine1ExO2 %>% ggplot(.,aes(x= maxPerc, y = LUPdepExt, colour = absdiff>0)) +
-  geom_point()
+  geom_jitter()
 
 Combine1ExO2 %>% ggplot(.,aes(x= maxPerc, y =Ttest.p.value, colour = LUPdepExt>0.10)) +
-  geom_point()
+  geom_jitter()
 
 LADprice <- prices %>%
   filter(X5!= "O") %>%
@@ -704,12 +762,12 @@ test <- Combine1ExO2 %>%
 
 
 test %>% ggplot(.,aes(x= maxPerc, y =Ttest.p.value, colour = outcome)) +
-  geom_point()
+  geom_jitter()
 
 
 svm.model <- svm(as.factor(absdiff>0) ~ LUPdepExt+ maxPerc, test)
 #why do the two rforest models have such different results
-rpart.model <- randomForest(as.factor((absdiff>0))~ LUPdepExt+ maxPerc, test)
+#rpart.model <- randomForest(as.factor((absdiff>0))~ LUPdepExt+ maxPerc, test)
 rpart.model <- rpart(as.factor(absdiff>0) ~ LUPdepExt+ maxPerc, test)
 
 confusionMatrix(predict(svm.model, test, type = class),as.factor(test$absdiff>0))
@@ -718,27 +776,6 @@ confusionMatrix( predict(rpart.model, test, type = "class"),as.factor(test$absdi
 
 ```
 
-
-```{r}
-
-library(e1071)
- library(rpart)
- data(Glass, package="mlbench")
- ## split data into a train and test set
- index <- 1:nrow(Glass)
- testindex <- sample(index, trunc(length(index)/3))
- testset <- Glass[testindex,]
- trainset <- Glass[-testindex,]
-
-svm.model <- svm(Type ~ ., data = trainset, cost = 100, gamma = 1)
-svm.pred <- predict(svm.model, testset[,-10])
-
-rpart.model <- rpart(Type ~ ., data = trainset)
-rpart.pred <- predict(rpart.model, testset[,-10], type = "class")
- 
-confusionMatrix( rpart.pred, testset$Type)
-confusionMatrix( svm.pred, testset$Type)
-```
 
 
 
