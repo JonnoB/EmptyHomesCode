@@ -10,8 +10,24 @@ Islington should be removed and put back in when they send the correct data, it 
 
 #this uses rank for distance from LAD I think it should be dist check this
 
+#ico complaint ref
+fs-506-897-47
 
 Should type B be included? or just type A?
+
+
+What's the Deal with Westminster?
+Westminsters Data is very low, I want to check what codes are going on.
+Westminster
+PCLB00: Second home class B/A
+PCLB50: 
+PCLC00: Empty and unfurnsished
+PCLC99: 
+PCLD00: Undergoing major repairs
+PCLJ50:
+Single:
+
+#Setup
 
 ```{r setup}
 setwd( "~/Dropbox/SSE/Empty Homes/EmptyHomesCode/SubCode")
@@ -21,11 +37,6 @@ setwd(Functions)
 list.files() %>% map(source)
 
 Figures <- "/home/jonno/Dropbox/Apps/ShareLaTeX/Empty Homes Write up/Figures"
-```
-
-
-
-```{r}
 source(file.path(CommonCode, "AuxdataLoad.R"))
 ```
 
@@ -111,6 +122,15 @@ NorthDevonDATA <- read_excel("North DevonDiscountsLSOA.XLSX", sheet=1)[1:4] %>%
 PlymouthDATA <- read_excel("PlymouthDiscountsLSOA.XLSX" , sheet=1)[1:4] %>%
   StructureData(lowuse = 4:8)
 
+TorbayDATA <- read_excel("Torbay_discounts 1718551.xlsx"  , sheet=1)[1:4] %>%
+  StructureData()
+
+MidDevonDATA <- read_excel("MidDevon FOI04942Information 3.xlsx" , sheet=1)[1:4] %>%
+  StructureData(c(7,10:11,20:22,26,28))
+
+TorridgeDATA <- read_excel("FOI_TorridgeDiscountsLSOA.XLSX" , sheet=1)[1:4] %>%
+  StructureData(c(4:5,7:10,13))
+
 ```
 
 ##Somerset
@@ -119,20 +139,35 @@ PlymouthDATA <- read_excel("PlymouthDiscountsLSOA.XLSX" , sheet=1)[1:4] %>%
 NorthSomsertDATA <- read_excel("1501796 North SomersetDiscountsLSOA.xlsx" , sheet=1)[1:4] %>%
   StructureData(lowuse= 2:6)  
 
+MendipDATA <- read_excel("Mendip 356 20170706 Response.xlsx" , sheet=1)[1:4] %>%
+  StructureData(lowuse= c(37:39,52:54,65:66,69)) 
+
 ```
 
 
 ##Dorset
 
 ```{r}
-BournemouthDATA <- read_excel("Copy of FOI - 265 - Bourne - PooleDiscountsLSOA.xlsx" , sheet=1)[1:4] %>%
+PooleDATA <- read_excel("Copy of FOI - 265 - Bourne - PooleDiscountsLSOA.xlsx" , sheet=1)[1:4] %>%
   StructureData(lowuse = c(5,11:14,18))
 
 ChristchurchDATA <- read_excel("Christchurch FOI17 - 0312 - Bourne - Ctax Discounts and Exemptions.xls",
                                sheet=1)[1:4] %>%
   StructureData(lowuse = c(6,12:17,20))
 
-  
+WeymouthDATA <-  read_excel("63687 Weymouth and PortlandDiscountsLSOA - 010817.xlsx"    ,
+                               sheet=1)[1:4] %>%
+  StructureData()
+
+WestDorsetDATA <-  read_excel("47019 West DorsetDiscountsLSOA - 010817.xlsx"     ,
+                               sheet=1)[1:4] %>%
+  StructureData()
+
+
+
+PurbeckDATA <-  read_excel("PurbeckDiscountsLSOA - 010817.xlsx"      ,
+                               sheet=1)[1:4] %>%
+  StructureData()
 
 ```
 
@@ -144,6 +179,10 @@ ChristchurchDATA <- read_excel("Christchurch FOI17 - 0312 - Bourne - Ctax Discou
 WiltshireDATA <- read_excel("Wiltshire ENQ07536 - Council tax discounts 2.xlsx",
                                sheet=1)[1:4] %>%
   StructureData(lowuse = 3:8)
+
+SwindonDATA <- read_excel("Swindon - 7th July 2017 - Part 2 (Discounts).xlsx" ,
+                               sheet=1)[1:4] %>%
+  StructureData(2:6)
 ```
 
 #East of England
@@ -180,6 +219,28 @@ StEdmundsDATA <- read.xlsx("se FOI 146  3948502_Copy+of+St+EdmundsburyDiscountsL
 
 ForestHeathDATA <- read.xlsx("FH FOI 146 Discounts.xlsx")[1:4] %>%
   StructureData()
+
+IpswichDATA <- read_xlsx("IpswichDiscountsLSOA.xlsx")[1:4] %>%
+   StructureData(c(2:4,6:11,13:15))
+
+#Mid Suffolk and Babergh
+#These have been combined and are just the postcodes so need to be fixed
+#Missing loads of postcodes
+MidSuffolkDATA <- read_excel("MidSuffolk FOI MF379 1718 Discount.xlsx") %>%
+mutate(Postcode = gsub(" ", "", `Post Code`)) %>%
+ left_join(.,PstCdLSOA.raw,  by=c("Postcode") ) %>%
+  rename(Exemption.type=`Discount Type Description`, LSOA_CODE = lsoa11cd) %>%
+  select(Exemption.type, LSOA_CODE, Postcode, Country_code, Admin_district_code) %>%
+  StructureData(c(2:12,14:15))
+
+
+BaberghDATA <- read_excel("Babergh FOI BF378 1718 Discount.xlsx")%>%
+mutate(Postcode = gsub(" ", "", `Post Code`)) %>%
+ left_join(.,PstCdLSOA.raw,  by=c("Postcode") ) %>%
+  rename(Exemption.type=`Discount Type Description`, LSOA_CODE = lsoa11cd) %>%
+  select(Exemption.type, LSOA_CODE, Postcode, Country_code, Admin_district_code) %>%
+  StructureData(c(2:6,8:11,13:15))
+
 
 ```
 
@@ -220,6 +281,9 @@ HuntingdonDATA <- read_excel("Huntingdonshire  FOI 568discounts.xlsx" , sheet=1)
 
 PeterboroughDATA <- read_excel("Peterborough 1707267585 completed.xlsx" , sheet=1)[1:4] %>%
   StructureData(lowuse = c(4,6:7,11))
+
+CambridgeDATA <- read_excel("566 - Copy of Copy of CambridgeDiscountsLSOA .xlsx" , sheet=1)[1:4] %>%
+  StructureData(2:5)
 
 ```
 
@@ -264,6 +328,33 @@ ScarboroughDATA <- read_excel("FOIA 5156 Scarborough Discounts LSOA.xlsx"  )[,1:
   StructureData(2:8)
 
 
+
+# Middlesbrough sent the wrong data
+# MiddlesbroughDATA <- read_excel( "Middlesbrough FOI RES - 011397 Discounts.xlsx"   )[,1:4]%>%
+#   StructureData()
+
+#Ryedale
+RyedaleDATA <-  read_excel("Ryedale FOI 4597.xlsx")[,1:4]%>%
+  StructureData(2:6)
+
+#Crave they sent full addresses by mistake I'll do a temporary fix
+CravenDATA <- read_excel("Craven Discounts.xlsx" ) %>%
+  setNames(make.names(names(.))) %>%
+  mutate(Postcode = str_split(Full.Property.Address, "(,)(?!.*,)", simplify = T)[,2] %>% 
+           gsub(" ", "", .)) %>%
+  left_join(., PstCdLSOA.raw,  by=c("Postcode") ) %>%
+  rename(Exemption.type=Discount.Type.Description, LSOA_CODE = lsoa11cd) %>%
+  select(Exemption.type, LSOA_CODE, Postcode, Country_code) %>%
+  StructureData(c(2:5,7))
+
+#Redcar and cleveland
+
+RedcarDATA <-  read_excel("Redcar 0614 attachment 1.xlsx")[,1:4]%>%
+  StructureData(2:10)
+
+
+
+
 ```
 
 #North East
@@ -288,15 +379,35 @@ GatesheadDATA <- read_excel("Copy of GatesheadExemptionsLSOA.XLSX"   , sheet=1)%
    StructureData(lowuse = c(2:3, 20,22:25)) %>%
   mutate(LAD11CD = ifelse(is.na(LAD11CD), NA, "E08000037"))
 
+STynesideDATA <- read_excel("FOI 17.18456 - South Tyneside Discounts.xlsx", sheet=1)[,c(1,4:6)] %>%
+    StructureData(c(32:35,38))
+
 ```
+
+
+##Northumberland
+
+```{r}
+NorthumberlandDATA <- read_excel("FOI 2762 data NorthumberlandDiscounts.xlsx", sheet=1)%>% .[,1:4] %>%
+    StructureData(2:7) %>%
+  #The LAD code is wrong for some reason
+  mutate(LAD11CD = "E06000057")
+
+```
+
 
 ##Durham
 ```{r}
+  
+DurhamDATA <- read_excel("County DurhamDiscountsLSOA.XLSX" , sheet=1) %>% .[,c(1,4:6)] %>%
+    StructureData()
+
   DarlingtonDATA <- read_excel("Darlington DBC-0809-17.xlsx" , sheet=1) %>% .[,1:4] %>%
     StructureData()
 
-  HartlepoolData <- read_csv("FOI 7942 HartlepoolDiscountsLSOA.csv") %>% .[,1:4] %>%
+  HartlepoolDATA <- read_csv("FOI 7942 HartlepoolDiscountsLSOA.csv") %>% .[,1:4] %>%
     StructureData(2:7)
+  
 
 ```
 
@@ -326,14 +437,29 @@ MonmouthDATA <- read_excel("MCC Discounts Jul 17.xlsx", sheet=1)%>% .[,1:4] %>%
 # PowysDATA <- read_excel("PowysDiscountsLSOA.XLSX"    , sheet=1)%>% .[,1:4] %>%
 #   StructureData(lowuse = c(3,5:6))
 
-#Conway have sen the wrong stuff  
-# ConwayDATA <- read_excel("Conwy FOI 0260-17.xlsx" , sheet=1) %>%
-#   rename(Postcode = geo_postcode) %>%
-#   mutate(Postcode = sub(" ", "", Postcode)) %>%
-#   left_join(., PstCdLSOA.raw,  by=c("Postcode") ) %>%
-#   rename(Exemption.type=disc_type_desc, LSOA_CODE = lsoa11cd) %>%
-#   select(Exemption.type, LSOA_CODE, Postcode, Country_code) %>%
-#   StructureData()
+#It seems Conwy really is this short on the discounts  
+ConwyDATA <- read_excel("Conwy FOI 0260-17.xlsx" , sheet=1) %>%
+  rename(Postcode = geo_postcode) %>%
+  mutate(Postcode = sub(" ", "", Postcode)) %>%
+  left_join(., PstCdLSOA.raw,  by=c("Postcode") ) %>%
+  rename(Exemption.type=disc_type_desc, LSOA_CODE = lsoa11cd) %>%
+  select(Exemption.type, LSOA_CODE, Postcode, Country_code) %>%
+  StructureData(lowuse = c(2,4))
+
+
+DenbigshireDATA <- read_excel("FOI 2503 DenbighshireDiscountsLSOA.xlsx" , sheet=1)%>% .[,1:4] %>%
+    StructureData(8:9)
+
+WrexhamDATA <- read_csv("WrexhamDiscountsLSOA.csv" )%>% .[,1:4] %>%
+    StructureData(2:5)
+
+#Pembrokeshire didn't send all the data
+PembrokeshireDATA <- read_excel("Copy of PembrokeshireDiscountsLSOA.xlsx"  , sheet=1)%>% .[,1:4] %>%
+    StructureData(3)
+
+FlintshireDATA <- read_excel("FOI R014329 FlintshireDiscounts LSOA.xlsx"  , sheet=1)%>% .[,1:4] %>%
+    StructureData()
+
 
 ```
 
@@ -347,7 +473,6 @@ source(file.path(CommonCode, "LondonFullProcesss.R"))
 #MakeLeaflet(NewhamLONDATA)
 
 ```
-
 
 #Semi data 
 
@@ -415,7 +540,7 @@ General Stats
 ls(pattern = "DATA") %>% map_df(~eval(parse(text=.x))) %>% 
   filter(!is.na(LAD11NM)) %>%
   summarise(
-           TotalLads = length(unique(LAD11CD)),
+           TotalLads = length(ls(pattern = "DATA", envir = globalenv())), #bits of other LADS cause the number to be higher than reality so the ls function is used again
            LowUse = sum(LowUse, na.rm = T),
            Homes = sum(Homes, na.rm = T),
            PercHomes = Homes/sum(EW2$Homes),
@@ -436,11 +561,11 @@ length(ls(pattern = "DATA"))/(EW2$LAD11NM %>% unique %>% length())
 ```{r}
 x <-bind_rows(SouthwarkLONDATA, TowerDATA, LambethLONDATA, CoLLONDATA, NewhamLONDATA) %>% MakeLeaflet
 
-z<- MakeLeaflet(CeredigionDATA)
+z<- MakeLeaflet(DurhamDATA)
 z
 # 
 setwd(basewd)
- saveWidget(z, file=file.path(basewd, "CeredigionDATA.html"), selfcontained = TRUE )
+ saveWidget(z, file=file.path(basewd, "RBKC&Westminster.html"), selfcontained = TRUE )
 
 #testSouth <- DistribCompareBootstrapper(SouthwarkLONDAls(pattern = "DATA")TA, 1652, 1000)
 testSouth %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100) %>% 
@@ -448,6 +573,13 @@ testSouth %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100) %>%
   labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
 
 ValueTtest(test)
+
+PlotMap(BexleyLONDATA)
+
+z <-ChelseaLONDATA %>% 
+  filter(LAD11CD =="E09000020") %>% 
+  bind_rows(WestminsterLONDATA) %>%
+  MakeLeaflet()
 
 
 
@@ -494,6 +626,7 @@ Now all the data is loaded each LAD needs to be bootstrapped
 
 ```{r}
 
+
 setwd(basewd)
 
 #ExO excluding Other
@@ -510,20 +643,22 @@ setwd(basewd)
 # BootStrapRESB <-LoadAddDistribCompare("BootStrapRES_B.rds", type = "B")
 
 #Repeat excluding all the properties classed as other
-
+setwd(basewd)
 BootStrapRESExO <-LoadAddDistribCompare("BootStrapRESExO.rds", 
                                          PropertyTypes = c("D", "S", "T", "F"))
-
-BootStrapRESExOA <-LoadAddDistribCompare("BootStrapRESExOA.rds", type = "A", 
-                                         PropertyTypes = c("D", "S", "T", "F"))
-
-BootStrapRESExOB <-LoadAddDistribCompare("BootStrapRESExOB.rds", type = "B", 
-                                         PropertyTypes = c("D", "S", "T", "F"))
+# 
+# BootStrapRESExOA <-LoadAddDistribCompare("BootStrapRESExOA.rds", type = "A", 
+#                                          PropertyTypes = c("D", "S", "T", "F"))
+# 
+# BootStrapRESExOB <-LoadAddDistribCompare("BootStrapRESExOB.rds", type = "B", 
+#                                          PropertyTypes = c("D", "S", "T", "F"))
 
 elementnames<- names(BootStrapRESExO)
 
 ls(pattern = "DATA")[(ls(pattern = "DATA") %>% map_dbl(~get(.x) %>%ncol))==4]
 
+
+#saveRDS(BootStrapRESExO, file = "BootStrapRESExO.rds")
 
 ```
 
@@ -561,14 +696,10 @@ Combine2ExO <- BootResSummaryData(BootStrapRESExOA) %>% mutate(LAD11CD = Current
 
 Combine3ExO <- BootResSummaryData(BootStrapRESExOB) %>% mutate(LAD11CD = CurrentLADS)
 
-#This is so cool, Also needs to be discussed in great detail, it is probablu due to the demolition and renovation of council housing
-Combine1 %>% ggplot(.,aes(x= absdiff, y = Ttest.p.value)) + geom_point()
-Combine2 %>% ggplot(.,aes(x= absdiff, y = Ttest.p.value)) + geom_point()
-
 ```
 
 ```{r}
-test <- BootStrapRESExO$ChelseaLON %>% 
+test <- BootStrapRESExO$WestminsterLON%>% 
   group_by(class) %>%
   summarise_all(funs(mean))
 
@@ -577,6 +708,9 @@ test2 <- test %>%
   select(-class) %>%
   summarise_all(funs(sum)) %>%
   mutate(LowUseValue = LowUseValue/1e9)
+
+
+
 ```
 
 
@@ -584,34 +718,6 @@ test2 <- test %>%
 #Explore results
 
 ```{r}
-
-BootStrapRES$CoLLON %>% PlotClassDiff()
-BootStrapRESExO$CoLLON %>% PlotClassDiff()
-BootStrapRESExOA$CoLLON %>% PlotClassDiff()
-BootStrapRESExOB$CoLLON %>% PlotClassDiff()
-
-HouseMatch <- data_frame(PropType = "D,S,T,F,O" %>% str_split(",") %>% unlist,
-type = "Detached,Semi-Detached,Terraced,Flats/Maisonettes,Other"%>% str_split(",") %>% unlist)
-
-
-test <- CoLLONDATA %>% SubsetPrice() %>% left_join(HouseMatch)
-testB <- CoLLONDATA %>% SubsetPrice("B") %>% left_join(HouseMatch)
-testA <- CoLLONDATA %>% SubsetPrice("A") %>% left_join(HouseMatch)
-
-table(test$type, test$class)
-table(testA$type, testA$class)
-table(testB$type, testB$class)
-
-
-CoLnums <- BootStrapRES$CoLLON %>% 
-  group_by(class) %>%
-  summarise_all(funs(mean(., na.rm = TRUE)))
-
-
-CoLnumsA <- BootStrapRESA$CoLLON %>% 
-  group_by(class) %>%
-  summarise_all(funs(mean(., na.rm = TRUE)))
-
 
 LADNMs <- EW2 %>% group_by(LAD11CD) %>%
   summarise(LAD11NM = first(LAD11NM))
@@ -645,28 +751,11 @@ summarise(mean = mean(X2)) %>%
 
 
 
-sum(prices$X15 == "B")/nrow(prices)
-
-test <- ABratio4 %>% 
-  filter(LAD11CD %in% CurrentLADS)
-
-ABratio3 %>% ggplot(., aes(x = Valueratio)) +geom_density()
-
-
 CombineAB <- Combine1ExO %>% 
   left_join(ABratio4, by = "LAD11CD") 
 
 CombineAB %>%
   ggplot(.,aes(x= diffPerc, y = Ttest.p.value, colour = Valueratio>1)) + geom_point()
-
-CombineAB %>%
-  ggplot(.,aes(x= diffPerc, y = Ttest.p.value, colour = Countratio>0.2)) + geom_point()
-
-CombineAB %>%
-  ggplot(.,aes(x= diffPerc, y = Ttest.p.value, colour = mean)) + geom_point()
-
-
-
 
 ```
 
@@ -697,15 +786,6 @@ CombineAB %>%
   ggplot(.,aes(x= diffPerc, y = Ttest.p.value, color =Rank.of.extent<100)) + geom_jitter()
 
 
-#Look Kings Lynn and harrogate as they are strange results
-
-KingsLynnDep <- KingsLynnDATA %>% left_join(LSOADep, by = "LSOA_CODE") %>% 
-  mutate(deprank = rank(Decile..where.1.is.most.deprived.10..of.LSOAs.))
-  
-HarrogateDep <- HarrogateDATA %>% left_join(LSOADep, by = "LSOA_CODE") %>%
-  mutate(deprank = rank(Decile..where.1.is.most.deprived.10..of.LSOAs.))
-
-
 #creating the empty deprivation extent
 maxLSOA <- max(LSOADep$Rank..where.1.is.most.deprived.)
 
@@ -716,17 +796,7 @@ ExtentWeight <- LSOADep%>%
          weight = ifelse(percentile<0.11, 1, weight)) %>%
   select(LSOA_CODE, weight)
 
-
-test <- KingsLynnDep %>% 
-  left_join(., ExtentWeight, by= "LSOA_CODE")  %>%
-  mutate(WeightedLUP = (LowUse*weight)/sum(LowUse))
-
-test <- BromleyLONDATA %>% 
-  left_join(., ExtentWeight, by= "LSOA_CODE")  %>%
-  mutate(WeightedLUP = (LowUse*weight)/sum(LowUse))
-
-sum(test$WeightedLUP, na.rm = TRUE)
-
+#Create the extent of deprivation of the LUPs
 LUPdepExt <- ls(pattern = "DATA") %>% map_dbl(~{
 df <- get(.x)
 test <- df %>% 
@@ -746,6 +816,11 @@ Combine1ExO2 %>% ggplot(.,aes(x= maxPerc, y = LUPdepExt, colour = absdiff>0)) +
 Combine1ExO2 %>% ggplot(.,aes(x= maxPerc, y =Ttest.p.value, colour = LUPdepExt>0.10)) +
   geom_jitter()
 
+```
+
+#Model
+
+```{r}
 LADprice <- prices %>%
   filter(X5!= "O") %>%
   group_by(Admin_district_code) %>%
@@ -753,91 +828,175 @@ summarise(price = mean(X2)) %>%
   mutate(meandiff = price-mean(price),
          pricepercent = percent_rank(price))
 
-test <- Combine1ExO2 %>%
+ModelMe <- Combine1ExO2 %>%
   left_join(LADprice, by = c("LAD11CD"="Admin_district_code"))%>%
   #filter out wales
   filter(!grepl("W", LAD11CD))%>%
   select(LAD, absdiff, LUPdepExt, Extent, maxPerc,Ttest.p.value, pricepercent) %>%
-  mutate(outcome = LUPdepExt>Extent) 
+  mutate(Reference = as.factor(absdiff>0) ) %>%
+  #scaled so that the binomial can be interpreted
+  mutate(pricepercent = scale(pricepercent),
+         LUPdepExt = scale(LUPdepExt),
+         maxPerc = scale(maxPerc))
+
+#This uses the local mean so that has to be run first before the code works
+# ModelMe <- Combine1ExO2 %>%
+#   left_join(LADprice, by = c("LAD11CD"="Admin_district_code"))%>%
+#   #filter out wales
+#   filter(!grepl("W", LAD11CD))%>%
+#   select(LAD11NM, absdiff, LUPdepExt, Extent, maxPerc,Ttest.p.value,  LAD11CD) %>%
+#   mutate(outcome = LUPdepExt>Extent)  %>% 
+#   left_join(LocalMean, by = "LAD11CD") %>%
+#   left_join(LADprice, by = c("LAD11CD"="Admin_district_code")) %>%
+#   mutate(priceRatio = (price/LocalMean)) %>%
+#   mutate(LUPdepExt.Extent = LUPdepExt-Extent, price.LocalMean = price-LocalMean ) %>%
+#   #make the Reference column properly
+#   mutate(Reference = as.factor(absdiff>0) ) %>%
+#   #scaled so that the binomial can be interpreted
+#   mutate(pricepercent = scale(pricepercent),
+#          LUPdepExt = scale(LUPdepExt),
+#          maxPerc = scale(maxPerc),
+#          priceRatio = scale(priceRatio))
 
 
-test %>% ggplot(.,aes(x= maxPerc, y =Ttest.p.value, colour = outcome)) +
+
+ModelMe %>% ggplot(.,aes(x= maxPerc, y =Ttest.p.value, colour = outcome)) +
   geom_jitter()
 
+library(rpart)
+library(caret)
 
-svm.model <- svm(as.factor(absdiff>0) ~ LUPdepExt+ maxPerc, test)
-#why do the two rforest models have such different results
-#rpart.model <- randomForest(as.factor((absdiff>0))~ LUPdepExt+ maxPerc, test)
-rpart.model <- rpart(as.factor(absdiff>0) ~ LUPdepExt+ maxPerc, test)
+#classification
+#three models
+svm.model <- svm(Reference~ pricepercent +LUPdepExt+ maxPerc, ModelMe)
+rpart.model <- rpart(Reference ~pricepercent +LUPdepExt+ maxPerc, ModelMe)
+Binom <- glm(Reference~ LUPdepExt + maxPerc+ pricepercent, family=binomial(link='logit'),data=ModelMe)
 
-confusionMatrix(predict(svm.model, test, type = class),as.factor(test$absdiff>0))
+linear.model <- lm(absdiff~ LUPdepExt + maxPerc+ pricepercent,data=ModelMe)
 
-confusionMatrix( predict(rpart.model, test, type = "class"),as.factor(test$absdiff>0))
 
+confusionMatrix(predict(svm.model, ModelMe, type = "class"), ModelMe$Reference) %>% unlist
+confusionMatrix( predict(rpart.model, ModelMe, type = "class"), ModelMe$Reference)
+confusionMatrix(predict(Binom, ModelMe, type = "response")>0.5 , ModelMe$Reference)
+
+
+predict(linear.model, ModelMe)
+summary(linear.model)
 ```
 
-
-
+##perform many mode resamples and plot the results
 
 ```{r}
 
-```
 
 
-Why are some areas with negative difference?
+set.seed(1983)
+test <- 1:1000 %>% map_df(~{
+TestResample <- resample_partition(ModelMe, c(test = 0.3, train = 0.7))
 
-The max percentage of low use is 5%
-There is the council estate renovation effect.
-All the areas are Urban
-Also check deprivation,
+rpart.model2 <- rpart(Reference ~pricepercent +LUPdepExt+ maxPerc, as.data.frame(TestResample$train))
 
-```{r}
+Confmat <- confusionMatrix( predict(rpart.model2, as.data.frame(TestResample$test), type = "class"), as.data.frame(TestResample$test)$Reference) 
 
-sum(Combine1$Ttest.p.value>0.5)/nrow(Combine1)
-sum(Combine1$Ttest.p.value>0.5 & Combine1$maxPerc>5)/sum(Combine1$maxPerc>5)
+Out<- bind_cols(Confmat$overall %>% as.matrix %>%t %>% data.frame,
+          Confmat$byClass %>% as.matrix %>%t %>% data.frame) %>%
+  mutate(ID = .x)
 
-Combine1ExO[Combine1ExO$Ttest.p.value>0.5 & Combine1ExO$maxPerc>5,]
-Combine2ExO[Combine2ExO$Ttest.p.value>0.5 & Combine2ExO$maxPerc>5,]
-Combine3ExO[Combine3ExO$Ttest.p.value>0.5 & Combine3ExO$maxPerc>5,]
+}
+)
 
-table(Combine2$Ttest.p.value>0.5 & Combine2$maxPerc>5, Combine1$Ttest.p.value>0.5 & Combine1$maxPerc>5)
+test %>% ggplot(., aes(x= Accuracy)) +geom_density()
+
+test %>%
+  mutate(diff = Accuracy - AccuracyNull) %>% 
+  ggplot(., aes(x= diff)) +geom_density()
+
+t.test(test$Accuracy, test$AccuracyNull, alternative = "greater")
+
+set.seed(1983)
+test2 <- 1:1000 %>% map_df(~{
+  TestResample <- resample_partition(ModelMe, c(test = 0.3, train = 0.7))
+
+  model <- svm(Reference ~pricepercent +LUPdepExt+ maxPerc, as.data.frame(TestResample$train))
+
+  Confmat <- confusionMatrix( predict(model, as.data.frame(TestResample$test), type = "class"),
+                              as.data.frame(TestResample$test)$Reference) 
+
+  Out<- bind_cols(Confmat$overall %>% as.matrix %>%t %>% data.frame,
+          Confmat$byClass %>% as.matrix %>%t %>% data.frame) %>%
+  mutate(ID = .x)
+
+}
+)
+
+test2 %>% ggplot(., aes(x= Accuracy)) +geom_density()
+
+test2 %>%
+  mutate(diff = Accuracy - AccuracyNull) %>% 
+  ggplot(., aes(x= diff)) +geom_density()
+
+t.test(test2$Accuracy, test2$AccuracyNull, alternative = "greater")
+
+#binom
+
+set.seed(1983)
+test3 <- 1:1000 %>% map_df(~{
+  TestResample <- resample_partition(ModelMe, c(test = 0.3, train = 0.7))
+
+  model <- glm(Reference~ LUPdepExt + maxPerc+ pricepercent, 
+               family=binomial(link='logit'),
+               as.data.frame(TestResample$train))
+
+  Confmat <- confusionMatrix( predict(model, as.data.frame(TestResample$test), type = "response")>0.5,
+                              as.data.frame(TestResample$test)$Reference) 
+
+  Out<- bind_cols(Confmat$overall %>% as.matrix %>%t %>% data.frame,
+          Confmat$byClass %>% as.matrix %>%t %>% data.frame,
+          coefficients(model)%>% as.matrix %>%t %>% data.frame) %>%
+  mutate(ID = .x)
+
+}
+)
+
+test3 %>% ggplot(., aes(x= Accuracy)) +geom_density()
+
+test3 %>%
+  mutate(diff = Accuracy - AccuracyNull) %>% 
+  ggplot(., aes(x= diff)) +geom_density()
+
+t.test(test3$Accuracy, test3$AccuracyNull, alternative = "greater")
 
 
+# 
+# set.seed(1983)
+# test4 <- 1:1000 %>% map_df(~{
+#   TestResample <- resample_partition(ModelMe, c(test = 0.3, train = 0.7))
+# 
+#   model <- glm(Reference~ LUPdepExt + maxPerc+ priceRatio, 
+#                family=binomial(link='logit'),
+#                as.data.frame(TestResample$train))
+# 
+#   Confmat <- confusionMatrix( predict(model, as.data.frame(TestResample$test), type = "response")>0.5,
+#                               as.data.frame(TestResample$test)$Reference) 
+# 
+#   Out<- bind_cols(Confmat$overall %>% as.matrix %>%t %>% data.frame,
+#           Confmat$byClass %>% as.matrix %>%t %>% data.frame,
+#           coefficients(model)%>% as.matrix %>%t %>% data.frame) %>%
+#   mutate(ID = .x)
+# 
+# }
+# )
+# 
+# test4 %>% ggplot(., aes(x= Accuracy)) +geom_density()
+# 
+# test4 %>%
+#   mutate(diff = Accuracy - AccuracyNull) %>% 
+#   ggplot(., aes(x= diff)) +geom_density()
+# 
+# t.test(test4$Accuracy, test4$AccuracyNull, alternative = "greater")
+# 
+# 
+# t.test(test3$Accuracy- test3$AccuracyNull, test4$Accuracy - test4$AccuracyNull, alternative = "greater")
 
-LADAB <- ChelseaLONDATA%>% SubsetPrice
-  table(LADAB$X15, LADAB$class)
-
-Combine1 %>% ggplot(.,aes(x= abs(maxPerc), y = Ttest.p.value)) + geom_point()
-
-#P.value is low if diff perc is over 5%
-#Both southwark and Tower of london have concil flat renovation?
-#Southwark the Aylesbury estate is being redeveloped making emptyness much higher than expected
-#The blackwall an cubitt are being redevleoped with the blackwall reach, some housing is empty others are still occupied demolishin has not occured
-Combine1 %>% ggplot(.,aes(x= diffPerc, y = Ttest.p.value)) + geom_point()
-
-Combine1ExO %>% ggplot(.,aes(x= maxPerc, y = Ttest.p.value)) + geom_point() +
-  labs(title = "Comparing tatistical Significance of LUPs being more expensive than RHs and the maximum concentration of LUPs in a ")
-
-Combine2 %>% ggplot(.,aes(x= maxPerc, y = Ttest.p.value)) + geom_point() +
-  labs(title = "Comparing tatistical Significance of LUPs being more expensive than RHs and the maximum concentration of LUPs in a ")
-
-
-#Boring doesn't show anything interesting
-Combine1 %>% ggplot(.,aes(x= p.value.x, y = Ttest.p.value, colour =diffPerc>5 )) + geom_point()
-
-Combine1 %>% ggplot(.,aes(x= maxPerc, y = Ttest.p.value, colour =absdiff>0 )) + geom_point()
-
-test <- Combine1 %>%
-  select(LAD,p.value.x, Ttest.p.value, absdiff , maxPerc, minPerc,diffPerc, skew)
-
-
-Combine1 %>% ggplot(.,aes(x= skew, y= Ttest.p.value)) + geom_point()
-
-```
-
-
-
-```{r}
-test <- Combine1 %>% filter(Ttest.p.value>0.05)
 ```
 

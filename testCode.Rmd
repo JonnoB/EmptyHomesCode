@@ -1,0 +1,155 @@
+---
+title: "Untitled"
+author: "Jonathan Bourne"
+date: "10 August 2017"
+output: html_document
+---
+
+                                     
+                                     
+                                     
+                                     
+                                     
+```{r}
+
+CalcLowUse<- function(df){ 
+  df %>%
+  select(LSOA_CODE, LowUse) %>%
+        left_join(., EW2, by = c("LSOA_CODE" = "ECODE")) %>% 
+        group_by(Admin_ward_code)  %>%
+        mutate(LowUsePerc = round(LowUse/Homes *100), 
+               WardLowUse = sum(LowUse) ,
+               WardLowUsePerc = round(WardLowUse/sum(Homes)*100)) %>% 
+        ungroup %>% 
+        left_join(., MeanWardPrice, by = "Admin_ward_code") %>% 
+        mutate(ValLow = LowUse*MeanPrice,
+               LowuseClass = cut(LowUsePerc, c(-1,10,20, 30,100), 
+                                 labels =  c("0-10","11-20","21-30", "30+")),
+               WardLowuseClass = cut(WardLowUsePerc, c(0,10,20, 30, 100), 
+                                     labels = c("0-10","11-20","21-30", "30+")) )
+}                                     
+
+
+
+test <- ChelseaLONDATA 
+
+
+  
+test <- ls(pattern = "LON") %>% 
+  map_df(~get(.x)) %>%
+   group_by(LSOA_CODE) %>%
+   summarise(LowUse = sum(LowUse, na.rm = TRUE)) %>% 
+  CalcLowUse()
+
+
+z<- MakeLeaflet(test)
+
+
+test <-list( WestminsterLONDATA, ChelseaLONDATA, CoLLONDATA, CamdenLONDATA) %>%
+  map_df(~.x) %>%   
+  group_by(LSOA_CODE) %>%
+   summarise(LowUse = sum(LowUse, na.rm = TRUE)) %>% 
+  CalcLowUse()
+
+z<- MakeLeaflet(test)
+
+z
+
+```
+
+
+https://voaratinglists.blob.core.windows.net/html/rlidata.htm
+
+```{r}
+
+setwd(file.path(basewd,"VOA data"))
+
+file2load <-"uk-englandwales-ndr-2017-summaryvaluations-compiled-epoch-0002-baseline-csv.csv"
+
+test0<- read_lines(file2load, n_max=10)
+
+test <- read_delim(file2load, delim = "*", col_names = F)
+
+test2 <- test$`Offices And Premises` %>% table %>% as.data.frame
+
+
+g1 <- test %>% filter(X1=="01")
+g2 <- test %>% filter(X1=="02")
+
+
+test3 <- g1$X5 %>% table %>% as.data.frame
+test4 <- g2$X4 %>% table %>% as.data.frame
+
+```
+
+
+```{r}
+  file2load2 <- "uk-englandwales-ndr-2017-listentries-compiled-epoch-0002-baseline-csv.csv"
+test0<- read_lines(file2load2, n_max=10)
+
+CorePstCd <- PstCdLSOA.raw %>%
+  left_join(EW2, by = c("lsoa11cd" = "ECODE")) %>%
+  select(Postcode, lsoa11cd, LAD11CD, LAD11NM, Admin_ward_code, WD16NM)
+
+CompanyData <- read_delim(file2load2, delim = "*", col_names = F) %>%
+  mutate(X15 = gsub(" ", "", X15)) %>%
+  left_join(., CorePstCd, by = c("X15" = "Postcode"))
+
+
+LSOABiz <- CompanyData %>%
+  filter(!is.na(LAD11CD)) %>%
+  mutate(X6 = gsub("( AND PREMISES)|( & PREMISES)", "",X6),
+         X6 = gsub("(AND PREMISES)|(& PREMISES)", "",X6)) %>%
+  group_by(lsoa11cd, X6) %>%
+  summarise(counts = n(),
+            LAD11CD = first(LAD11CD),
+            LAD11NM = first(LAD11NM),
+            Admin_ward_code = first(Admin_ward_code),
+            WD16NM = first(WD16NM)) 
+
+
+
+FirmCounts <- LSOABiz %>%
+  group_by(X6) %>%
+  summarise(counts = n()) %>%
+  arrange(-counts)
+
+Dom <- FirmCounts %>%
+  filter(grepl("DOMESTIC",X6))
+
+HOLS <- FirmCounts %>%
+  filter(grepl("HOLIDAY",X6))
+
+Catering <- FirmCounts %>%
+  filter(grepl("SELF CATER",X6))
+
+
+```
+
+Look at Westminster
+
+```{r}
+
+West <- LSOABiz %>%
+  filter(LAD11CD=="E09000033")
+
+
+Catering <- West %>%
+  filter(grepl("SELF CATER",X6))
+
+
+test <- list(HammersmithLONDATA, WestminsterLONDATA, ChelseaLONDATA, CoLLONDATA, CamdenLONDATA, LambethLONDATA) %>% 
+  map_df(~.x) %>%
+  group_by(LAD11CD) %>%
+  summarise(
+    LAD11NM =first(LAD11NM),
+    LowUse = sum(LowUse, na.rm= T),
+    Homes = sum(Homes, na.rm= T),
+    Pop = sum(Pop, na.rm= T)
+            ) %>%
+  filter(Homes >2000) %>%
+  mutate(LowUseH = LowUse/Homes,
+         LowUseP = LowUse/Pop)
+
+```
+

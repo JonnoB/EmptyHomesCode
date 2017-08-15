@@ -30,7 +30,10 @@ shape <- readOGR(dsn = list.files(pattern = "shp"))
 if(file.exists(file.path(DataFolder,"PstCdLSOA.rds"))){
 PstCdLSOA.raw <- readRDS(file.path(DataFolder,"PstCdLSOA.rds"))
 } else {
-source(file.path(CommonCode, "PostcodeLookup.R"))
+  PstCdLSOA.raw  <- MatchPostCode2LSOA(file.path(basewd, "ONS postcodes May17", "Data", "CSV"),
+                        file.path(basewd, "ONS postcodes May17", "Doc") )
+  setwd(DataFolder)
+  saveRDS(PstCdLSOA.raw, "PstCdLSOA.rds")
 }
 
 

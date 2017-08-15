@@ -12,6 +12,7 @@ It would have been sensible to separate council and private housing
 
 PCLB0 is second homes, PCLC0 is long term empty, PCLC100 is empty and unfurnished up to six months and PCLD100 is undergoing major repairs up to 12 months.  
 
+
 #Telegraph article on pensioners requireing mortgages
 http://www.telegraph.co.uk/personal-banking/mortgages/pensioner-mortgages-boom-britains-broken-housing-market/
 
@@ -196,14 +197,22 @@ test <-  ls(pattern = "LON") %>% map_df(~eval(parse(text=.x))) %>%
   group_by(Admin_ward_code) %>%
   summarise(LAD11NM = first(LAD11NM),
             MeanPrice = first(MeanPrice),
-            WardLowUse = first(WardLowUse)) %>%
+            WardLowUse = first(WardLowUse),
+            WardPop = first(WardPop)) %>%
   group_by(LAD11NM) %>%
   summarise(totalLow = sum(MeanPrice*WardLowUse)/1e6,
-            TotalEmpt = sum(WardLowUse))
+            TotalEmpt = sum(WardLowUse),
+            TotalPop = sum(WardPop))
 
-sum(test$totalLow, na.rm = T)  
+#possible extra 8-14 billion more in the remaining boroughs anout 90b total
+#poss addition 7k LUPS about 80k total
+
+sum(test$totalLow, na.rm = T)*10^6/  
 sum(test$TotalEmpt, na.rm = T)  
+sum(test$TotalPop, na.rm = T)  
 length(unique(test$LAD11NM))
+
+
 
 ```
 
@@ -212,6 +221,12 @@ length(unique(test$LAD11NM))
 Plot Map
 ```{r}
 
+test <-list( WestminsterLONDATA, ChelseaLONDATA, CoLLONDATA, CamdenLONDATA, LambethLONDATA, SouthwarkLONDATA, HammersmithLONDATA,
+             WandsworthLONDDATA) %>%
+  bind_rows() %>%
+  PlotMap(.,
+          title = "Map of London with all current data")
+  
  ls(pattern = "LON") %>% map_df(~eval(parse(text=.x))) %>%
   PlotMap(., filter(AG, RGN15NM=="London"), 
           filtermap = FALSE,

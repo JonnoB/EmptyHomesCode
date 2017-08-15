@@ -9,7 +9,7 @@ SubsetPrice <- function(df, type = NULL, PropertyTypes = NULL, PriceCuts = NULL)
     Code <- df
   } else{
     #Som LADS have bits of other LADS mixed in this removes those
-    Code <- df$LAD11CD[which.max(table(df$LAD11CD) %>% as.matrix)] 
+    Code <- names(table(df$LAD11CD))[which.max(table(df$LAD11CD) %>% as.matrix)] 
   }
   
   if(!is.null(type)){

@@ -206,9 +206,12 @@ This chunk checks the existance of the postcode to lsoa lookup if it doesn't fin
 ```{r}
 
 if(file.exists(file.path(DataFolder,"PstCdLSOA.rds"))){
- PstCdLSOA.raw <- readRDS(file.path(DataFolder,"PstCdLSOA.rds"))
+PstCdLSOA.raw <- readRDS(file.path(DataFolder,"PstCdLSOA.rds"))
 } else {
-  source(file.path(CommonCode, "PostcodeLookup.R"))
+  PstCdLSOA.raw  <- MatchPostCode2LSOA(file.path(basewd, "ONS postcodes May17", "Data", "CSV"),
+                        file.path(basewd, "ONS postcodes May17", "Doc") )
+  setwd(DataFolder)
+  saveRDS(PstCdLSOA.raw, "PstCdLSOA.rds")
 }
 
 ```
@@ -228,8 +231,8 @@ PstCdLSOA <- PstCdLSOA.raw %>% mutate_if(., is.factor, as.character)
 #There are a couple of errors is the region LSOA look up these are manually corrected here.
 PstCdLSOA[PstCdLSOA$Postcode=="BN994AE", c(3,4,7)] <- PstCdLSOA[PstCdLSOA$Postcode=="BN126BW", c(3,4,7)] 
 
-PstCdLSOA[PstCdLSOA$Postcode=="DY4 4BA", c(3,4,7)] <- PstCdLSOA[PstCdLSOA$Postcode=="DY4 0YX", c(3,4,7)] 
-PstCdLSOA[PstCdLSOA$Postcode=="DY4 4BB", c(3,4,7)] <- PstCdLSOA[PstCdLSOA$Postcode=="DY4 0YX", c(3,4,7)] 
+PstCdLSOA[PstCdLSOA$Postcode=="DY44BA", c(3,4,7)] <- PstCdLSOA[PstCdLSOA$Postcode=="DY40YX", c(3,4,7)] 
+PstCdLSOA[PstCdLSOA$Postcode=="DY44BB", c(3,4,7)] <- PstCdLSOA[PstCdLSOA$Postcode=="DY40YX", c(3,4,7)] 
 
 
 PstCdLSOA <- PstCdLSOA %>% left_join(., LADReg, by = c("Admin_district_code"="LAD15CD")) %>%

@@ -2,7 +2,7 @@
 
 
 packages <- c("tidyverse", "spdep", "igraph", "maptools", "openxlsx", "readxl", "sp","rgdal", "rgeos", "raster", "broom", "leaflet",
-              "forcats", "e1071", "htmlwidgets")
+              "forcats", "e1071", "htmlwidgets", "stringr", "modelr")
 
 new.packages <- packages[!(packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
@@ -19,8 +19,8 @@ ShapeFiles <- file.path(basewd,"ShapeFiles/statistical-gis-boundaries-london/ESR
 Figures <- file.path(basewd, "Figures")
 PostcodeLookups <- file.path(DataFolder, "PostcodeLookups")
 ExcelLookups <- file.path(basewd, "ExcelLookups")
-ONSpostcodes <- file.path(basewd, "ONS postcodes", "CSV")
-ONSpostcodeMeta <- file.path(basewd, "ONS postcodes", "Doc")
+ONSpostcodes <- file.path(basewd, "ONS postcodes May17", "Data", "CSV")
+ONSpostcodeMeta <- file.path(basewd, "ONS postcodes May17", "Doc")
 LSOAshapedata <- file.path(basewd,"ShapeFiles",
                            "Lower_Layer_Super_Output_Areas_December_2011_Generalised_Clipped__Boundaries_in_England_and_Wales")
 AddGeog <- file.path(basewd, "AdditionalGeographies")

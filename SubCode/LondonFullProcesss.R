@@ -100,15 +100,46 @@ RedbridgeLONDATA <- read_excel("RedbridgeDiscountsLSOA.XLSX" )[1:4]  %>%
   StructureData
 
 #Brent
-#Brent data only inlcudes 2nd homes, but they struggled with understanding the request will try again when data consistancy becomes more important or I get help from f.eks mayors office.
 
-BrentLONDATA <- read_excel("Brent Second homes and post codes.xlsx", col_names = FALSE) %>% 
-  left_join(., PstCdLSOA.raw,  by=c("X__2"="Postcode") ) %>%
+BrentLONDATA <- read_excel("FOI  6900196 Brent empty domestic properties.xlsx", col_names = TRUE)[,c(1,5)] %>%
+  setNames(c("X__1", "Postcode")) %>%
+  mutate(Postcode = gsub(" ", "", Postcode)) %>%
+  left_join(., PstCdLSOA.raw,  by="Postcode" ) %>%
   rename(Exemption.type=X__1, LSOA_CODE = lsoa11cd) %>%
-  select(Exemption.type, LSOA_CODE, X__2, Country_code) %>%
-  StructureData()
+  select(Exemption.type, LSOA_CODE, Admin_ward_code, Country_code) %>%
+  StructureData(c(2,15:19))
 
 #Hammersmith and fulham
 
 HammersmithLONDATA <- read_excel("Hammersmith and FulhamExemptionsLSOA.xls"  )[1:4] %>%
   StructureData(lowuse = 19:23)
+
+#Waltham Forest
+WalthamforestLONDATA <- read_excel("J Bourne Waltham ForestDiscountsLSOA 8.8.17.xlsx")[1:4] %>%
+  StructureData(c(3:7))
+
+
+#Westminster
+#Holy SHIT!
+
+#They sent it in the wrong format becuase they are annoying
+LSOA2LSOA <- PstCdLSOA.raw %>% group_by(lsoa11cd) %>%
+  summarise(LSOA = first(lsoa11nm)) %>%
+  ungroup %>%
+  rename(LSOA_CODE = lsoa11cd)
+
+#They have missed something out
+WestminsterLONDATA <- read_excel("Westminster 3123133  data Aug 2017.xlsx")[2:5] %>%
+  left_join(., LSOA2LSOA, by = "LSOA") %>%
+  select(1,5,3,4) %>%
+  StructureData(2:7)
+
+rm(LSOA2LSOA)
+  
+#Hackney
+
+HackneyLONDATA <- read_csv("18632856-Hackney Discounts SOA FOI17-0301-09113.CSV" )[1:4] %>%
+  StructureData(c(12:13,15:16,23))
+
+Hackney <- read_csv("18630603-HackneyExemptions FOI17-0301-09113 CSV.CSV" )[1:4]  %>% 
+  StructureData()
