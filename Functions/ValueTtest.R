@@ -22,7 +22,7 @@ ValueTtest <- function(df, alternative = "greater"){
   #percentage difference of above
   res3 <- (res2/HomePrice)*100
   
-  Out <-list(test, res1, res2, res3)
-  names(Out) <- c("data.frame", "t.test", "absdiff", "Percdiff")
+  Out <-list(test,HomePrice, LowUsePrice, res1, res2, res3)
+  names(Out) <- c("data.frame", "HomePrice", "LowUsePrice", "t.test", "absdiff", "Percdiff")
   return(Out)
 }

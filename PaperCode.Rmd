@@ -66,6 +66,9 @@ EdenCUMBRIADATA <- read_excel("EdenDiscountsLSOA.xlsx"  , sheet=1)[1:4] %>%
 CarliseCUMBRIADATA <- read_excel("FOI 5846 5983-CarlisleDiscountsLSOA June 2017.xlsx"  , sheet=1)[1:4] %>%  
   StructureData(.)
 
+AllerdaleCUMBRIADATA <- read_excel("F17.132_Copy of Allerdale discounts LSOA_170815.xlsx"  , sheet=1)[1:4] %>%  
+  StructureData(c(4:10))
+
 ```
 
 
@@ -93,6 +96,7 @@ TraffordMANCDATA <- read_excel("Trafford Exemption and Levy.xlsx" , sheet = 1 )[
 
 WiganMANCDATA <- read_excel("Wigan 5528 DISCOUNTS.xlsx", sheet = 1 )[1:4] %>%  
   StructureData(., lowuse = c(2:3, 5:9) )
+
 
 #hide plot
 #ls(pattern = "MANC") %>% map_df(~eval(parse(text=.x))) %>% PlotMap(., AG)
@@ -141,6 +145,10 @@ NorthSomsertDATA <- read_excel("1501796 North SomersetDiscountsLSOA.xlsx" , shee
 
 MendipDATA <- read_excel("Mendip 356 20170706 Response.xlsx" , sheet=1)[1:4] %>%
   StructureData(lowuse= c(37:39,52:54,65:66,69)) 
+
+#Bristol appears to have not included second homes
+#BristolDATA <- read_excel("Bristol%2c City ofDiscountsLSOA_as at 110817.xlsx")[c(1:4)] %>%
+#  StructureData()
 
 ```
 
@@ -353,7 +361,21 @@ RedcarDATA <-  read_excel("Redcar 0614 attachment 1.xlsx")[,1:4]%>%
   StructureData(2:10)
 
 
+CalderdaleDATA <- read_excel("Copy of CalderdaleDiscountsLSOA.xlsx" )[,1:4]%>%
+  StructureData(c(7,10,22:25))
 
+BradfordDATA <- read_excel("Copy of BradfordDiscountsLSOA.xlsx")[1:4] %>%
+  StructureData(c(2:7))
+
+
+RichmondshireDATA <- read_excel("Richmondshire FOI 4960.xls", col_names = FALSE)[1:2] %>%
+    setNames(c("Exemption.type", "Postcode")) %>%
+  mutate(Postcode = sub(" ", "", Postcode)) %>%
+  left_join(., PstCdLSOA.raw,  by=c("Postcode") ) %>%
+  rename(LSOA_CODE = lsoa11cd) %>%
+  select(Exemption.type, LSOA_CODE, Postcode, Country_code) %>%
+  StructureData(lowuse = c(2:7))
+  
 
 ```
 
@@ -366,8 +388,8 @@ RedcarDATA <-  read_excel("Redcar 0614 attachment 1.xlsx")[,1:4]%>%
 setwd(file.path(RegionsComp, "Region North East"))
 list.files()
 #Not sure all are there ask for confirmation
-# SunderlandDATA <- read_excel("Sunderland Freedom of Informaton Request from Jonathan Bourne- 17-07-21-Discounts.xlsx"  , sheet=1)%>% .[,1:4] %>%
-#   StructureData(lowuse = c(2:4,6,8:10))
+ SunderlandDATA <- read_excel("Sunderland Freedom of Informaton Request from Jonathan Bourne- 17-07-21-Discounts.xlsx"  , sheet=1)%>% .[,1:4] %>%
+   StructureData(lowuse = c(2:4,6,8:10))
 
 
 NewcastleDATA <- read_excel("Newcastle upon TyneDiscountsLSOA.xlsx", sheet=1)%>% .[,c(1,3:5)] %>%
@@ -528,6 +550,16 @@ TowerLONDATA <- read_excel("Towerhamlets.xlsx")[,c(1,3)] %>%
    bind_cols(., wardnames %>% filter(grepl("Tower", LAD11NM))) %>%
   SemiDataStructure
 
+
+HaveringLONDATA <- read_excel("AIR12965P Informatiion provided by Council Tax.xlsx" ) %>%
+  rename(DiscClass = X__1) %>%
+  select(-Mawneys, -`Aveley & Uplands`, -Whalebone) %>%
+  gather(key = "ward", value = "counts", -DiscClass) %>%
+  spread(key= DiscClass, value = counts, fill = 0) %>%
+  mutate(Empty = rowSums(.[,c(5:6,14,17)]), LowUse = Empty+ `Second Home Class A`+ `Second Homes Class B`) %>% 
+  bind_cols(., wardnames %>% filter(grepl("Havering", LAD11NM))) %>%
+  SemiDataStructure
+
 ```
 
 General Stats
@@ -561,11 +593,11 @@ length(ls(pattern = "DATA"))/(EW2$LAD11NM %>% unique %>% length())
 ```{r}
 x <-bind_rows(SouthwarkLONDATA, TowerDATA, LambethLONDATA, CoLLONDATA, NewhamLONDATA) %>% MakeLeaflet
 
-z<- MakeLeaflet(DurhamDATA)
+z<- MakeLeaflet(AllerdaleDATA)
 z
 # 
 setwd(basewd)
- saveWidget(z, file=file.path(basewd, "RBKC&Westminster.html"), selfcontained = TRUE )
+ saveWidget(z, file=file.path(basewd, "Cumbria.html"), selfcontained = TRUE )
 
 #testSouth <- DistribCompareBootstrapper(SouthwarkLONDAls(pattern = "DATA")TA, 1652, 1000)
 testSouth %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100) %>% 
@@ -581,7 +613,8 @@ z <-ChelseaLONDATA %>%
   bind_rows(WestminsterLONDATA) %>%
   MakeLeaflet()
 
-
+BradfordDATA %>% filter(LAD11NM=="Bradford") %>%
+  MakeLeaflet
 
 ```
 
@@ -626,77 +659,20 @@ Now all the data is loaded each LAD needs to be bootstrapped
 
 ```{r}
 
-
 setwd(basewd)
 
-#ExO excluding Other
-#A only A type sales
-#B only Btype sales
-
-# #load full data
-# BootStrapRES <-LoadAddDistribCompare("BootStrapRES.rds")
-# 
-# #Include only full price standard purchases
-# BootStrapRESA <-LoadAddDistribCompare("BootStrapRES_A.rds", type = "A")
-# 
-# #Inlcude only transfers and Buy-to-let and purcheses to non-private individuals
-# BootStrapRESB <-LoadAddDistribCompare("BootStrapRES_B.rds", type = "B")
-
-#Repeat excluding all the properties classed as other
-setwd(basewd)
 BootStrapRESExO <-LoadAddDistribCompare("BootStrapRESExO.rds", 
                                          PropertyTypes = c("D", "S", "T", "F"))
-# 
-# BootStrapRESExOA <-LoadAddDistribCompare("BootStrapRESExOA.rds", type = "A", 
-#                                          PropertyTypes = c("D", "S", "T", "F"))
-# 
-# BootStrapRESExOB <-LoadAddDistribCompare("BootStrapRESExOB.rds", type = "B", 
-#                                          PropertyTypes = c("D", "S", "T", "F"))
 
 elementnames<- names(BootStrapRESExO)
 
-ls(pattern = "DATA")[(ls(pattern = "DATA") %>% map_dbl(~get(.x) %>%ncol))==4]
-
-
-#saveRDS(BootStrapRESExO, file = "BootStrapRESExO.rds")
-
+#Make a summary dataframe
+Combine1ExO <- BootResSummaryData(BootStrapRESExO) 
 ```
 
 
 #Analyse Boostrap
 
-land registry 
-sue gambles
-
-```{r}
-
-
-#gets the list of LADs we currently have data for in alphabetical order so they can be joined to the combine
-CurrentLADS <- ls(pattern = "DATA") %>%
-  map_chr(~{df<- get(.x)
-  df <- df %>%
-  group_by(LAD11CD) %>%
-  summarise(count = n())
-df$LAD11CD[which.max(df$count)]}
-)
-
-#check any that are accidently not processed
-ls(pattern = "DATA")[(ls(pattern = "DATA") %>% map_dbl(~.x %>% get %>% ncol))<10]
-
-Combine1 <- BootResSummaryData(BootStrapRES) %>% mutate(LAD11CD = CurrentLADS)
-
-Combine2 <- BootResSummaryData(BootStrapRESA) %>% mutate(LAD11CD = CurrentLADS)
-
-Combine3 <- BootResSummaryData(BootStrapRESB) %>% mutate(LAD11CD = CurrentLADS)
-
-#Excluding Other
-Combine1ExO <- BootResSummaryData(BootStrapRESExO) %>% mutate(LAD11CD = CurrentLADS)
-
-Combine2ExO <- BootResSummaryData(BootStrapRESExOA) %>% mutate(LAD11CD = CurrentLADS)
-
-Combine3ExO <- BootResSummaryData(BootStrapRESExOB) %>% mutate(LAD11CD = CurrentLADS)
-
-```
 
 ```{r}
 test <- BootStrapRESExO$WestminsterLON%>% 
@@ -724,6 +700,7 @@ LADNMs <- EW2 %>% group_by(LAD11CD) %>%
 
 PropertyTypes <- c("D", "S", "T", "F")
 
+#calulcate the number of properties sold and the mean price
 ABratio <- prices %>% 
   filter(X5 %in% PropertyTypes) %>%
   group_by(Admin_district_code, X15) %>%
@@ -734,25 +711,21 @@ ABratio <- prices %>%
 ABratio2 <- ABratio%>%
   select(-mean) %>%
 spread(key = X15, value = count) %>%
-  mutate(Countratio = B/(A+B))
+  mutate(Countratio = B/(A+B)) %>%
+  rename(CountofA = A, CountofB = B)
 
 ABratio3 <- ABratio%>%
   select(-count) %>%
 spread(key = X15, value = mean) %>%
-  mutate(Valueratio = B/(A))
+  mutate(Valueratio = B/(A)) %>%
+  rename(MeanofA= A, MeanofB = B)
 
 
-ABratio4 <-  left_join(ABratio2, ABratio3, by = "LAD11CD") %>%
-  left_join(LADNMs) %>%
-  left_join(prices %>% 
-  group_by(Admin_district_code) %>%
-summarise(mean = mean(X2)) %>%
-  rename(LAD11CD = Admin_district_code))
+CombineAB <-left_join(ABratio2, ABratio3, by = "LAD11CD") %>%
+  left_join(Combine1ExO, ., by = "LAD11CD") 
 
+rm(ABratio); rm(ABratio2); rm(ABratio3)
 
-
-CombineAB <- Combine1ExO %>% 
-  left_join(ABratio4, by = "LAD11CD") 
 
 CombineAB %>%
   ggplot(.,aes(x= diffPerc, y = Ttest.p.value, colour = Valueratio>1)) + geom_point()
@@ -762,29 +735,6 @@ CombineAB %>%
 
 #Inlcuding deprivation
 ```{r}
-setwd(file.path(basewd, "Deprivation"))
-list.files()
-LADDep<-read_excel("File_10_ID2015_Local_Authority_District_Summaries.xlsx", sheet = 2) %>%
-  setNames(make.names(names(.)) %>% gsub("IMD...", "",.) %>% trimws ) %>%
-  rename(LAD11CD = Local.Authority.District.code..2013.)
-
-LSOADomDep<-read_excel("File_2_ID_2015_Domains_of_deprivation.xlsx" , sheet = 2) %>%
-  setNames(make.names(names(.))) %>%
-  setNames(make.names(names(.)) %>% gsub("Index.of.Multiple.Deprivation..IMD..", "",.) %>% trimws ) %>%
-  rename(LAD11CD = Local.Authority.District.code..2013.)
-
-LSOADep<-read_excel("File_1_ID_2015_Index_of_Multiple_Deprivation.xlsx", sheet = 2) %>%
-  setNames(make.names(names(.))) %>%
-  setNames(make.names(names(.)) %>% gsub("Index.of.Multiple.Deprivation..IMD..", "",.) %>% trimws ) %>%
-  rename(LAD11CD = Local.Authority.District.code..2013.,
-         LSOA_CODE = LSOA.code..2011.)
-
-
-CombineAB <- CombineAB %>% left_join(LADDep, by = "LAD11CD")
-
-CombineAB %>%
-  ggplot(.,aes(x= diffPerc, y = Ttest.p.value, color =Rank.of.extent<100)) + geom_jitter()
-
 
 #creating the empty deprivation extent
 maxLSOA <- max(LSOADep$Rank..where.1.is.most.deprived.)
@@ -807,16 +757,20 @@ sum(test$WeightedLUP, na.rm = TRUE)
 })
 
 
-Combine1ExO2 <- CombineAB%>%
+#Add in deprivation
+Combine1ExO <- select(LADDep, LAD11CD ,Extent) %>% 
+  left_join(CombineAB, ., by = "LAD11CD") %>%
   mutate(LUPdepExt) 
 
-Combine1ExO2 %>% ggplot(.,aes(x= maxPerc, y = LUPdepExt, colour = absdiff>0)) +
+
+Combine1ExO %>% ggplot(.,aes(x= maxPerc, y = LUPdepExt, colour = absdiff>0)) +
   geom_jitter()
 
-Combine1ExO2 %>% ggplot(.,aes(x= maxPerc, y =Ttest.p.value, colour = LUPdepExt>0.10)) +
+Combine1ExO %>% ggplot(.,aes(x= maxPerc, y =Ttest.p.value, colour = LUPdepExt>0.10)) +
   geom_jitter()
 
 ```
+
 
 #Model
 
@@ -825,14 +779,16 @@ LADprice <- prices %>%
   filter(X5!= "O") %>%
   group_by(Admin_district_code) %>%
 summarise(price = mean(X2)) %>%
-  mutate(meandiff = price-mean(price),
-         pricepercent = percent_rank(price))
+  mutate(pricepercent = percent_rank(price))
 
-ModelMe <- Combine1ExO2 %>%
+ModelMe <- Combine1ExO %>%
   left_join(LADprice, by = c("LAD11CD"="Admin_district_code"))%>%
+  left_join(Vacants, by = "LAD11CD") %>%
+  mutate(VacantsPerc = Vacants/Homes,
+         LTVPerc = Vacants/Homes) %>%
   #filter out wales
-  filter(!grepl("W", LAD11CD))%>%
-  select(LAD, absdiff, LUPdepExt, Extent, maxPerc,Ttest.p.value, pricepercent) %>%
+  filter(!grepl("W", LAD11CD)) %>%
+#  select(LAD, absdiff, LUPdepExt,  maxPerc,Ttest.p.value, pricepercent) %>%
   mutate(Reference = as.factor(absdiff>0) ) %>%
   #scaled so that the binomial can be interpreted
   mutate(pricepercent = scale(pricepercent),
@@ -863,25 +819,24 @@ ModelMe <- Combine1ExO2 %>%
 ModelMe %>% ggplot(.,aes(x= maxPerc, y =Ttest.p.value, colour = outcome)) +
   geom_jitter()
 
-library(rpart)
-library(caret)
-
+rowsum(.)>5 ~TRUE
 #classification
-#three models
-svm.model <- svm(Reference~ pricepercent +LUPdepExt+ maxPerc, ModelMe)
-rpart.model <- rpart(Reference ~pricepercent +LUPdepExt+ maxPerc, ModelMe)
-Binom <- glm(Reference~ LUPdepExt + maxPerc+ pricepercent, family=binomial(link='logit'),data=ModelMe)
 
-linear.model <- lm(absdiff~ LUPdepExt + maxPerc+ pricepercent,data=ModelMe)
+#LUPdepExt and Pricepercent are the only useful ones really
+Binom <- glm(Reference~ LUPdepExt +LADPerc +maxPerc+ mean.y, family=binomial(link='logit'),data=ModelMe)
 
+Binom <- glm(Reference~ Extent + price + VacantsPerc, family=binomial(link='logit'),data=ModelMe)
 
-confusionMatrix(predict(svm.model, ModelMe, type = "class"), ModelMe$Reference) %>% unlist
-confusionMatrix( predict(rpart.model, ModelMe, type = "class"), ModelMe$Reference)
 confusionMatrix(predict(Binom, ModelMe, type = "response")>0.5 , ModelMe$Reference)
 
+test <- lm(Percdiff ~ LUPdepExt +LADPerc +maxPerc+ mean.y, data = ModelMe)
 
-predict(linear.model, ModelMe)
-summary(linear.model)
+summary(test)
+
+
+summary(Binom) 
+
+coef(Binom) %>% as.data.frame
 ```
 
 ##perform many mode resamples and plot the results
@@ -890,60 +845,13 @@ summary(linear.model)
 
 
 
-set.seed(1983)
-test <- 1:1000 %>% map_df(~{
-TestResample <- resample_partition(ModelMe, c(test = 0.3, train = 0.7))
-
-rpart.model2 <- rpart(Reference ~pricepercent +LUPdepExt+ maxPerc, as.data.frame(TestResample$train))
-
-Confmat <- confusionMatrix( predict(rpart.model2, as.data.frame(TestResample$test), type = "class"), as.data.frame(TestResample$test)$Reference) 
-
-Out<- bind_cols(Confmat$overall %>% as.matrix %>%t %>% data.frame,
-          Confmat$byClass %>% as.matrix %>%t %>% data.frame) %>%
-  mutate(ID = .x)
-
-}
-)
-
-test %>% ggplot(., aes(x= Accuracy)) +geom_density()
-
-test %>%
-  mutate(diff = Accuracy - AccuracyNull) %>% 
-  ggplot(., aes(x= diff)) +geom_density()
-
-t.test(test$Accuracy, test$AccuracyNull, alternative = "greater")
-
-set.seed(1983)
-test2 <- 1:1000 %>% map_df(~{
-  TestResample <- resample_partition(ModelMe, c(test = 0.3, train = 0.7))
-
-  model <- svm(Reference ~pricepercent +LUPdepExt+ maxPerc, as.data.frame(TestResample$train))
-
-  Confmat <- confusionMatrix( predict(model, as.data.frame(TestResample$test), type = "class"),
-                              as.data.frame(TestResample$test)$Reference) 
-
-  Out<- bind_cols(Confmat$overall %>% as.matrix %>%t %>% data.frame,
-          Confmat$byClass %>% as.matrix %>%t %>% data.frame) %>%
-  mutate(ID = .x)
-
-}
-)
-
-test2 %>% ggplot(., aes(x= Accuracy)) +geom_density()
-
-test2 %>%
-  mutate(diff = Accuracy - AccuracyNull) %>% 
-  ggplot(., aes(x= diff)) +geom_density()
-
-t.test(test2$Accuracy, test2$AccuracyNull, alternative = "greater")
-
 #binom
 
 set.seed(1983)
-test3 <- 1:1000 %>% map_df(~{
+ModelStats <- 1:1000 %>% map_df(~{
   TestResample <- resample_partition(ModelMe, c(test = 0.3, train = 0.7))
 
-  model <- glm(Reference~ LUPdepExt + maxPerc+ pricepercent, 
+  model <- glm(Reference~ LUPdepExt + price + VacantsPerc, 
                family=binomial(link='logit'),
                as.data.frame(TestResample$train))
 
@@ -958,45 +866,202 @@ test3 <- 1:1000 %>% map_df(~{
 }
 )
 
-test3 %>% ggplot(., aes(x= Accuracy)) +geom_density()
 
-test3 %>%
+ModelStats %>% ggplot(., aes(x= Accuracy)) +geom_density()
+
+ModelStats %>%
   mutate(diff = Accuracy - AccuracyNull) %>% 
   ggplot(., aes(x= diff)) +geom_density()
 
-t.test(test3$Accuracy, test3$AccuracyNull, alternative = "greater")
+ModelStats %>% ggplot(., aes(x= AccuracyPValue)) +geom_density()
+ModelStats %>% ggplot(., aes(x= Kappa)) +geom_density()
+
+t.test(ModelStats$Accuracy, ModelStats$AccuracyNull, alternative = "greater")
 
 
-# 
-# set.seed(1983)
-# test4 <- 1:1000 %>% map_df(~{
-#   TestResample <- resample_partition(ModelMe, c(test = 0.3, train = 0.7))
-# 
-#   model <- glm(Reference~ LUPdepExt + maxPerc+ priceRatio, 
-#                family=binomial(link='logit'),
-#                as.data.frame(TestResample$train))
-# 
-#   Confmat <- confusionMatrix( predict(model, as.data.frame(TestResample$test), type = "response")>0.5,
-#                               as.data.frame(TestResample$test)$Reference) 
-# 
-#   Out<- bind_cols(Confmat$overall %>% as.matrix %>%t %>% data.frame,
-#           Confmat$byClass %>% as.matrix %>%t %>% data.frame,
-#           coefficients(model)%>% as.matrix %>%t %>% data.frame) %>%
-#   mutate(ID = .x)
-# 
-# }
-# )
-# 
-# test4 %>% ggplot(., aes(x= Accuracy)) +geom_density()
-# 
-# test4 %>%
-#   mutate(diff = Accuracy - AccuracyNull) %>% 
-#   ggplot(., aes(x= diff)) +geom_density()
-# 
-# t.test(test4$Accuracy, test4$AccuracyNull, alternative = "greater")
-# 
-# 
-# t.test(test3$Accuracy- test3$AccuracyNull, test4$Accuracy - test4$AccuracyNull, alternative = "greater")
+test <- ModelStats %>% 
+  select( X.Intercept., LUPdepExt, maxPerc, pricepercent) %>%
+  gather 
 
+test %>% ggplot(.,aes(x = key, y = value, fill = key)) + geom_boxplot() + 
+  labs(title = "Direction each variable pushes the outcome")
+
+test %>% ggplot(.,aes(x = value, fill = key)) + geom_density( alpha = 0.5)
+
+
+```
+
+
+
+```{r}
+set.seed(1983)
+ModelStats2 <- 1:1000 %>% map_df(~{
+  TestResample <- resample_partition(ModelMe, c(test = 0.3, train = 0.7))
+
+  model <- glm(Reference~ Extent + price + VacantsPerc, 
+               family=binomial(link='logit'),
+               as.data.frame(TestResample$train))
+
+  Confmat <- confusionMatrix( predict(model, as.data.frame(TestResample$test), type = "response")>0.5,
+                              as.data.frame(TestResample$test)$Reference) 
+
+  Out<- bind_cols(Confmat$overall %>% as.matrix %>%t %>% data.frame,
+          Confmat$byClass %>% as.matrix %>%t %>% data.frame,
+          coefficients(model)%>% as.matrix %>%t %>% data.frame) %>%
+  mutate(ID = .x)
+
+}
+)
+
+
+
+set.seed(1983)
+ModelStats3 <- 1:1000 %>% map_df(~{
+  TestResample <- resample_partition(ModelMe, c(test = 0.3, train = 0.7))
+
+  model <- glm(Reference~ LUPdepExt + price + VacantsPerc, 
+               family=binomial(link='logit'),
+               as.data.frame(TestResample$train))
+
+  Confmat <- confusionMatrix( predict(model, as.data.frame(TestResample$test), type = "response")>0.5,
+                              as.data.frame(TestResample$test)$Reference) 
+
+  Out<- bind_cols(Confmat$overall %>% as.matrix %>%t %>% data.frame,
+          Confmat$byClass %>% as.matrix %>%t %>% data.frame,
+          coefficients(model)%>% as.matrix %>%t %>% data.frame) %>%
+  mutate(ID = .x)
+
+}
+)
+
+Outcome <- bind_rows(data_frame(model = "generic", Accuracy = ModelStats2$Accuracy), 
+data_frame(model = "cutsom", Accuracy = ModelStats3$Accuracy) )
+
+Outcome %>%
+  ggplot(.,aes(x = Accuracy, fill = model)) + geom_density(alpha = 0.3)
+
+
+#The model that uses easily available data is 3% less accurate than the other model.
+t.test(ModelStats2$Accuracy, ModelStats1$Accuracy)
+
+cor(ModelMe$Vacants, ModelMe$VacantsPerc)
+
+cor(ModelMe$Vacants, ModelMe$LTV)
+cor(ModelMe$VacantsPerc, ModelMe$LTVPerc)
+
+```
+
+
+
+interpreting the coefficients of the model shows us that there is a natural tendency for LUPs to be more expensive than regular housing, the probability of them being more expensive increases if the local authority is already expensive compared to the rest of the local authorities. In addition the greater the maximum concentration of LUPs also increase the probability of them being more expensive than regular housing. However if the LUPs are generally in deprived areas then the probability of them being more expensive than regular housing decreases.
+
+Using the models produced in the previous section I can now predict areas where primary purchases are being out competed across the England
+
+```{r}
+
+set.seed(1983)
+MultiCheck <- 1:21 %>% map(~{
+  TestResample <- resample_bootstrap(ModelMe)
+
+  model <- glm(Reference~ Extent + price + VacantsPerc, 
+               family=binomial(link='logit'),
+               as.data.frame(TestResample))
+
+  data_frame(x = predict(model, ModelMe, type = "response")>0.5) %>%
+    setNames(paste("Model", .x, sep="_"))
+}
+) %>% bind_cols() %>% mutate(
+  Outcome = case_when(
+  rowSums(.)>ncol(.)/2 ~TRUE,
+  rowSums(.)<=ncol(.)/2 ~FALSE
+))
+
+test <- ModelMe %>%
+  bind_cols(., select(MultiCheck, Outcome)) %>%
+  mutate(Correct = Reference == Outcome) %>%
+  filter(!Correct) %>%
+  select(LAD, Reference, Outcome)
+  
+confusionMatrix(MultiCheck$Outcome, ModelMe$Reference)
+
+
+BinomSimp <- glm(Reference~ price + VacantsPerc, family=binomial(link='logit'),data=ModelMe)
+
+
+BinomExtent <- glm(Reference~ Extent + price + VacantsPerc, family=binomial(link='logit'),data=ModelMe)
+rpartExtent <- rpart(Reference~ Extent + price + VacantsPerc,data=ModelMe)
+
+confusionMatrix(predict(BinomSimp, ModelMe, type = "response")>0.5 , ModelMe$Reference)
+
+confusionMatrix((predict(BinomExtent, ModelMe, type = "response")>0.5) , ModelMe$Reference)
+confusionMatrix(predict(rpartExtent, ModelMe, type = "prob")[,2] , ModelMe$Reference)
+
+LadHomes <-  EW2 %>%
+  group_by(LAD11CD) %>%
+  summarise(Homes = sum(Homes, na.rm = TRUE),
+            Pop = sum(Pop, na.rm = TRUE))
+
+tol <- 0
+
+#random forest appears better than multilinear but when checked on many resamples it is worse... how? To much noise?
+EnglandComp <- LADDep %>% 
+  select (LAD11CD, LAD11NM = Local.Authority.District.name..2013., Extent)%>% 
+  left_join(., Vacants, by = "LAD11CD") %>%
+  left_join(LADprice, by = c("LAD11CD" = "Admin_district_code")) %>%
+  left_join( LadHomes, by = "LAD11CD") %>%
+  mutate(VacantsPerc = Vacants/Homes) %>%
+  mutate(Significant.Competition = predict(BinomExtent, ., type = "response")) %>%
+  mutate(Comp.Type = case_when(
+    .$Significant.Competition<0.5-tol ~"No",
+    .$Significant.Competition>0.5 + tol ~"Yes",
+    .$Significant.Competition>0.5-tol & .$Significant.Competition<0.5+tol ~"Borderline"
+  ))
+
+
+
+EnglandComp %>%
+  ggplot(aes(x = Comp.Type, y= price, fill = Comp.Type)) + geom_boxplot()
+
+EnglandComp %>%
+  group_by(Comp.Type) %>%
+  summarise(mean = mean(price),
+            median = median(price),
+            Homes = sum(Homes),
+            Pop = sum(Pop)) %>%
+  mutate(HomesPerc = Homes/sum(Homes),
+         PopPerc = Pop/sum(Pop))
+
+```
+
+
+
+```{r}
+
+test <-ls(pattern = "DATA") %>%
+  map_df(~get(.x) %>%
+           group_by(LAD11CD) %>%
+           mutate(LowUsePercentile = percent_rank(LowUsePerc),
+                  MeanPricePercentile = percent_rank(MeanPrice)))
+
+cor(test$LowUsePerc,test$MeanPrice,"complete.obs")
+cor(test$LowUsePerc,test$MedianPrice, "complete.obs")
+
+cor(test$LowUsePercentile,test$MeanPricePercentile , "complete.obs")
+
+
+test %>%
+  ggplot(aes(x= LowUsePercentile, y = MeanPricePercentile)) +geom_point()
+
+test <-ls(pattern = "DATA") %>%
+  map_dbl(~{ df <-get(.x)
+    cor(df$LowUsePerc,df$MeanPrice,"complete.obs", method = "kendall")
+  })
+
+  plot(density(abs(test)))
+  
+  
+  Combine1ExO %>%
+    ggplot(., aes(x = absdiff>0 )) +geom_bar()
+  
 ```
 

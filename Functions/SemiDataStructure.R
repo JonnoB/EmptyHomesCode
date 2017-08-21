@@ -5,17 +5,13 @@ SemiDataStructure <- function(df){
   df <- df %>%
     select(Admin_ward_code, LowUse, Empty) %>% 
     left_join(., EW2, by = "Admin_ward_code") %>%
-    group_by(Admin_ward_code)  %>%
+    group_by(Admin_ward_code) %>%
+    rename(LSOA_CODE = ECODE) %>%
     mutate(
       WardLowUsePerc = round(LowUse/sum(Homes)*100),
-      LowUsePerc = WardLowUsePerc, 
-      WardLowUse = LowUse) %>% 
+      WardLowUse = LowUse,
+      LowUse = LowUse*(Homes/sum(Homes)),
+      LowUsePerc = round(LowUse*100/Homes)) %>% 
     ungroup %>% 
-    left_join(., MeanWardPrice, by = "Admin_ward_code") %>% 
-    mutate(ValLow = LowUse*MeanPrice,
-           LowuseClass = cut(LowUsePerc, c(-1,10,20, 30,100), 
-                             labels =  c("0-10","11-20","21-30", "30+")),
-           WardLowuseClass = cut(WardLowUsePerc, c(0,10,20, 30, 100), 
-                                 labels = c("0-10","11-20","21-30", "30+")) ) %>%
-    rename(LSOA_CODE = ECODE)
+    ProcessDataMeanPrice(.)
 }

@@ -12,21 +12,11 @@ output: html_document
                                      
 ```{r}
 
-CalcLowUse<- function(df){ 
+CombineLowUse<- function(df){ 
   df %>%
   select(LSOA_CODE, LowUse) %>%
-        left_join(., EW2, by = c("LSOA_CODE" = "ECODE")) %>% 
-        group_by(Admin_ward_code)  %>%
-        mutate(LowUsePerc = round(LowUse/Homes *100), 
-               WardLowUse = sum(LowUse) ,
-               WardLowUsePerc = round(WardLowUse/sum(Homes)*100)) %>% 
-        ungroup %>% 
-        left_join(., MeanWardPrice, by = "Admin_ward_code") %>% 
-        mutate(ValLow = LowUse*MeanPrice,
-               LowuseClass = cut(LowUsePerc, c(-1,10,20, 30,100), 
-                                 labels =  c("0-10","11-20","21-30", "30+")),
-               WardLowuseClass = cut(WardLowUsePerc, c(0,10,20, 30, 100), 
-                                     labels = c("0-10","11-20","21-30", "30+")) )
+    CalcLowUse()    
+    
 }                                     
 
 
@@ -35,25 +25,40 @@ test <- ChelseaLONDATA
 
 
   
-test <- ls(pattern = "LON") %>% 
+test <- ls(pattern = "CUMBRIA") %>% 
   map_df(~get(.x)) %>%
    group_by(LSOA_CODE) %>%
    summarise(LowUse = sum(LowUse, na.rm = TRUE)) %>% 
   CalcLowUse()
 
-
 z<- MakeLeaflet(test)
 
 
-test <-list( WestminsterLONDATA, ChelseaLONDATA, CoLLONDATA, CamdenLONDATA) %>%
+testTower <- TowerLONDATA %>%
+  CalcLowUse()
+
+
+test2 <- ls(pattern = "LON") %>%
+  map_df(~get(.x)) %>%   
+  group_by(LSOA_CODE) %>%
+   summarise(LowUse = sum(LowUse, na.rm = TRUE)) %>% 
+  CalcLowUse()
+
+
+
+test2 <-list( WestminsterLONDATA, ChelseaLONDATA, CoLLONDATA, CamdenLONDATA, TowerLONDATA) %>%
   map_df(~.x) %>%   
   group_by(LSOA_CODE) %>%
    summarise(LowUse = sum(LowUse, na.rm = TRUE)) %>% 
   CalcLowUse()
 
-z<- MakeLeaflet(test)
+y<- MakeLeaflet(test2)
 
-z
+y
+
+y2<- MakeLeaflet(TowerLONDATA)
+
+y2
 
 ```
 
@@ -152,4 +157,43 @@ test <- list(HammersmithLONDATA, WestminsterLONDATA, ChelseaLONDATA, CoLLONDATA,
          LowUseP = LowUse/Pop)
 
 ```
+
+
+```{r}
+
+SalesLAD <- prices %>%
+  group_by(Admin_district_code) %>%
+    filter(X5 %in% c("D", "S", "T", "F")) %>%
+    summarise(sales = n(), 
+            mean = mean(X2, na.tm = TRUE))
+ 
+SalesWard <- prices %>%
+  group_by(Admin_ward_code) %>%
+    filter(X5 %in% c("D", "S", "T", "F")) %>%
+    summarise(sales = n(), 
+            mean = mean(X2, na.tm = TRUE))
+
+SalesWard %>% ggplot(aes(x = sales, y = mean )) + geom_point()
+ 
+```
+
+```{r}
+test <- ChelseaLONDATA %>%
+            # select(WardLowUsePerc, WardLowUse) %>%
+             mutate( WardLowUsePerc = ifelse(is.na(WardLowUsePerc),0, WardLowUsePerc)) %>%
+             summarise( maxPerc = max(WardLowUsePerc, na.rm=TRUE),
+                        minPerc = min(WardLowUsePerc, na.rm=TRUE),
+                        diffPerc = maxPerc-minPerc,
+                        max = max(WardLowUse, na.rm=TRUE),
+                        min = min(WardLowUse, na.rm=TRUE),
+                        diff = max-min,
+                        mean = mean(WardLowUse, na.rm=TRUE),
+                        median = median(WardLowUse, na.rm=TRUE),
+                        LAD = sub("DATA", "", "ChelseaLONDATA"),
+                        TurnoverPerc = sum(PercTurnover*Homes, na.rm = TRUE)/sum(Homes, na.rm = TRUE),
+                        LUPTurnoverPerc = sum(PercTurnover*LowUse, na.rm = TRUE)/sum(LowUse, na.rm = TRUE)
+                        )
+```
+
+
 

@@ -7,13 +7,10 @@ setwd(file.path(RegionsComp, "Region London"))
 LambethLONDATA <- read_excel("LambethExemptionsLSOA.xlsx")[,1:4] %>%  
   StructureData(., lowuse = c(2:5,24,25), empty =  c(4:5,24,25))
 
-
-test <- LambethLONDATA %>% select(LowUsePerc, WardLowUsePerc, LowuseClass, WardLowuseClass)
-
 #Islington is exemptions only
 #data is exemptions not discounts
-# IslingtonLONDATA <- read_csv("IslingtonExemptionsLSOA as at 2017 03 24.csv"  )[1:4]%>%  
-#   StructureData(., lowuse = c(2:11,14:18))
+ IslingtonLONDATA <- read_csv("Islington 492497 p.1.csv" )[1:4]%>%  
+   StructureData(c(8:14))
 
 #Greenwhich
 
@@ -141,5 +138,17 @@ rm(LSOA2LSOA)
 HackneyLONDATA <- read_csv("18632856-Hackney Discounts SOA FOI17-0301-09113.CSV" )[1:4] %>%
   StructureData(c(12:13,15:16,23))
 
-Hackney <- read_csv("18630603-HackneyExemptions FOI17-0301-09113 CSV.CSV" )[1:4]  %>% 
-  StructureData()
+#Ealing
+
+EalingLONDATA <- read_excel("Ealing FOI 17 159.xlsx" )[c(1,4:6)] %>%
+  StructureData(22:25)
+
+#Lewisham
+#I removed rows first
+LewishamLONDDATA <-read_excel("FOI 411271 LewishamDiscountsLSOA.xlsx" )[c(1,4:6)] %>%
+  StructureData(c(18:23))
+
+#Enfield
+
+EnfieldLONDATA <- read_excel("EnfieldDiscountsLSOA.xlsx")[c(1,4:6)] %>%
+  StructureData(2:3)
