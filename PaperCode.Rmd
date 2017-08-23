@@ -618,6 +618,111 @@ BradfordDATA %>% filter(LAD11NM=="Bradford") %>%
 
 ```
 
+#Look at saleries
+```{r}
+
+unafford <- ls(pattern = "DATA") %>%
+  map_df(~get(.x) %>% select(LowUse:WardLowuseClass)) %>%
+  group_by(MSOA11CD) %>%
+  summarise(LowUse = sum(LowUse, na.rm = T),
+            Homes = sum(Homes, na.rm = T),
+            Pop = sum(Pop, na.rm = T)) %>%
+  mutate(LowUsePerc = LowUse/Homes) %>%
+  left_join(IncomeEst, by = "MSOA11CD") %>%
+  mutate(decile = ntile(ratio, 20))
+
+
+unaffordExLon <- unafford %>%
+  filter(Region.name != "London") %>%
+  mutate(decile = ntile(ratio, 50))
+
+#London follows the same pattern it just happens further up the scale
+unaffordLon <- unafford %>%
+  filter(Region.name == "London") %>%
+  mutate(decile = ntile(ratio, 50))
+
+cor(unaffordExLon$LowUsePerc, unaffordExLon$ratio)
+cor(unaffordExLon$LowUsePerc, unaffordExLon$MedianPrice)
+cor(unaffordExLon$Yearly.income, unaffordExLon$MedianPrice)
+cor(unafford$Yearly.income, unafford$MedianPrice, "complete.obs")
+
+test <- lm(MedianPrice ~ LowUsePerc + Yearly.income, data  = unafford)
+
+
+summary(test)
+
+#This is no Longer useful due to using the whole percentile range 
+# test <- 2:50 %>% 
+#   map_df(~{
+#   decile <- unaffordExLon %>%
+#     mutate(decilev = ntile(ratio, .x)) %>%
+#     filter(decilev == 1 | decilev == .x) %>%
+#     group_by(decilev) %>%
+#     summarise(mean = mean(LowUsePerc)) %>%
+#     mutate(group = .x) %>%
+#     spread(key = decilev, value = mean) %>%
+#     setNames(c("group", "LowMean", "HighMean"))
+#   
+# }) 
+# 
+# test %>%
+#   gather(key = type, value = mean, -group)%>%  
+#   ggplot(aes(x = type, y = mean )) + geom_boxplot()
+# 
+# 
+# test %>%
+#   gather(key = type, value = mean, -group)%>% 
+#   ggplot(aes(x = group, y = mean, colour = type )) + geom_point()
+# 
+# 
+# test2 <- test %>%
+#   mutate(ratio = HighMean/LowMean) 
+# test2 %>%
+#   ggplot(aes(x = group, y = ratio,)) + geom_point()
+# 
+# cor(test2$ratio, test2$group)
+
+
+decile <- bind_rows(mutate(unaffordExLon, type = "Excl London"), 
+                    mutate(unafford, type = "Inc London"),
+                    mutate(unaffordLon, type = "London")) %>%
+    group_by(type) %>%
+    mutate(decile = ntile(ratio, 50)) %>%
+      group_by(decile, type) %>%
+    summarise(mean = mean(LowUsePerc),
+              median = median(LowUsePerc),
+              counts = n()
+              ) 
+
+#Looking at the relationship between unaffordability and LUP percentage
+
+decile %>% ggplot() + 
+  facet_grid(.~type) + 
+  #geom_point(data =unaffordExLon , aes(x= decile, y = LowUsePerc), alpha = 0.2 )+
+  geom_point(aes(x= decile, y = median, colour = type))  
+
+
+#Example of the theoretical relationship
+
+data_frame(Index = 1:100) %>%
+  mutate(Primary = exp(-0.05*(Index))+0.05, 
+         Auxilary = (exp(Index/100)-1),
+    Total = Primary + Auxilary) %>%
+  gather(key = "Type", value = "value", -Index) %>%
+  ggplot(aes(x= Index, y = value, colour = Type )) +
+  geom_point() +
+  labs(title = "LUP percentage as a function of primary and Auxilary demand",
+       x = "Demand",
+       y = "LUP percentage") +
+  theme(
+  axis.text.x = element_blank(),
+  axis.text.y = element_blank()
+  )
+
+
+```
+
+
 
 #Overall price data 
 ```{r}
@@ -768,6 +873,25 @@ Combine1ExO %>% ggplot(.,aes(x= maxPerc, y = LUPdepExt, colour = absdiff>0)) +
 
 Combine1ExO %>% ggplot(.,aes(x= maxPerc, y =Ttest.p.value, colour = LUPdepExt>0.10)) +
   geom_jitter()
+
+```
+
+Rural Urban split
+```{r}
+setwd(DataFolder)
+
+Rural <- read_csv( "RUC11_LAD11_ENv2.csv" )[-1,] %>%
+  setNames(make.names(names(.))) %>%
+  rename(PercRural = Rural.including.hub.towns..rural...rural.related..population1_1) %>%
+  select(LAD11CD, PercRural) %>%
+  mutate(PercRural = as.numeric(PercRural))
+
+#Update Gateshead and Northumberland Codes
+Rural$LAD11CD[Rural$LAD11CD == "E08000020"] <-"E08000037"
+Rural$LAD11CD[Rural$LAD11CD == "E06000048"] <- "E06000057"
+
+Combine1ExO <- Combine1ExO %>%
+  left_join(Rural, by = "LAD11CD")
 
 ```
 
@@ -942,7 +1066,7 @@ Outcome %>%
 
 
 #The model that uses easily available data is 3% less accurate than the other model.
-t.test(ModelStats2$Accuracy, ModelStats1$Accuracy)
+t.test(ModelStats2$Accuracy, ModelStats3$Accuracy)
 
 cor(ModelMe$Vacants, ModelMe$VacantsPerc)
 
@@ -959,6 +1083,7 @@ Using the models produced in the previous section I can now predict areas where 
 
 ```{r}
 
+#Linear
 set.seed(1983)
 MultiCheck <- 1:21 %>% map(~{
   TestResample <- resample_bootstrap(ModelMe)
@@ -976,6 +1101,23 @@ MultiCheck <- 1:21 %>% map(~{
   rowSums(.)<=ncol(.)/2 ~FALSE
 ))
 
+#Tree
+set.seed(1983)
+MultiCheck <- 1:111 %>% map(~{
+  TestResample <- resample_bootstrap(ModelMe)
+
+  model <- rpart(Reference~ Extent + price + VacantsPerc+ PercRural,data=as.data.frame(TestResample))
+
+  data_frame(x = predict(model, ModelMe, type = "prob")[,2]>0.5) %>%
+    setNames(paste("Model", .x, sep="_"))
+}
+) %>% bind_cols() %>% 
+  mutate(
+  Outcome = case_when(
+  rowSums(.)>ncol(.)/2 ~TRUE,
+  rowSums(.)<=ncol(.)/2 ~FALSE
+))
+
 test <- ModelMe %>%
   bind_cols(., select(MultiCheck, Outcome)) %>%
   mutate(Correct = Reference == Outcome) %>%
@@ -984,14 +1126,8 @@ test <- ModelMe %>%
   
 confusionMatrix(MultiCheck$Outcome, ModelMe$Reference)
 
-
-BinomSimp <- glm(Reference~ price + VacantsPerc, family=binomial(link='logit'),data=ModelMe)
-
-
 BinomExtent <- glm(Reference~ Extent + price + VacantsPerc, family=binomial(link='logit'),data=ModelMe)
 rpartExtent <- rpart(Reference~ Extent + price + VacantsPerc,data=ModelMe)
-
-confusionMatrix(predict(BinomSimp, ModelMe, type = "response")>0.5 , ModelMe$Reference)
 
 confusionMatrix((predict(BinomExtent, ModelMe, type = "response")>0.5) , ModelMe$Reference)
 confusionMatrix(predict(rpartExtent, ModelMe, type = "prob")[,2] , ModelMe$Reference)
@@ -1009,23 +1145,63 @@ EnglandComp <- LADDep %>%
   left_join(., Vacants, by = "LAD11CD") %>%
   left_join(LADprice, by = c("LAD11CD" = "Admin_district_code")) %>%
   left_join( LadHomes, by = "LAD11CD") %>%
-  mutate(VacantsPerc = Vacants/Homes) %>%
-  mutate(Significant.Competition = predict(BinomExtent, ., type = "response")) %>%
-  mutate(Comp.Type = case_when(
-    .$Significant.Competition<0.5-tol ~"No",
-    .$Significant.Competition>0.5 + tol ~"Yes",
-    .$Significant.Competition>0.5-tol & .$Significant.Competition<0.5+tol ~"Borderline"
-  ))
+  left_join(Rural, by = "LAD11CD") %>%
+  mutate(VacantsPerc = Vacants/Homes) 
+
+#Preds <- predict(BinomExtent, EnglandComp , type = "response")
+set.seed(1983)
+Preds <- 1:111 %>% map(~{
+  TestResample <- resample_bootstrap(ModelMe)
+
+  model <- rpart(Reference~ Extent + price + VacantsPerc,data=as.data.frame(TestResample))
+
+  data_frame(x = predict(model, EnglandComp, type = "prob")[,2]>0.5) %>%
+    setNames(paste("Model", .x, sep="_"))
+}
+) %>% bind_cols() %>% 
+  mutate(
+  Outcome = rowSums(.)/ncol(.))
+
+EnglandComp <- EnglandComp%>% 
+  left_join(select(ModelMe, LAD11CD, Reference), by = "LAD11CD") %>%
+  mutate(
+    Significant.Competition = ifelse(is.na(Reference),
+                                     unlist(Preds$Outcome), 
+                                     as.logical(Reference))
+    ) %>%
+  mutate(
+
+      Comp.Type = case_when(
+      .$Significant.Competition<0.5-tol ~"No",
+      .$Significant.Competition>0.5 + tol ~"Yes",
+      .$Significant.Competition>0.5-tol & .$Significant.Competition<0.5+tol ~"Borderline"
+      )
+  ) %>%
+  select(-Reference)
 
 
 
 EnglandComp %>%
   ggplot(aes(x = Comp.Type, y= price, fill = Comp.Type)) + geom_boxplot()
 
+
+#Estimated
+
 EnglandComp %>%
   group_by(Comp.Type) %>%
   summarise(mean = mean(price),
             median = median(price),
+            Homes = sum(Homes),
+            Pop = sum(Pop)) %>%
+  mutate(HomesPerc = Homes/sum(Homes),
+         PopPerc = Pop/sum(Pop))
+
+
+#Observed
+Combine1ExO %>%
+  group_by((absdiff>0)) %>%
+  summarise(mean = mean(HomePrice),
+            median = median(HomePrice),
             Homes = sum(Homes),
             Pop = sum(Pop)) %>%
   mutate(HomesPerc = Homes/sum(Homes),

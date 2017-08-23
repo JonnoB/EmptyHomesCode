@@ -112,6 +112,7 @@ by = c("X4"="Postcode")) %>%
 filter(!is.na(lsoa11cd)) %>% mutate(Prime = X2>1e6, SuperPrime = X2>1e7)
 
 MeanWardPrice <- prices %>%
+  filter(X5 %in% c("D", "S", "T", "F")) %>%
   group_by(Admin_ward_code) %>% 
   summarise( MeanPrice = mean(X2), 
              MedianPrice = median(X2),
@@ -125,10 +126,10 @@ MeanWardPrice <- prices %>%
 
 MeanWardPrice %>% ggplot(., aes(x= counts)) + geom_density()
 
-WardDat2 <- WardDat %>% 
-  left_join(., MeanWardPrice) %>% 
-  mutate(vallow = LowUse*MeanPrice) %>%
-filter(!is.na(MeanPrice)) 
+# WardDat2 <- WardDat %>% 
+#   left_join(., MeanWardPrice) %>% 
+#   mutate(vallow = LowUse*MeanPrice) %>%
+# filter(!is.na(MeanPrice)) 
 
 
 setwd(DataFolder)
@@ -142,20 +143,19 @@ IncomeEst <- read_excel("1smallareaincomeestimatesdataupdate.xls", sheet = 4, sk
 setNames(make.names(names(.)) %>% 
 gsub("\\.(?=\\.*$)", "", ., perl=TRUE)) #removes trailing full stop.
 
-test2 <- prices %>% 
+IncomeEst <- prices %>% 
+  filter(X5 %in% c("D", "S", "T", "F")) %>%
   left_join(., select(EW2, ECODE, MSOA11CD),
             by =c("lsoa11cd"="ECODE")) %>%
   group_by(MSOA11CD) %>%
-  summarise(MedianPrice = median(X2), counts = n()) %>%
+  summarise(MedianPrice = median(X2),
+            MeanPrice = mean(X2),
+            counts = n()) %>%
   left_join(., IncomeEst, by=c("MSOA11CD"= "MSOA.code")) %>%
   mutate(Yearly.income= 52 * Total.weekly.income, 
-         ratio = MedianPrice/Yearly.income)
+         ratio = MeanPrice/Yearly.income)
 
-test2 %>% ggplot(.,aes(x=ratio)) +geom_density()
 
-sum(test2$ratio>6)/nrow(test2)  #about 50% EW
-test2 %>% filter(Region.name == "London") %>% mutate(HighRatio = ratio>6) %>%
-summarise(total = sum(HighRatio)/n())
 
 #Load Deprivation Data
 setwd(file.path(basewd, "Deprivation"))
