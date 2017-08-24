@@ -2,7 +2,7 @@
 
 
 packages <- c("tidyverse", "spdep", "igraph", "maptools", "openxlsx", "readxl", "sp","rgdal", "rgeos", "raster", "broom", "leaflet",
-              "forcats", "e1071", "htmlwidgets", "stringr", "modelr", "caret")
+              "forcats", "e1071", "htmlwidgets", "stringr", "modelr", "caret", "xtable")
 
 new.packages <- packages[!(packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
@@ -11,12 +11,12 @@ if(length(new.packages)) install.packages(new.packages)
 lapply(packages, library, character.only = TRUE)
 
 
+
 #Set up file system to read the correct folders this switches between aws and windows mode
 basewd <-"~/Dropbox/SSE/Empty Homes"
 
 DataFolder <- file.path(basewd, "Data")
 ShapeFiles <- file.path(basewd,"ShapeFiles/statistical-gis-boundaries-london/ESRI")
-Figures <- file.path(basewd, "Figures")
 PostcodeLookups <- file.path(DataFolder, "PostcodeLookups")
 ExcelLookups <- file.path(basewd, "ExcelLookups")
 ONSpostcodes <- file.path(basewd, "ONS postcodes May17", "Data", "CSV")
@@ -30,7 +30,9 @@ RegionsComp <- file.path(basewd, "Regions-Complete")
 CommonCode <- file.path(basewd, "EmptyHomesCode", "SubCode")
 Functions <- file.path(basewd, "EmptyHomesCode", "Functions")
 SemiLondon <- file.path(basewd, "semi-data-london")
-Figures <- file.path(basewd, "Figures")
+Figures <- "/home/jonno/Dropbox/Apps/ShareLaTeX/Empty Homes Write up/Figures" #file.path(basewd, "Figures")
+TexTables <- "/home/jonno/Dropbox/Apps/ShareLaTeX/Empty Homes Write up/Tables"
+
 select <-dplyr::select
 
 

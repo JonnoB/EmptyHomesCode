@@ -569,15 +569,26 @@ General Stats
 ```{r}
 
 #number of LUPS and Total Homes
-ls(pattern = "DATA") %>% map_df(~eval(parse(text=.x))) %>% 
+DataCover <- ls(pattern = "DATA") %>% map_df(~eval(parse(text=.x))) %>% 
   filter(!is.na(LAD11NM)) %>%
   summarise(
-           TotalLads = length(ls(pattern = "DATA", envir = globalenv())), #bits of other LADS cause the number to be higher than reality so the ls function is used again
+           TotalLADs = length(ls(pattern = "DATA", envir = globalenv())), #bits of other LADS cause the number to be higher than reality so the ls function is used again
+           PercLADs = length(ls(pattern = "DATA", envir = globalenv()))/(EW2$LAD11NM %>% unique %>% length()),
            LowUse = sum(LowUse, na.rm = T),
            Homes = sum(Homes, na.rm = T),
            PercHomes = Homes/sum(EW2$Homes),
            Population = sum(Pop, na.rm= T),
-           Poperc = Population/sum(EW2$Pop))
+           PercPop = Population/sum(EW2$Pop)) %>%
+  mutate_if(.<1, funs(signif(.,3))) %>%
+  mutate_if(.>1, as.integer) %>%
+  mutate_all(as.character) %>% 
+  gather
+
+DataCover 
+
+xtable(DataCover, caption="Summary of collected data coverage",
+       label = "tab:DataCover") %>% 
+  print(., type="latex", file=file.path(TexTables,"DataCover.tex"))
 
 #Percentage of EW LADS
 length(ls(pattern = "DATA"))/(EW2$LAD11NM %>% unique %>% length())
@@ -609,12 +620,29 @@ ValueTtest(test)
 PlotMap(BexleyLONDATA)
 
 z <-ChelseaLONDATA %>% 
-  filter(LAD11CD =="E09000020") %>% 
-  bind_rows(WestminsterLONDATA) %>%
+  mutate(LAD11CD = ifelse(LAD11CD  == "E09000005", "E05009388" ,LAD11CD)) %>% #kept adding in Barnet
+  filter(LAD11NM =="Kensington and Chelsea") %>% 
   MakeLeaflet()
 
-BradfordDATA %>% filter(LAD11NM=="Bradford") %>%
-  MakeLeaflet
+mapshot(z, file = file.path(Figures, "Chelsea.pdf"))
+
+CumbriaPlot <- ls(pattern = "CUMBRIA") %>% 
+  map_df(~get(.x)) %>%
+   group_by(LSOA_CODE) %>%
+   summarise(LowUse = sum(LowUse, na.rm = TRUE)) %>% 
+  CalcLowUse()
+
+z<- MakeLeaflet(CumbriaPlot)
+
+mapshot(z, file = file.path(Figures, "Cumbria.pdf"))
+
+
+
+z<- MakeLeaflet(CornwallDATA)
+mapshot(z, file = file.path(Figures, "Cornwall.pdf"))
+
+z<- MakeLeaflet(BarrowCUMBRIADATA)
+mapshot(z, file = file.path(Figures, "Barrow.pdf"))
 
 ```
 
@@ -642,50 +670,20 @@ unaffordLon <- unafford %>%
   mutate(decile = ntile(ratio, 50))
 
 cor(unaffordExLon$LowUsePerc, unaffordExLon$ratio)
+cor(unafford$Yearly.income, unafford$ratio, "complete.obs")
+
 cor(unaffordExLon$LowUsePerc, unaffordExLon$MedianPrice)
 cor(unaffordExLon$Yearly.income, unaffordExLon$MedianPrice)
-cor(unafford$Yearly.income, unafford$MedianPrice, "complete.obs")
+cor(unafford$Yearly.income, unafford$MeanPrice, "complete.obs")
+
 
 test <- lm(MedianPrice ~ LowUsePerc + Yearly.income, data  = unafford)
 
-
 summary(test)
 
-#This is no Longer useful due to using the whole percentile range 
-# test <- 2:50 %>% 
-#   map_df(~{
-#   decile <- unaffordExLon %>%
-#     mutate(decilev = ntile(ratio, .x)) %>%
-#     filter(decilev == 1 | decilev == .x) %>%
-#     group_by(decilev) %>%
-#     summarise(mean = mean(LowUsePerc)) %>%
-#     mutate(group = .x) %>%
-#     spread(key = decilev, value = mean) %>%
-#     setNames(c("group", "LowMean", "HighMean"))
-#   
-# }) 
-# 
-# test %>%
-#   gather(key = type, value = mean, -group)%>%  
-#   ggplot(aes(x = type, y = mean )) + geom_boxplot()
-# 
-# 
-# test %>%
-#   gather(key = type, value = mean, -group)%>% 
-#   ggplot(aes(x = group, y = mean, colour = type )) + geom_point()
-# 
-# 
-# test2 <- test %>%
-#   mutate(ratio = HighMean/LowMean) 
-# test2 %>%
-#   ggplot(aes(x = group, y = ratio,)) + geom_point()
-# 
-# cor(test2$ratio, test2$group)
-
-
-decile <- bind_rows(mutate(unaffordExLon, type = "Excl London"), 
-                    mutate(unafford, type = "Inc London"),
-                    mutate(unaffordLon, type = "London")) %>%
+decile <- bind_rows(mutate(unaffordExLon, type = "Excluding London"), 
+                    mutate(unafford, type = "Including London"),
+                    mutate(unaffordLon, type = "Only London")) %>%
     group_by(type) %>%
     mutate(decile = ntile(ratio, 50)) %>%
       group_by(decile, type) %>%
@@ -696,11 +694,17 @@ decile <- bind_rows(mutate(unaffordExLon, type = "Excl London"),
 
 #Looking at the relationship between unaffordability and LUP percentage
 
-decile %>% ggplot() + 
+decile %>% ggplot(aes(x= decile, y = median)) + 
   facet_grid(.~type) + 
   #geom_point(data =unaffordExLon , aes(x= decile, y = LowUsePerc), alpha = 0.2 )+
-  geom_point(aes(x= decile, y = median, colour = type))  
+  geom_point(aes(colour = type))  +
+  labs(x = "ith 2 percentile group", y = "median Percent Low Use") + 
+  theme(legend.position= "none") + 
+  geom_smooth(method="loess",se=FALSE, colour = "black")
+SaveFig("LowUsePercVSratio.pdf")
 
+unafford %>%
+  ggplot(aes(x= ratio, y = MeanPrice)) + geom_point()
 
 #Example of the theoretical relationship
 
@@ -718,43 +722,8 @@ data_frame(Index = 1:100) %>%
   axis.text.x = element_blank(),
   axis.text.y = element_blank()
   )
+SaveFig("TheoreticalDemand.pdf")
 
-
-```
-
-
-
-#Overall price data 
-```{r}
-#Other property is massively more valuable on average than the rest of the property types
-#mean value is 10 Million as such it has to be excluded
-prices %>% group_by(X5) %>% 
-  mutate(X2 = as.numeric(X2)) %>%
-  summarise(count = n(),
-            Value = sum(X2, na.rm =T),
-            mean = mean(X2, na.rm = T)) %>%
-mutate(countperc = (count/sum(count)),
-       ValuePerc = Value/sum(Value))  
-
-#Looking at A and B property we can see that B properties are more expensive than A type
-prices %>% group_by(X15) %>% 
-  mutate(X2 = as.numeric(X2)) %>%
-  summarise(count = n(),
-            Value = sum(X2, na.rm =T),
-            mean = mean(X2, na.rm = T)) %>%
-mutate(countperc = (count/sum(count)),
-       ValuePerc = Value/sum(Value))  
-
-#Other only appears in the B type sales never in A type
-prices %>% 
-  mutate(X2 = as.numeric(X2)) %>%
-    group_by(X15, X5) %>% 
-  summarise(count = n(),
-            Value = sum(X2, na.rm =T),
-            mean = mean(X2, na.rm = T)) %>%
-  ungroup %>%
-mutate(countperc = (count/sum(count)),
-       ValuePerc = Value/sum(Value))  
 ```
 
 
@@ -790,6 +759,50 @@ test2 <- test %>%
   summarise_all(funs(sum)) %>%
   mutate(LowUseValue = LowUseValue/1e9)
 
+
+#99% of the LADs are significantly different from 0 at the 95% level
+sum(Combine1ExO$Ttest.p.value>0.975 |Combine1ExO$Ttest.p.value<0.025)/nrow(Combine1ExO)
+
+PlotClassDiff(BootStrapRESExO$ChelseaLON, "Kensington and Chelsea")
+SaveFig("ClassdiffChelsea.pdf")
+
+PlotClassDiff(BootStrapRESExO$Cornwall, "Cornwall")
+SaveFig("ClassdiffCornwall.pdf")
+
+PlotClassDiff(BootStrapRESExO$BarrowCUMBRIA, "Barrow")
+SaveFig("ClassdiffBarrow.pdf")
+
+test <- BootStrapRESExO %>% 
+  bind_rows %>%
+  group_by(class, ID) %>%
+  summarise_all(sum) %>%
+  ungroup %>%
+  mutate(HomesPrice = HomesValue/Homes,
+         LowUsePrice = LowUseValue/LowUse,         
+         ratio = LowUse/Homes,
+         HomesPerc = Homes/sum(Homes, rm.na = T),
+         LowUsePerc = LowUse/sum(LowUse, rm.na = T),
+         ClassPerc = LowUse/Homes,
+         ExpectedHomes = HomesPerc*sum(LowUse, rm.na = T),
+         RatioExvsAct = LowUse/ExpectedHomes
+         ) %>%
+        mutate(class = fct_relevel(class,c("Lower", "Mid", "Upper", "Prime", "Super")) )
+
+test2 <- test %>% group_by(class) %>%
+  summarise_all(mean)
+
+PlotClassDiff(test)
+SaveFig("ClassdiffAllData.pdf")
+
+
+test %>% 
+  mutate(RatioExvsAct = LowUsePrice/HomesPrice) %>%
+   mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
+     ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + 
+     geom_boxplot() + 
+     labs(title = "Observed within class difference in Price from expected for LUPs", 
+          y = "% difference from expected")
+SaveFig("PricediffAllData.pdf")
 
 
 ```
@@ -1085,7 +1098,7 @@ Using the models produced in the previous section I can now predict areas where 
 
 #Linear
 set.seed(1983)
-MultiCheck <- 1:21 %>% map(~{
+MultiCheckL <- 1:21 %>% map(~{
   TestResample <- resample_bootstrap(ModelMe)
 
   model <- glm(Reference~ Extent + price + VacantsPerc, 
@@ -1106,7 +1119,7 @@ set.seed(1983)
 MultiCheck <- 1:111 %>% map(~{
   TestResample <- resample_bootstrap(ModelMe)
 
-  model <- rpart(Reference~ Extent + price + VacantsPerc+ PercRural,data=as.data.frame(TestResample))
+  model <- rpart(Reference~ Extent + price + VacantsPerc,data=as.data.frame(TestResample))
 
   data_frame(x = predict(model, ModelMe, type = "prob")[,2]>0.5) %>%
     setNames(paste("Model", .x, sep="_"))
@@ -1125,6 +1138,7 @@ test <- ModelMe %>%
   select(LAD, Reference, Outcome)
   
 confusionMatrix(MultiCheck$Outcome, ModelMe$Reference)
+confusionMatrix(MultiCheckL$Outcome, ModelMe$Reference)
 
 BinomExtent <- glm(Reference~ Extent + price + VacantsPerc, family=binomial(link='logit'),data=ModelMe)
 rpartExtent <- rpart(Reference~ Extent + price + VacantsPerc,data=ModelMe)
@@ -1145,7 +1159,7 @@ EnglandComp <- LADDep %>%
   left_join(., Vacants, by = "LAD11CD") %>%
   left_join(LADprice, by = c("LAD11CD" = "Admin_district_code")) %>%
   left_join( LadHomes, by = "LAD11CD") %>%
-  left_join(Rural, by = "LAD11CD") %>%
+  #left_join(Rural, by = "LAD11CD") %>%
   mutate(VacantsPerc = Vacants/Homes) 
 
 #Preds <- predict(BinomExtent, EnglandComp , type = "response")
