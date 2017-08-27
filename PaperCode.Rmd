@@ -104,6 +104,26 @@ WiganMANCDATA <- read_excel("Wigan 5528 DISCOUNTS.xlsx", sheet = 1 )[1:4] %>%
 
 ```
 
+
+#West Midlands Brum
+```{r}
+
+setwd(file.path(RegionsComp, "Region West Midlands"))
+
+SandWellDATA <- read_excel("FOI - SandwellDiscountsLSOA - FS57000079 Disc.xlsx" )[1:4] %>%  
+  StructureData(2:6)
+
+WolverhamptonDATA <- read_excel("WolverhamptonDiscountsLSOA.XLSX"  )[1:4] %>%  
+  StructureData(c(2:5,7))
+
+WalsallDATA <- read_excel("WalsallDiscountsLSOA.XLSX" )[1:4] %>%  
+  StructureData(c(4:5,7:8))
+
+
+
+```
+
+
 #SouthWest
 
 ##Cornwall
@@ -377,6 +397,9 @@ RichmondshireDATA <- read_excel("Richmondshire FOI 4960.xls", col_names = FALSE)
   StructureData(lowuse = c(2:7))
   
 
+KirkleesDATA <- read_excel("Jonathan Bourne KirkleesDiscountsLSOA Complete.xlsx" )[1:4] %>%
+  StructureData(2:5)
+
 ```
 
 #North East
@@ -468,9 +491,8 @@ ConwyDATA <- read_excel("Conwy FOI 0260-17.xlsx" , sheet=1) %>%
   select(Exemption.type, LSOA_CODE, Postcode, Country_code) %>%
   StructureData(lowuse = c(2,4))
 
-
-DenbigshireDATA <- read_excel("FOI 2503 DenbighshireDiscountsLSOA.xlsx" , sheet=1)%>% .[,1:4] %>%
-    StructureData(8:9)
+DenbigshireDATA <- read_excel("FOI 2503 Denbighshirev2 .xlsx" , sheet=1)%>% .[,1:4] %>%
+    StructureData(c(8:9,11,13))
 
 WrexhamDATA <- read_csv("WrexhamDiscountsLSOA.csv" )%>% .[,1:4] %>%
     StructureData(2:5)
@@ -724,6 +746,15 @@ data_frame(Index = 1:100) %>%
   )
 SaveFig("TheoreticalDemand.pdf")
 
+
+unaffordLAD <- unafford %>%
+  rename(LAD11CD = Local.authority.code) %>%
+  group_by(LAD11CD) %>%
+  mutate(TotInc = Yearly.income*Pop) %>%
+  summarise(TotInc = sum(TotInc),
+            Pop = sum(Pop)) %>%
+  mutate(meanInc = TotInc/Pop)
+
 ```
 
 
@@ -739,6 +770,9 @@ BootStrapRESExO <-LoadAddDistribCompare("BootStrapRESExO.rds",
                                          PropertyTypes = c("D", "S", "T", "F"))
 
 elementnames<- names(BootStrapRESExO)
+
+#Used when elements need to be deleted and reloaded
+#saveRDS(BootStrapRESExO, "BootStrapRESExO.rds")
 
 #Make a summary dataframe
 Combine1ExO <- BootResSummaryData(BootStrapRESExO) 
@@ -846,7 +880,7 @@ rm(ABratio); rm(ABratio2); rm(ABratio3)
 
 
 CombineAB %>%
-  ggplot(.,aes(x= diffPerc, y = Ttest.p.value, colour = Valueratio>1)) + geom_point()
+  ggplot(.,aes(x= diffPerc, y = Ttest.p.value, colour = Valuerat HounslowLONDATA <- read_excel("Hounslow Discounts - Bourne Info -210817.xls" )io>1)) + geom_point()
 
 ```
 
@@ -926,6 +960,7 @@ ModelMe <- Combine1ExO %>%
   #filter out wales
   filter(!grepl("W", LAD11CD)) %>%
 #  select(LAD, absdiff, LUPdepExt,  maxPerc,Ttest.p.value, pricepercent) %>%
+  left_join(Rural, by = "LAD11CD") %>%
   mutate(Reference = as.factor(absdiff>0) ) %>%
   #scaled so that the binomial can be interpreted
   mutate(pricepercent = scale(pricepercent),
@@ -1119,7 +1154,10 @@ set.seed(1983)
 MultiCheck <- 1:111 %>% map(~{
   TestResample <- resample_bootstrap(ModelMe)
 
-  model <- rpart(Reference~ Extent + price + VacantsPerc,data=as.data.frame(TestResample))
+  model <- rpart(Reference~ Extent + 
+                   price + 
+                   VacantsPerc  
+                 ,data=as.data.frame(TestResample))
 
   data_frame(x = predict(model, ModelMe, type = "prob")[,2]>0.5) %>%
     setNames(paste("Model", .x, sep="_"))
@@ -1136,15 +1174,16 @@ test <- ModelMe %>%
   mutate(Correct = Reference == Outcome) %>%
   filter(!Correct) %>%
   select(LAD, Reference, Outcome)
-  
+
+confusionMatrix(MultiCheckL$Outcome, ModelMe$Reference)  
 confusionMatrix(MultiCheck$Outcome, ModelMe$Reference)
-confusionMatrix(MultiCheckL$Outcome, ModelMe$Reference)
 
-BinomExtent <- glm(Reference~ Extent + price + VacantsPerc, family=binomial(link='logit'),data=ModelMe)
-rpartExtent <- rpart(Reference~ Extent + price + VacantsPerc,data=ModelMe)
 
-confusionMatrix((predict(BinomExtent, ModelMe, type = "response")>0.5) , ModelMe$Reference)
-confusionMatrix(predict(rpartExtent, ModelMe, type = "prob")[,2] , ModelMe$Reference)
+ModelMe %>% 
+  mutate(Outcome = as.logical(MultiCheck$Outcome)) %>%
+  filter(Outcome != Reference) %>%
+  select(LAD, Outcome, Reference)
+  
 
 LadHomes <-  EW2 %>%
   group_by(LAD11CD) %>%
@@ -1201,7 +1240,7 @@ EnglandComp %>%
 
 #Estimated
 
-EnglandComp %>%
+EnglandCompTab <- EnglandComp %>%
   group_by(Comp.Type) %>%
   summarise(mean = mean(price),
             median = median(price),
@@ -1209,6 +1248,13 @@ EnglandComp %>%
             Pop = sum(Pop)) %>%
   mutate(HomesPerc = Homes/sum(Homes),
          PopPerc = Pop/sum(Pop))
+
+EnglandCompTab
+
+xtable(EnglandCompTab, caption="Summary of effecrt across England",
+       label = "tab:EnglandCompTab") %>% 
+  print(., type="latex", file=file.path(TexTables,"EnglandCompTab.tex"))
+
 
 
 #Observed

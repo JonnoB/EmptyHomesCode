@@ -152,3 +152,16 @@ LewishamLONDDATA <-read_excel("FOI 411271 LewishamDiscountsLSOA.xlsx" )[c(1,4:6)
 
 EnfieldLONDATA <- read_excel("EnfieldDiscountsLSOA.xlsx")[c(1,4:6)] %>%
   StructureData(2:3)
+
+
+#Hounslow
+
+ HounslowLONDATA <- read_excel("Hounslow - Bourne Info -210817.xls", sheet = 2)[c(1,4:5)] %>%
+   setNames(c("Postcode","X__1","X__2")) %>%
+   mutate(Postcode = gsub(" ", "", Postcode)) %>%
+   left_join(., PstCdLSOA.raw,  by="Postcode" ) %>%
+   rename(Exemption.type=X__2, LSOA_CODE = lsoa11cd) %>%
+   select(Exemption.type, LSOA_CODE, Admin_ward_code, Country_code) %>%
+   StructureData(c(2:4,6))
+
+ 
