@@ -5,6 +5,7 @@ date: "5 July 2017"
 output: html_document
 ---
 
+98nmol/L
 
 Islington should be removed and put back in when they send the correct data, it is giving a false negative
 
@@ -119,6 +120,12 @@ WolverhamptonDATA <- read_excel("WolverhamptonDiscountsLSOA.XLSX"  )[1:4] %>%
 WalsallDATA <- read_excel("WalsallDiscountsLSOA.XLSX" )[1:4] %>%  
   StructureData(c(4:5,7:8))
 
+BirminghamDATA <-  read_excel("Birmingham CT EMPTIES.xlsx" )%>%
+mutate(Postcode = gsub(" ", "", `Post Code`)) %>%
+ left_join(.,PstCdLSOA.raw,  by=c("Postcode") ) %>%
+  rename(Exemption.type=`Current Discount Type Description`, LSOA_CODE = lsoa11cd) %>%
+  select(Exemption.type, LSOA_CODE, Postcode, Country_code, Admin_district_code) %>%
+  StructureData()
 
 
 ```
@@ -176,6 +183,9 @@ MendipDATA <- read_excel("Mendip 356 20170706 Response.xlsx" , sheet=1)[1:4] %>%
 ##Dorset
 
 ```{r}
+BournemouthDATA <- read_excel("BournemouthDiscountsLSOA_R.xlsx" )[1:4] %>%
+  StructureData(c(6,8,9:13))
+
 PooleDATA <- read_excel("Copy of FOI - 265 - Bourne - PooleDiscountsLSOA.xlsx" , sheet=1)[1:4] %>%
   StructureData(lowuse = c(5,11:14,18))
 
@@ -542,15 +552,6 @@ WandsworthLONDDATA <- read_excel("wandsworth2.xlsx",  skip = 3 ) %>% select(1,3)
   SemiDataStructure
 
 
-#Merton
-
-MertonLONDATA <- read_excel("merton1.xlsx" )[,-2] %>%setNames(make.names(names(.))) %>% slice(-1) %>% arrange(X__1) %>%
-  filter(X__1 != "Norbury", X__1!="Nightingale", X__1 !="Stonecot") %>% 
-    bind_cols(., wardnames %>% filter(LAD11NM == "Merton") %>% 
-              select(Admin_ward_code)) %>%
-  mutate(Empty =   Disc.Class.C.Vacant.dwelling + Disc.class.C.Long.term.empty + Premium.Levy, LowUse =  Disc.Class.A.Second.home + Disc.Class.B.second.home ) %>%
-  SemiDataStructure
-
 #Kingston
 
 KingstonLONDATA <- read_excel("Kingston1.xlsx"  )%>% setNames(make.names(names(.))) %>%
@@ -771,6 +772,7 @@ BootStrapRESExO <-LoadAddDistribCompare("BootStrapRESExO.rds",
 
 elementnames<- names(BootStrapRESExO)
 
+
 #Used when elements need to be deleted and reloaded
 #saveRDS(BootStrapRESExO, "BootStrapRESExO.rds")
 
@@ -925,20 +927,20 @@ Combine1ExO %>% ggplot(.,aes(x= maxPerc, y =Ttest.p.value, colour = LUPdepExt>0.
 
 Rural Urban split
 ```{r}
-setwd(DataFolder)
-
-Rural <- read_csv( "RUC11_LAD11_ENv2.csv" )[-1,] %>%
-  setNames(make.names(names(.))) %>%
-  rename(PercRural = Rural.including.hub.towns..rural...rural.related..population1_1) %>%
-  select(LAD11CD, PercRural) %>%
-  mutate(PercRural = as.numeric(PercRural))
-
-#Update Gateshead and Northumberland Codes
-Rural$LAD11CD[Rural$LAD11CD == "E08000020"] <-"E08000037"
-Rural$LAD11CD[Rural$LAD11CD == "E06000048"] <- "E06000057"
-
-Combine1ExO <- Combine1ExO %>%
-  left_join(Rural, by = "LAD11CD")
+# setwd(DataFolder)
+# 
+# Rural <- read_csv( "RUC11_LAD11_ENv2.csv" )[-1,] %>%
+#   setNames(make.names(names(.))) %>%
+#   rename(PercRural = Rural.including.hub.towns..rural...rural.related..population1_1) %>%
+#   select(LAD11CD, PercRural) %>%
+#   mutate(PercRural = as.numeric(PercRural))
+# 
+# #Update Gateshead and Northumberland Codes
+# Rural$LAD11CD[Rural$LAD11CD == "E08000020"] <-"E08000037"
+# Rural$LAD11CD[Rural$LAD11CD == "E06000048"] <- "E06000057"
+# 
+# Combine1ExO <- Combine1ExO %>%
+#   left_join(Rural, by = "LAD11CD")
 
 ```
 
@@ -960,12 +962,15 @@ ModelMe <- Combine1ExO %>%
   #filter out wales
   filter(!grepl("W", LAD11CD)) %>%
 #  select(LAD, absdiff, LUPdepExt,  maxPerc,Ttest.p.value, pricepercent) %>%
-  left_join(Rural, by = "LAD11CD") %>%
+#  left_join(Rural, by = "LAD11CD") %>%
   mutate(Reference = as.factor(absdiff>0) ) %>%
   #scaled so that the binomial can be interpreted
   mutate(pricepercent = scale(pricepercent),
          LUPdepExt = scale(LUPdepExt),
-         maxPerc = scale(maxPerc))
+         maxPerc = scale(maxPerc),
+         VacantsPerc = scale(VacantsPerc),
+         price = scale(price),
+         Extent = scale(Extent))
 
 #This uses the local mean so that has to be run first before the code works
 # ModelMe <- Combine1ExO2 %>%
@@ -1039,20 +1044,8 @@ ModelStats <- 1:1000 %>% map_df(~{
 )
 
 
-ModelStats %>% ggplot(., aes(x= Accuracy)) +geom_density()
-
-ModelStats %>%
-  mutate(diff = Accuracy - AccuracyNull) %>% 
-  ggplot(., aes(x= diff)) +geom_density()
-
-ModelStats %>% ggplot(., aes(x= AccuracyPValue)) +geom_density()
-ModelStats %>% ggplot(., aes(x= Kappa)) +geom_density()
-
-t.test(ModelStats$Accuracy, ModelStats$AccuracyNull, alternative = "greater")
-
-
 test <- ModelStats %>% 
-  select( X.Intercept., LUPdepExt, maxPerc, pricepercent) %>%
+  select( X.Intercept., LUPdepExt, price, VacantsPerc) %>%
   gather 
 
 test %>% ggplot(.,aes(x = key, y = value, fill = key)) + geom_boxplot() + 
@@ -1106,11 +1099,13 @@ ModelStats3 <- 1:1000 %>% map_df(~{
 }
 )
 
-Outcome <- bind_rows(data_frame(model = "generic", Accuracy = ModelStats2$Accuracy), 
+Outcome <- bind_rows(data_frame(model = "Open Data", Accuracy = ModelStats2$Accuracy), 
 data_frame(model = "cutsom", Accuracy = ModelStats3$Accuracy) )
 
 Outcome %>%
-  ggplot(.,aes(x = Accuracy, fill = model)) + geom_density(alpha = 0.3)
+  ggplot(.,aes(x = Accuracy, fill = model)) + geom_density(alpha = 0.3) +
+  labs(title = "Density plot of the model outcomes, using custom FOI data vs generic open data")
+SaveFig("CustomGenericOutcomes.pdf")
 
 
 #The model that uses easily available data is 3% less accurate than the other model.
@@ -1120,6 +1115,26 @@ cor(ModelMe$Vacants, ModelMe$VacantsPerc)
 
 cor(ModelMe$Vacants, ModelMe$LTV)
 cor(ModelMe$VacantsPerc, ModelMe$LTVPerc)
+
+#Plot the model coefficients
+
+
+ModelStats2 %>%
+  select(X.Intercept. ,Extent,price , VacantsPerc) %>%
+  gather() %>%
+  ggplot(aes(x= key, y = value, fill = key)) +geom_boxplot() +
+  labs(title = "Coefficient values across 1000 random partitions")
+SaveFig("ModelCoeffs.pdf")
+
+
+#only one of these is necessary they hold almost the same information
+ModelStats3 %>%
+  select(X.Intercept. ,LUPdepExt,price , VacantsPerc) %>%
+  gather() %>%
+  ggplot(aes(x= key, y = value, fill = key)) +geom_boxplot() +
+  labs(title = "Coefficient values across 1000 random partitions")
+
+
 
 ```
 
@@ -1133,7 +1148,7 @@ Using the models produced in the previous section I can now predict areas where 
 
 #Linear
 set.seed(1983)
-MultiCheckL <- 1:21 %>% map(~{
+MultiCheckL <- 1:111 %>% map(~{
   TestResample <- resample_bootstrap(ModelMe)
 
   model <- glm(Reference~ Extent + price + VacantsPerc, 
@@ -1229,8 +1244,7 @@ EnglandComp <- EnglandComp%>%
       .$Significant.Competition>0.5 + tol ~"Yes",
       .$Significant.Competition>0.5-tol & .$Significant.Competition<0.5+tol ~"Borderline"
       )
-  ) %>%
-  select(-Reference)
+  ) 
 
 
 
@@ -1266,6 +1280,54 @@ Combine1ExO %>%
             Pop = sum(Pop)) %>%
   mutate(HomesPerc = Homes/sum(Homes),
          PopPerc = Pop/sum(Pop))
+
+
+#Plotting the expected range of 
+
+valuecheck <- sample(c(TRUE, FALSE), size = nrow(EnglandComp)*1000, replace = TRUE, prob = c(0.888, 1-0.888)) %>%
+  matrix(., nrow=nrow(EnglandComp)) 
+valuecheck <-   (valuecheck * ifelse(EnglandComp$Comp.Type == "Yes", TRUE, FALSE ) )%>% data.frame %>%
+  bind_cols(select(EnglandComp, LAD11CD, Reference),.) %>%
+  #Where ever the outcome is known it is reverted back to the true value, only estimated values are flipped.
+  gather(key = "ID", value = "affected",-LAD11CD,-Reference) %>%
+  mutate(Reference = as.logical(Reference)*1,
+    affected = ifelse(is.na(Reference), affected, Reference)) %>%
+  left_join(LadHomes) %>%
+  group_by(ID, affected) %>%
+  summarise(Homes = sum(Homes),
+            Pop = sum(Pop)) %>%
+  group_by(affected) %>%
+  mutate(Rank = percent_rank(Pop),
+    Outlier = ifelse(percent_rank(Pop)<0.0275 | percent_rank(Pop)>0.975, "Yes", "No")) %>%
+  group_by(ID) %>%
+  mutate(affected = ifelse(affected == 1, "Yes", "No"),
+         PercPop = Pop/sum(Pop))%>%
+  ungroup #%>%
+# mutate(PercPop = Pop)
+#The NNUMBERS DONT MATCH WITH THE TABLE WHY?
+
+
+#95 range is 78 to 84
+affected <- valuecheck %>% filter(affected == "Yes")
+q5 <- quantile(affected$PercPop,.05)
+q95 <- quantile(affected$PercPop,.95)
+x.dens <- density(affected$PercPop)
+df.dens <- data.frame(x = x.dens$x, y = x.dens$y)
+median(affected$PercPop)
+affected %>%
+  ggplot(aes(x = PercPop)) + geom_density() +
+  geom_area(data = subset(df.dens, x <= q5), 
+              aes(x=x,y=y))  +
+    geom_area(data = subset(df.dens, x >= q95), 
+              aes(x=x,y=y))+
+labs(title = "The estimated percentage of English population affected by LUPs")
+SaveFig("PopPercLUPAfftect.pdf")
+
+
+
+valuecheck %>% filter(affected == "No") %>%
+  ggplot(aes(x = PercPop)) + geom_density()
+
 
 ```
 

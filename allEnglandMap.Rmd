@@ -116,5 +116,14 @@ LADShape2 <- LADShape %>% left_join(EnglandComp, by = c("lad14cd" = "LAD11CD"))
     ) %>%
     addLegend(pal = pal, values = ~Comp.Type, opacity = 0.7, title = NULL,
               position = "bottomright")
+  
+```
+
+
+
+```{r}
+  z
+  
+  mapshot(z, file = file.path(Figures, "EnglandMarket.pdf"))
 ```
 
