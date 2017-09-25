@@ -6,6 +6,17 @@ output: html_document
 ---
 
                                      
+
+```{r setup}
+setwd( "~/Dropbox/SSE/Empty Homes/EmptyHomesCode/SubCode")
+source("Setup.R")
+
+setwd(Functions)
+list.files() %>% map(source)
+
+Figures <- "/home/jonno/Dropbox/Apps/ShareLaTeX/Empty Homes Write up/Figures"
+source(file.path(CommonCode, "AuxdataLoad.R"))
+```
                                      
                                      
                                      
@@ -88,17 +99,26 @@ test4 <- g2$X4 %>% table %>% as.data.frame
 ```
 
 
+#VOA stuff
+
 ```{r}
   file2load2 <- "uk-englandwales-ndr-2017-listentries-compiled-epoch-0002-baseline-csv.csv"
 test0<- read_lines(file2load2, n_max=10)
 
 CorePstCd <- PstCdLSOA.raw %>%
   left_join(EW2, by = c("lsoa11cd" = "ECODE")) %>%
-  select(Postcode, lsoa11cd, LAD11CD, LAD11NM, Admin_ward_code, WD16NM)
+  select(Postcode, lsoa11cd, LAD11CD, LAD11NM,Admin_ward_code = Admin_ward_code.x, WD16NM)
+
+setwd(file.path(basewd, "VOA data"))
 
 CompanyData <- read_delim(file2load2, delim = "*", col_names = F) %>%
   mutate(X15 = gsub(" ", "", X15)) %>%
   left_join(., CorePstCd, by = c("X15" = "Postcode"))
+
+#X10 address
+#X11 is road
+#X15 is postcode
+
 
 
 LSOABiz <- CompanyData %>%
@@ -195,5 +215,428 @@ test <- ChelseaLONDATA %>%
                         )
 ```
 
+#Match VOA to offshore test work
+
+```{r}
+
+setwd(DataFolder)
+
+Offshore <- read_excel("OV_FULL_2016_02 (with PEP database for lookup).xlsx", sheet = "OV_FULL_2016_02")
+
+
+test <- Offshore %>%
+  filter(!is.na(Price_Paid))
+
+Offshore$Property_Address %>% head(20)
+
+
+Offshore2 <- Offshore %>%
+    select(Property_Address, Postcode) %>%
+    mutate(streetAddress = str_split(Offshore$Property_Address, ",", n = 2) %>% 
+  map_chr(~.x[1]),
+           Postcode = gsub(" ", "",Postcode)) 
+
+
+
+NumberofPostocodes <-CompanyData %>% filter(X15 %in% Offshore2$Postcode) %>%
+  group_by(X15) %>%
+  summarise(counts = n()) %>%
+  left_join(Offshore2, ., by = c("Postcode" = "X15")) %>%
+  filter(!is.na(Postcode))
+  
+
+#20,000 flat or apartments
+grepl("^flat|^apartment|^penthouse", Offshore2$Property_Address, ignore.case = T) %>% table
+ffshore$Property_Address
+grepl("suite", Offshore2$Property_Address, ignore.case = T) %>% table
+grepl("unit", Offshore2$Property_Address, ignore.case = T) %>% table
+
+test <- Offshore2 %>%
+  filter(grepl("unit", Offshore2$Property_Address, ignore.case = T))
+
+
+#need another regex which looks at number and if followed by apartement etc uses the number as the flat number
+Flatregex <- "(the.+)?(flat|apartment|penthouse)(s)?(\\s(no)?(.+?)(\\s|,)(\\s?(to|-)\\s?.+?(\\s|,))?|,)"
+
+Flats <- Offshore2 %>%
+  filter(grepl("flat|apartment|penthouse", Property_Address, ignore.case = T))%>%
+  mutate(FlatNumber = str_extract(tolower(Property_Address), 
+            Flatregex) %>%
+           sub("\\s$|,$", "", .)
+) 
+
+# (the.+)?(flat|apartment|penthouse)(s)?(\\s(.+?)(\\s|,)(\\s?(to|-)\\s?.+?(\\s|,))?|,)
+# 
+# some flats start with a "the eastern" or "the penthouse" this is optional
+# (the.+)?
+# 
+# the main expression it has to say this! optioanl "s" on the end
+# (flat|apartment|penthouse)(s)?
+#
+#the additional matching characteristics these come either side of and or statement
+# ((s)?\\s(.+?)(\\s|,)(\\s?(to|-)\\s?.+?(\\s|,))?|,)
+# (A|B)
+# 
+# 
+# A = \\s(.+?)(\\s|,)(\\s?(to|-)\\s?.+?(\\s|,))?
+# A = (A1)(A2)
+# 
+# space followed by some characters followed by a space or a comma this extracts the flat number eg "flat c"
+# A1 = \\s(.+?)(\\s|,)
+# 
+# optional space then either "to" or "-" followed by optional space followed by some characters followed by space or comma. This is to catch things like "flats 1 to 5" or flat 4-6
+# A2 = (\\s?(to|-)\\s?.+?(\\s|,))?
+# 
+# This is simple some are simply called "flat"  or "the penthouse" this catches those
+# B = ,
+
+
+
+Flats <- Flats%>%
+  mutate(leng = str_split(Flats$Property_Address, ",", n = 2) %>% 
+  map_chr(~length(.x)) 
+  ) %>% 
+  filter(leng == 2) %>%
+  mutate( address2 = str_split(Property_Address, ",", n = 2) %>% 
+  map_chr(~.x[[2]]) %>% 
+    gsub("\\s*\\([^\\)]+\\)", "",.)%>% 
+    gsub(" and .+", "",.)
+  )
+
+Flats2 <- Flats %>%
+  group_by(address2) %>%
+  summarise(counts = n()) %>%
+  arrange(-counts) 
+
+
+test <- Flats2 %>%
+  filter(grepl("Dolphin Square", address2, ignore.case = TRUE))
+
+sum(test$counts)
+
+
+test <- Offshore2 %>%
+  filter(grepl("^[a-z]+( [a-z])* house", Offshore2$Property_Address, ignore.case = T))
+
+#car parks
+grepl("car", Offshore2$Property_Address, ignore.case = T) %>% table
+
+ParkingSpaces <- Offshore2 %>%
+  filter(grepl("^car |^park", Offshore2$Property_Address, ignore.case = T))
+
+#random land
+grepl("^land", Offshore2$Property_Address, ignore.case = T) %>% table
+
+
+test <- Offshore2 %>%
+  filter(grepl("^land", Offshore2$Property_Address, ignore.case = T))
+
+
+
+Roadnames <- unique(CompanyData$X11) %>% 
+  gsub(" north| south| east| west", "",., ignore.case = TRUE) %>% 
+  word(.,-1) %>% data_frame(Endings = .) %>%
+  group_by(Endings) %>%
+  summarise(count = n()) %>%
+  arrange(-count) %>%
+  mutate(cumsum = cumsum(count),
+         cumperc = cumsum/sum(count))
+
+
+test2 <- test %>%
+  group_by(Endings) %>%
+  summarise(count = n())
+
+#A list of road names to remove as they cause problems
+removeNames <- "park house buildings green end farm estate court bridge hall drove" %>% str_split(., " ", simplify = TRUE)
+
+#match the top most occuring endings to the offshore list and get the counts
+TopRoadEndings <- Roadnames$Endings[1:50] %>%  map_dbl(~ sum(grepl(.x, Offshore$Property_Address, ignore.case = TRUE)))
+
+#arrange in order of occurnace and remove the tricky ones
+Road2 <- Roadnames[1:50,] %>% mutate(occs = TopRoadEndings) %>%
+  arrange(-occs) %>%
+  mutate(Endings = tolower(Endings)) %>%
+  filter(!(Endings %in% removeNames)) %>%
+  mutate(cumsum = cumsum(occs))
+
+length(Offshore$Property_Address) 
+
+#need to include thigs like gate
+
+#create the regex string to match
+Wordswithapotrophes <- paste0("(( \\w+)('s)?)+ (",paste(c(Road2$Endings),  collapse = "|"),")")
+roadmatchregex <- paste0("([0-9]+)", Wordswithapotrophes)
+
+paste0("(( \\w+)('s)?)+(gate,)")
+
+StreetNum <- str_extract(tolower(Offshore2$Property_Address), roadmatchregex )
+
+
+Offshore3 <- Offshore2 %>% 
+  mutate(
+    Property_Address =  gsub(" \\(.+?\\)", "", Property_Address),
+    class = case_when(
+    grepl(Flatregex, Property_Address, ignore.case = T) ~ "domestic",
+    grepl("^car |^park", Property_Address, ignore.case = T) ~"parking space",
+    grepl("^land", Property_Address, ignore.case = T) ~ "land",
+    grepl("^[a-z]+( [a-z])* cottage", Property_Address, ignore.case = T) ~"domestic",
+    grepl("(^[0-9]+)(( \\w+)('s)?)+ (court|villas)", Property_Address, ignore.case = T) ~"domestic",
+    TRUE ~ "unknown"
+  )) %>%
+  mutate(Streetadd = StreetNum,
+    Streetnumber =gsub("[a-z]", "", StreetNum, ignore.case = T), 
+         Street = gsub("[0-9]", "", StreetNum),
+    Street = case_when(
+      !is.na(Street) ~ Street,
+      grepl("^land", Property_Address, ignore.case = T) ~ 
+        str_extract(tolower(Property_Address), paste0("(of|at)", Wordswithapotrophes) ) %>%
+        gsub("(of |at )", "",.), #begins with land about 13k
+      grepl("( \\w+)+(way|gate,)", Property_Address, ignore.case = T) ~ #roadds that er blblablaGATE
+        str_extract(tolower(Property_Address), "( \\w+)+(way|gate)," ),
+      #Fixing for knightsbridge
+       grepl("knightsbridge", Property_Address, ignore.case = T) ~ "knightsbridge",
+      grepl("holland", Property_Address, ignore.case = T) ~ "holland",
+      TRUE ~ str_extract(tolower(Property_Address), Wordswithapotrophes ) #no street number
+    )
+    ) 
+
+test<- Offshore3%>%
+  #sorting houses
+  mutate(
+    HouseName = str_extract(tolower(Property_Address), "^[a-z]+( [a-z])* house")
+ 
+    )
+  
+
+grep("( \\w+)+(way|gate),", " parkway,")
+
+table(is.na(Offshore3$Street))
+table(is.na(Offshore3$Streetnumber))
+
+
+table(Offshore3$class)
+
+
+#Everything that is not land about 7000 items 
+  test <- Offshore3 %>%
+  filter(is.na(Street))  %>%
+  filter(grepl(paste0("^[^(land)]"), Property_Address, ignore.case = TRUE)) 
+
+  #random
+    OffshoreHouse <- Offshore3 %>%
+  filter(grepl("house", tolower(Property_Address)), class =="unknown") 
+ 
+    
+    
+    #why are there no overlaps?
+    #look at needham house
+       
+    CompanyHouse <- CompanyData %>%
+      mutate(House = tolower(X10)) %>%
+  filter(grepl("house", House)) 
+    
+ test <-    CompanyHouse %>%
+      filter(grepl( "Darcy House",  House, ignore.case = T))
+
+ #this matchers
+   MMhouse <-    OffshoreHouse %>%
+      filter(grepl( "Matthew Murray House",  Property_Address, ignore.case = T))
+   
+#Darcy matches
+Darcy <-    CompanyHouse %>%
+      filter(grepl( "Darcy House",  House, ignore.case = T))
+  
+#hotel where some rooms are owned offshore
+  Needham <-    OffshoreHouse %>%
+      filter(grepl( "Needham",  Property_Address, ignore.case = T))
+  
+  #All the directorss are registered to the same place and have no digital foot print
+  Debenham <-    OffshoreHouse %>%
+      filter(grepl( "debenham",  Property_Address, ignore.case = T))  
+
+    
+  
+    %>%
+    filter(class == "unknown")
+
+table(test$class)
+
+
+test <- Offshore3 %>% 
+  filter(Offshore3$Street %in% tolower(CompanyData$X11)) %>%
+  filter(!is.na(Street), class == "unknown") %>%
+  group_by(Street) %>%
+  summarise(counts = n())
+
+
+```
+
+
+#Unique Company's
+
+
+```{r}
+
+CompCounts <- Offshore %>%
+select(c(grep("Proprietor_Name",names(Offshore)) )) %>% unlist %>%
+  data.frame(comp = .) %>%
+  group_by(comp) %>%
+  summarise(counts = n()) %>%
+  filter(!is.na(comp))
+
+sum(CompCounts$counts)
+
+plot(density(CompCounts$counts))
+
+test <- CompCounts %>%
+  filter(grepl("trustee", comp, ignore.case = T))
+
+```
+
+
+
+```{r}
+
+Flats3<- Flats %>% left_join(PstCdLSOA.raw)%>%
+   group_by(lsoa11cd) %>%
+  summarise(Total = n()) %>%
+#  left_join(EW2, by = c("lsoa11cd" = "ECODE")) %>%
+  rename(LSOA_CODE = lsoa11cd)
+
+
+Flats4 <- Flats3 %>% group_by(LAD11NM) %>%
+  summarise(Total = sum(Total))
+
+
+test <-ls(pattern = "LON") %>% 
+  map_df(~get(.x))  %>%
+   group_by(LSOA_CODE) %>%
+   summarise(LowUse = sum(LowUse, na.rm = TRUE)) %>% 
+  CalcLowUse() %>%
+  select(LSOA_CODE, Homes, LowUse,LAD11NM:MeanPrice) %>%
+  left_join(filter(Flats3, !is.na(LSOA_CODE))) %>%
+  mutate(Total = ifelse(is.na(Total), 0, Total),
+         LowUsePerc = round(Total/Homes,3)*100)
+
+
+sum(test$Total)
+
+
+test %>% 
+  group_by(LAD11NM) %>%
+  summarise(Total = sum(Total)) %>%
+  mutate(perc = round(Total/sum(Total),3)) %>%
+  arrange(-perc)
+
+g <- MakeLeaflet(test, type = "jyg", bins = c(0, 5,10,15,100))
+
+
+Dolph<- Offshore %>%
+  filter(grepl("dolphin square", Offshore$Property_Address, ignore.case = T))
+
+```
+
+
+UK has 20k flats owned by offshore companies. 75% are in #London and of those 43% are in #Westminster.
+
+
+#London Flats owned by offshore companies as a % of all homes. 43% are in #Westminster, 20% in #RBKC
+
+#London has 14k flats owned by offshore companies. 43% are in #Westminster, 20% in #RBKC. Map % of ALL homes
+
+
+
+#Address fixing
+
+
+```{r}
+
+library(poster)
+test <- parse_addr(Offshore$Property_Address)
+
+
+test <- paste(Offshore$Property_Address, "United Kingdom", sep= ", ") %>%
+   normalise_addr %>%
+  parse_addr
+
+
+#\([a-z0-9]+\s[a-z0-9]+
+
+    test1 <-paste(Offshore$Property_Address, "United Kingdom", sep= ", ") 
+  
+    test2 <- paste(Offshore$Property_Address, "United Kingdom", sep= ", ") %>%
+     gsub(" \\(.+?\\)", "", .) %>%
+            #gsub("(\\s\\()(?=[a-z0-9]+\\s[a-z0-9]+)", ", ", ., ignore.case = TRUE, perl= TRUE) %>%
+      gsub("(and )?(car )?(park(ing)?)( space(\\w)?)?", "", .) %>%
+    normalise_addr %>%
+    parse_addr
+
+    
+    test3 <- test2 %>% mutate(postal_code = gsub(" ", "", Offshore$Postcode)) %>%
+      filter(!is.na(postal_code))
+    
+    test4 <- test3 %>%
+      group_by(postal_code, road) %>%
+      summarise(counts = n())
+    
+        CompPostRoad <- CompanyData %>%
+      group_by(X11, X15) %>%
+      summarise(counts = n())
+    
+CompAddress <- paste(CompanyData$X8, CompanyData$X15, "United Kingdom", sep =",") %>%
+    normalise_addr %>%
+    parse_addr
+
+test5 <- CompAddress %>%
+      group_by(postal_code, road) %>%
+      summarise(counts = n())
+
+
+  sum(paste(test4$road, test4$postal_code) %in% paste(test5$road, test5$postal_code))
+
+#savved to VOA folder    
+#saveRDS(CompAddress, "CompanyAddresseslibpostal.rds")
+
+    test2[1:20] 
+    Offshore$Property_Address[1:20]
+
+
+    sum(grepl("gate", Offshore$Property_Address, ignore.case = TRUE))
+
+
+
+
+test <- Offshore %>%
+  select(Property_Address) %>%
+  mutate(Property_Address = gsub(" \\(.+?\\)", "", Property_Address) )%>%
+  filter(grepl("(and )?(car )?park(ing)? space(s)?|(and )?car park(ing)?( space(s)?)?", Property_Address, ignore.case = T))
+
+
+test <- Offshore %>%
+  select(Property_Address) %>%
+  mutate(Property_Address = gsub(" \\(.+?\\)", "", Property_Address) )%>%
+  filter(grepl(" bridge", Property_Address, ignore.case = T))
+
+test[1:20,1]
+
+removeNames <- "park house buildings green end farm estate court bridge hall" %>% str_split(., " ", simplify = TRUE)
+
+TopRoadEndings <- Roadnames$Endings[1:50] %>%  map_dbl(~ sum(grepl(.x, Offshore$Property_Address, ignore.case = TRUE)))
+
+Road2 <- Roadnames[1:50,] %>% mutate(occs = TopRoadEndings) %>%
+  arrange(-occs) %>%
+  mutate(Endings = tolower(Endings)) %>%
+  filter(!(Endings %in% removeNames)) %>%
+  mutate(cumsum = cumsum(occs))
+
+length(Offshore$Property_Address) 
+
+
+
+
+table(is.na(StreetNum))
+
+```
 
 

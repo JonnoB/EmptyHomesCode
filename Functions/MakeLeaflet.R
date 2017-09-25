@@ -1,4 +1,4 @@
-MakeLeaflet <-function(dataframe, bins = c(0, 10, 20, 25, 100)){
+MakeLeaflet <-function(dataframe, type = "Low-use"  , bins = c(0, 10, 20, 25, 100)){
 
   #These two functions are necessary for Points to polygons
   get.grpPoly <- function(group,ID,df) {
@@ -31,8 +31,6 @@ MakeLeaflet <-function(dataframe, bins = c(0, 10, 20, 25, 100)){
     select(LSOA_CODE, LowUsePerc, WD16NM)%>%
     merge(MyData, .)
   
-  class(MyData) # data.frame
-  
   v<-"pk.eyJ1Ijoiam9ubm9iIiwiYSI6ImNqM2FlNXhpbDAwM3gzMW83ZW1hbHI0bzYifQ.4AfaY0Un0bKU41hZscpy9Q"
   
   m <- leaflet(MyData) %>%
@@ -45,7 +43,7 @@ MakeLeaflet <-function(dataframe, bins = c(0, 10, 20, 25, 100)){
   pal <- colorBin("YlOrRd", domain = MyData$LowUsePerc, bins = bins)
   
   labels <- sprintf(
-    "<strong>%s</strong><br/>Low-use  %g &#37",
+    paste0("<strong>%s</strong><br/>", type ,"  %g &#37"),
     MyData$WD16NM, MyData$LowUsePerc
   ) %>% lapply(htmltools::HTML)
   
