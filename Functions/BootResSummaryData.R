@@ -45,6 +45,7 @@ BootResSummaryData <- function(BootStrapRES){
                         mean = mean(WardLowUse, na.rm=TRUE),
                         median = median(WardLowUse, na.rm=TRUE),
                         Pop = sum(Pop, na.rm = TRUE),
+                        LUPS = sum(LowUse, na.rm = TRUE),
                         Homes = sum(Homes, na.rm = TRUE),
                         LAD = sub("DATA", "", .x),
                         TurnoverPerc = sum(PercTurnover*Homes, na.rm = TRUE)/sum(Homes, na.rm = TRUE),

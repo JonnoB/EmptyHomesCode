@@ -712,19 +712,73 @@ decile <- bind_rows(mutate(unaffordExLon, type = "Excluding London"),
       group_by(decile, type) %>%
     summarise(mean = mean(LowUsePerc),
               median = median(LowUsePerc),
-              counts = n()
-              ) 
+              counts = n(),
+              ratio= mean(ratio)
+              ) %>%
+  mutate(decile2 = decile^2,
+         ratio2 = ratio^2,
+         logval = log(decile),
+         expval = exp(decile),
+         expvalneg = exp(-decile)) %>%
+  filter(!is.na(decile))
 
 #Looking at the relationship between unaffordability and LUP percentage
 
-decile %>% ggplot(aes(x= decile, y = median)) + 
+decile %>% 
+#  filter(type == "Only London") %>% 
+  ggplot(aes(x= decile, y = median)) + 
+  facet_grid(.~type) + 
+  #geom_point(data =unaffordExLon , aes(x= decile, y = LowUsePerc), alpha = 0.2 )+
+  geom_point(aes(colour = type))  +
+  labs(x = "2 percentile group", y = "median Percent Low Use") + 
+  theme(legend.position= "none") + 
+  geom_smooth(method="loess",se=FALSE, colour = "black")
+SaveFig("LowUsePercVSratio.pdf")
+
+decile %>% 
+  filter(type == "Including London") %>% 
+  ggplot(aes(x= ratio, y = median)) + 
   facet_grid(.~type) + 
   #geom_point(data =unaffordExLon , aes(x= decile, y = LowUsePerc), alpha = 0.2 )+
   geom_point(aes(colour = type))  +
   labs(x = "ith 2 percentile group", y = "median Percent Low Use") + 
   theme(legend.position= "none") + 
   geom_smooth(method="loess",se=FALSE, colour = "black")
-SaveFig("LowUsePercVSratio.pdf")
+
+
+#model fit
+decile %>% 
+    filter(type == "Excluding London") %>% 
+  lm(median~decile +decile2, data = .) %>% summary
+
+#model fit
+decile %>% 
+    filter(type == "Excluding London") %>% 
+lm(median~ratio + ratio2, data = .) %>% summary
+
+decile %>% 
+    filter(type == "Excluding London") %>% 
+lm(median~expval + expvalneg, data = .) %>% summary
+
+#make nonlinear  model
+mod <- decile %>% 
+    filter(type == "Excluding London") %>% 
+  nls(median ~ exp(a + b*decile)+  exp(d + c*decile), data = ., 
+      start = list(a = 0, b = -3, c = 0, d = 0))
+
+mod2 <- decile %>% 
+    filter(type == "Only London") %>% 
+  nls(median ~ exp(a + b*decile), data = ., 
+      start = list(a = 0, b = -3))
+
+summary(mod)
+
+decile %>%
+      filter(type == "Excluding London") %>% 
+  ggplot(aes(x = decile, y = median))+
+  geom_point() +
+  geom_line(aes(y = predict(mod, list(x = decile))))
+
 
 unafford %>%
   ggplot(aes(x= ratio, y = MeanPrice)) + geom_point()
@@ -1361,5 +1415,14 @@ test <-ls(pattern = "DATA") %>%
   Combine1ExO %>%
     ggplot(., aes(x = absdiff>0 )) +geom_bar()
   
+```
+
+
+
+
+Big Stats
+```{r}
+
+
 ```
 

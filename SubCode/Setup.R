@@ -2,7 +2,7 @@
 
 
 packages <- c("tidyverse", "spdep", "igraph", "maptools", "openxlsx", "readxl", "sp","rgdal", "rgeos", "raster", "broom", "leaflet",
-              "forcats", "e1071", "htmlwidgets", "stringr", "modelr", "caret", "xtable", "rpart")
+              "forcats", "e1071", "htmlwidgets", "stringr", "modelr", "caret", "xtable", "rpart", "broom")
 
 #, "mapview"
 new.packages <- packages[!(packages %in% installed.packages()[,"Package"])]
