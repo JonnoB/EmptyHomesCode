@@ -168,4 +168,19 @@ EnfieldLONDATA <- read_excel("EnfieldDiscountsLSOA.xlsx")[c(1,4:6)] %>%
  MertonLONDATA <- read_excel("Merton Discounts for FoI Jonathan Bourne.xlsx" )[1:4] %>%
    StructureData()
  
+ #Croydon
+ CroydonLONDATA <- read_excel("Croydon8020_Final Attachment.xlsx" )[1:4] %>%
+   StructureData(lowuse =c(2,3,6,7), empty = c(2,3,6))
+ 
+ #Wandsworth
+ 
+ WandsworthLONDATA <- read_excel("FOI 2017-15405  WandsworthDiscountsLSOA.xlsx" )[1:4] %>%
+   StructureData()
+
+ #Kingston
+ 
+ KingstonLONDATA <- read_excel("RB Kingston Discounts by LSOA September2017.xlsx" )[1:4] %>%
+   StructureData(c(2:5,7))
+ 
+ 
  

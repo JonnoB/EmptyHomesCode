@@ -5,28 +5,52 @@ date: "5 July 2017"
 output: html_document
 ---
 
-98nmol/L
+new article and paper on airbnb effecr
+https://www.citylab.com/equity/2018/03/what-airbnb-did-to-new-york-city/552749/?utm_source=atlfb
 
 Islington should be removed and put back in when they send the correct data, it is giving a false negative
 
 #this uses rank for distance from LAD I think it should be dist check this
 
+
+Intellectual property rights and
+disclosures under the Freedom of
+Information Act
+
+16. It may not be apparent to recipients that the information is
+protected by copyright. Therefore when a public authority
+wishes to protect its own copyright, or the copyright is owned
+by a third party, it should advise the applicant that the
+information remains copyright protected.
+
+
+Please can you provide excel the file sent to Jonathan Bourne on xxx
+
+The reference number for this case is xxx.
+
+Yours faithfully,
+
+Jonathan Bourne
+
+
 #ico complaint ref
 fs-506-897-47
 
-Should type B be included? or just type A?
+#OGL licence claim
 
+All data used in this paper is covered by the Open Government Licence.
 
-What's the Deal with Westminster?
-Westminsters Data is very low, I want to check what codes are going on.
-Westminster
-PCLB00: Second home class B/A
-PCLB50: 
-PCLC00: Empty and unfurnsished
-PCLC99: 
-PCLD00: Undergoing major repairs
-PCLJ50:
-Single:
+The Data meets all 4 criteria described in section 56 of "Datasets (sections 11, 19 & 45)" FOI guidance document.
+These criteria are that the data is held by the authority, The data is part of a relveant copyright work (The data is held in a databse), the authority holds the copyright to the data (The information in the database is owned by the local council). 
+As local authorities are public sector bodies (shown in the public sector classification guide) and that council tax is a core task, normally the data would be covered by the RPSI. However, following section 5 of the Re use of public sector infrmation regulations 2015.
+
+"5.—(1) These Regulations do not apply to a document where—
+
+(a)the activity of supplying the document is one which falls outside the public task of the public sector body, provided that the scope of the public task of that body is transparent and subject to review; or""
+
+As the document the councils needed to complete is custom made and not part of the public task, the RPSI does not cover the resultant work and licencing reverts to the FOIA. 
+The FOIA states that a specific licence must be given for all datasets released under the act. As no charge has been levied against the use of the data then the default Open government licence is applied following section 69 of the "Datasets (sections 11, 19 & 45)" FOI guidance document.
+
 
 #Setup
 
@@ -37,8 +61,11 @@ source("Setup.R")
 setwd(Functions)
 list.files() %>% map(source)
 
-Figures <- "/home/jonno/Dropbox/Apps/ShareLaTeX/Empty Homes Write up/Figures"
+Figures <- "/home/jonno/Dropbox/Apps/ShareLaTeX/Empty Homes Write up 2/Figures" #file.path(basewd, "Figures")
+TexTables <- "/home/jonno/Dropbox/Apps/ShareLaTeX/Empty Homes Write up 2/Tables"
 source(file.path(CommonCode, "AuxdataLoad.R"))
+
+
 ```
 
 
@@ -127,6 +154,8 @@ mutate(Postcode = gsub(" ", "", `Post Code`)) %>%
   select(Exemption.type, LSOA_CODE, Postcode, Country_code, Admin_district_code) %>%
   StructureData()
 
+DudleyDATA <- read_excel("Completed DudleyDiscountsLSOA.xlsx"  )[1:4] %>%  
+  StructureData()
 
 ```
 
@@ -284,7 +313,6 @@ mutate(Postcode = gsub(" ", "", `Post Code`)) %>%
 
 ##Norfolk
 ```{r}
-#Broadlands is unsuable, due to lack of data collection.
 #This is being checked
 BroadlandsDATA <- read_excel("BroadlandDiscountsLSOA.xlsx", sheet=1)[1:4] %>%
   StructureData(4:9)
@@ -298,9 +326,13 @@ NorthNorfolkDATA <- read_excel("North NorfolkDiscountsLSOA.XLSX" , sheet=1)[1:4]
 BrecklandsDATA <- read_excel("BFOI-003031 BrecklandDiscountsLSOA.xlsx" , sheet=1)[1:4] %>%
   StructureData()
 
-#they deleted the classes
 SNorfolkDATA <- read_excel("SNorfolk 17-307 Discounts.xlsx"  , sheet=1)[1:4] %>%
   StructureData()
+
+
+NorwichDATA <- read_excel("Norwich Discounts FINAL.xlsx"  , sheet=1)[1:4] %>%
+  StructureData(2:8)
+
 
 ```
 
@@ -325,7 +357,7 @@ CambridgeDATA <- read_excel("566 - Copy of Copy of CambridgeDiscountsLSOA .xlsx"
 
 ```
 
-#Brightong and Hove
+#South East
 
 
 ```{r}
@@ -336,6 +368,13 @@ list.files()
 BrightonDATA <- read_excel("Copy of Brighton and HoveDiscountsLSOA (4).xlsx", sheet=1)%>% .[,c(2,3:5)] %>%
   StructureData(lowuse = 2:8)
 #MakeLeaflet(BournemouthDATA)
+
+
+ValeWhiteDATA <- read_excel("Vale of White HorseDiscountsLSOA (00000002).xlsx" , sheet=1)[1:4] %>%
+  StructureData(c(5,7,8,9,10,14))
+
+SouthOxfordDATA <- read_excel("South OxfordshireDiscountsLSOA.xlsx" , sheet=1)[1:4] %>%
+  StructureData(c(5,7,8,9,10,14))
 
 ```
 
@@ -409,6 +448,9 @@ RichmondshireDATA <- read_excel("Richmondshire FOI 4960.xls", col_names = FALSE)
 
 KirkleesDATA <- read_excel("Jonathan Bourne KirkleesDiscountsLSOA Complete.xlsx" )[1:4] %>%
   StructureData(2:5)
+
+WakefieldData <-  read_excel("WakefieldDiscountsLSOA.xlsx" )[1:4] %>%
+  StructureData(2:7)
 
 ```
 
@@ -542,24 +584,24 @@ wardnames <- EW2 %>% group_by(Admin_ward_code, WD16NM) %>% summarise(counts = n(
 
 #Wandsworth
 
-WandsworthLONDDATA <- read_excel("wandsworth2.xlsx",  skip = 3 ) %>% select(1,3) %>% 
-  group_by(`Ptc Wardname`) %>% summarise(Empty = sum(`Count Current Occupancy Discounts`)) %>% ungroup %>% 
-  arrange(`Ptc Wardname`) %>% 
-  filter(!is.na(`Ptc Wardname`)) %>% 
-  bind_cols(., wardnames %>% filter(LAD11NM == "Wandsworth") %>% 
-              select(Admin_ward_code)) %>%
-  mutate(LowUse = Empty) %>%
-  SemiDataStructure
-
-
-#Kingston
-
-KingstonLONDATA <- read_excel("Kingston1.xlsx"  )%>% setNames(make.names(names(.))) %>%
-  arrange(X__1) %>% slice(1:16) %>%
-  bind_cols(., wardnames %>% filter(LAD11NM == "Kingston upon Thames") %>% 
-              select(Admin_ward_code)) %>%
-  mutate(Empty = Empty...Furnished..0.. + Empty.Homes.Premium + LONG.TERM.EMPTY..0.. + Structural.Repair..0.., LowUse = Empty + X2nd.Home..0..) %>%
-  SemiDataStructure
+# WandsworthLONDDATA <- read_excel("wandsworth2.xlsx",  skip = 3 ) %>% select(1,3) %>% 
+#   group_by(`Ptc Wardname`) %>% summarise(Empty = sum(`Count Current Occupancy Discounts`)) %>% ungroup %>% 
+#   arrange(`Ptc Wardname`) %>% 
+#   filter(!is.na(`Ptc Wardname`)) %>% 
+#   bind_cols(., wardnames %>% filter(LAD11NM == "Wandsworth") %>% 
+#               select(Admin_ward_code)) %>%
+#   mutate(LowUse = Empty) %>%
+#   SemiDataStructure
+# 
+# 
+# #Kingston
+# 
+# KingstonLONDATA <- read_excel("Kingston1.xlsx"  )%>% setNames(make.names(names(.))) %>%
+#   arrange(X__1) %>% slice(1:16) %>%
+#   bind_cols(., wardnames %>% filter(LAD11NM == "Kingston upon Thames") %>% 
+#               select(Admin_ward_code)) %>%
+#   mutate(Empty = Empty...Furnished..0.. + Empty.Homes.Premium + LONG.TERM.EMPTY..0.. + Structural.Repair..0.., LowUse = Empty + X2nd.Home..0..) %>%
+#   SemiDataStructure
 
 
 #TowerHamlets
@@ -595,17 +637,17 @@ General Stats
 DataCover <- ls(pattern = "DATA") %>% map_df(~eval(parse(text=.x))) %>% 
   filter(!is.na(LAD11NM)) %>%
   summarise(
-           TotalLADs = length(ls(pattern = "DATA", envir = globalenv())), #bits of other LADS cause the number to be higher than reality so the ls function is used again
-           PercLADs = length(ls(pattern = "DATA", envir = globalenv()))/(EW2$LAD11NM %>% unique %>% length()),
-           LowUse = sum(LowUse, na.rm = T),
+           'LADs' = length(ls(pattern = "DATA", envir = globalenv())), #bits of other LADS cause the number to be higher than reality so the ls function is used again
+           '% of all LADs' = length(ls(pattern = "DATA", envir = globalenv()))/(EW2$LAD11NM %>% unique %>% length())*100,
+           LUPs = sum(LowUse, na.rm = T),
            Homes = sum(Homes, na.rm = T),
-           PercHomes = Homes/sum(EW2$Homes),
+           '% of all Homes' = Homes/sum(EW2$Homes)*100,
            Population = sum(Pop, na.rm= T),
-           PercPop = Population/sum(EW2$Pop)) %>%
+           '% of total population' = Population/sum(EW2$Pop)*100) %>%
   mutate_if(.<1, funs(signif(.,3))) %>%
   mutate_if(.>1, as.integer) %>%
   mutate_all(as.character) %>% 
-  gather
+  gather 
 
 DataCover 
 
@@ -640,7 +682,7 @@ testSouth %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100) %>%
 
 ValueTtest(test)
 
-PlotMap(BexleyLONDATA)
+PlotMap(WandsworthLONDDATA)
 
 z <-ChelseaLONDATA %>% 
   mutate(LAD11CD = ifelse(LAD11CD  == "E09000005", "E05009388" ,LAD11CD)) %>% #kept adding in Barnet
@@ -835,11 +877,11 @@ Combine1ExO <- BootResSummaryData(BootStrapRESExO)
 ```
 
 
-#Analyse Boostrap
+#Analyse Bootstrap
 
 
 ```{r}
-test <- BootStrapRESExO$WestminsterLON%>% 
+test <- BootStrapRESExO$WestminsterLON %>% 
   group_by(class) %>%
   summarise_all(funs(mean))
 
@@ -876,7 +918,8 @@ test <- BootStrapRESExO %>%
          ExpectedHomes = HomesPerc*sum(LowUse, rm.na = T),
          RatioExvsAct = LowUse/ExpectedHomes
          ) %>%
-        mutate(class = fct_relevel(class,c("Lower", "Mid", "Upper", "Prime", "Super")) )
+        mutate(class = fct_relevel(class,c("Lower", "Mid", "Upper", "Prime", "Super")),
+               LUPmore = RatioExvsAct>1)
 
 test2 <- test %>% group_by(class) %>%
   summarise_all(mean)
@@ -890,10 +933,37 @@ test %>%
    mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
      ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + 
      geom_boxplot() + 
-     labs(title = "Observed within class difference in Price from expected for LUPs", 
-          y = "% difference from expected")
+     labs(title = "Observed within class difference in Price from expected for LUPs")
 SaveFig("PricediffAllData.pdf")
 
+
+#Total value of homes and LUPS
+
+BootStrapRESExO2 <- BootStrapRESExO %>% map(~.x %>% ungroup)
+
+LADnames <- names(BootStrapRESExO)
+
+LUPval <-   map2(.x =BootStrapRESExO2, .y =   names(BootStrapRESExO2),~ {.x %>% mutate(LAD  = .y)}) %>%
+  bind_rows %>%
+  select(-class) %>%
+  group_by(LAD, ID) %>%
+  summarise_all(sum) %>%
+  group_by(LAD) %>%
+  summarise_all(mean) %>%
+  ungroup %>%
+  mutate(HomesPrice = HomesValue/Homes,
+         LowUsePrice = LowUseValue/LowUse,         
+         ratio = LowUse/Homes,
+         HomesPerc = Homes/sum(Homes, rm.na = T),
+         LowUsePerc = LowUse/sum(LowUse, rm.na = T),
+         ClassPerc = LowUse/Homes,
+         ExpectedHomes = HomesPerc*sum(LowUse, rm.na = T),
+         RatioExvsAct = LowUse/ExpectedHomes
+         ) %>%
+  mutate(VancouverTax = LowUseValue*0.01/1000)
+
+
+LUPval$VancouverTax %>% sum(.)/1000
 
 ```
 
@@ -934,9 +1004,8 @@ CombineAB <-left_join(ABratio2, ABratio3, by = "LAD11CD") %>%
 
 rm(ABratio); rm(ABratio2); rm(ABratio3)
 
-
 CombineAB %>%
-  ggplot(.,aes(x= diffPerc, y = Ttest.p.value, colour = Valuerat HounslowLONDATA <- read_excel("Hounslow Discounts - Bourne Info -210817.xls" )io>1)) + geom_point()
+  ggplot(.,aes(x= diffPerc, y = Ttest.p.value, colour = Valueratio>1)) + geom_point()
 
 ```
 
@@ -1314,12 +1383,19 @@ EnglandCompTab <- EnglandComp %>%
             median = median(price),
             Homes = sum(Homes),
             Pop = sum(Pop)) %>%
-  mutate(HomesPerc = Homes/sum(Homes),
-         PopPerc = Pop/sum(Pop))
+  mutate(HomesPerc = Homes/sum(Homes)*100,
+         PopPerc = Pop/sum(Pop)*100) %>%
+  rename('LUPs>Homes' = Comp.Type, 
+         Population = Pop,
+         'Homes %' = HomesPerc,
+         'Population %' = PopPerc) %>%
+  gather(key = "key", "value"= value, -"LUPs>Homes") %>%
+  mutate(value = value %>% round %>%as.integer) %>%
+  spread(key = "LUPs>Homes", value = value)
 
-EnglandCompTab
+EnglandCompTab 
 
-xtable(EnglandCompTab, caption="Summary of effecrt across England",
+xtable(EnglandCompTab, caption="Summary of effect across England",
        label = "tab:EnglandCompTab") %>% 
   print(., type="latex", file=file.path(TexTables,"EnglandCompTab.tex"))
 
@@ -1420,7 +1496,7 @@ test <-ls(pattern = "DATA") %>%
 
 
 
-Big Stats
+
 ```{r}
 
 
