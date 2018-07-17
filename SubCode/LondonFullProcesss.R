@@ -71,7 +71,7 @@ BarkingLONDATA <- read.xlsx( "Barking and DagenhamExemptionsLSOA v3.xlsx" , colN
 
 #Barnet
 
-BarnetLONDATA <- read.xlsx( "3386297 Attachment BarnetDiscounts.xlsx"  , colNames = TRUE) %>%
+BarnetLONDATA <- read.xlsx( "3386297 Attachment BarnetDiscounts.xlsx"  , colNames = TRUE)[1:4] %>%
   StructureData(2:8)
 
 

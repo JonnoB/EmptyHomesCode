@@ -73,9 +73,13 @@ LADShape2 <- LADShape %>% left_join(EnglandComp, by = c("lad14cd" = "LAD11CD"))
   
   #AG2 <- AG %>% group_by(LSOA_CODE) %>% summarise_all(funs(first))
   
-  MyData <- EnglandComp %>%
-    select(LAD11CD, Significant.Competition, LAD11NM, Comp.Type) %>%
+
+    MyData <- EnglandComp %>%
+    select(LAD11CD, LAD11NM, Comp.Type) %>%
     merge(MyData, .)
+  # MyData <- EnglandComp %>%
+  #   select(LAD11CD, Significant.Competition, LAD11NM, Comp.Type) %>%
+  #   merge(MyData, .)
   
   class(MyData) # data.frame
   
@@ -91,7 +95,7 @@ LADShape2 <- LADShape %>% left_join(EnglandComp, by = c("lad14cd" = "LAD11CD"))
   pal <- colorFactor("Accent", domain = MyData$Comp.Type)
   
   labels <- sprintf(
-    "<strong>%s</strong><br/>Market affected %s",
+    "<strong>%s</strong><br/>Predominantly high value LUPs %s",
     MyData$LAD11NM, MyData$Comp.Type
   ) %>% lapply(htmltools::HTML)
   
@@ -116,7 +120,9 @@ LADShape2 <- LADShape %>% left_join(EnglandComp, by = c("lad14cd" = "LAD11CD"))
     ) %>%
     addLegend(pal = pal, values = ~Comp.Type, opacity = 0.7, title = NULL,
               position = "bottomright")
-  
+
+  z
+    
 ```
 
 

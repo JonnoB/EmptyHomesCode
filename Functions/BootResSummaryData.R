@@ -1,40 +1,13 @@
 BootResSummaryData <- function(BootStrapRES){
   
   
-  #gets the list of LADs we currently have data for in alphabetical order so they can be joined to the combine
-  CurrentLADS <- ls(pattern = "DATA", envir = globalenv()) %>%
-    map_chr(~{df<- get(.x)
-    df <- df %>%
-      group_by(LAD11CD) %>%
-      summarise(count = n())
-    df$LAD11CD[which.max(df$count)]}
-    )
-  
-  #Perform the t-test on the resulting lists
-  TtestRESgreater <-BootStrapRES %>% map(~ValueTtest(.x))
-  #TtestREStwo.sided <-BootStrapRES %>% map(~ValueTtest(.x, alternative = "two.sided"))
-  #Tidy results of thejust the ttest
-  TtestRES2 <- TtestRESgreater %>% map_df(~.x$t.test %>% tidy) %>%
-    select(p.value) %>%
-    mutate(LAD = elementnames,
-           LAD11CD = CurrentLADS,
-           HomePrice = TtestRESgreater %>% map_dbl(~.x$HomePrice),
-           LowUsePrice = TtestRESgreater %>% map_dbl(~.x$LowUsePrice),
-           absdiff = TtestRESgreater %>% map_dbl(~.x$absdiff),
-           Percdiff = TtestRESgreater %>% map_dbl(~.x$Percdiff)) 
-  
-  #Removing ANOVA as it causes probs when only tyoe a are included
-  #Perform ANOVA on the difference between the ratios of the groups on the bootrapped list
-  # ANOVARES <- BootStrapRES %>% 
-  #   map_df(~aov(.x$RatioExvsAct~.x$class) %>% tidy) %>% 
-  #   filter(term != "Residuals") %>%
-  #   select(-term) %>%
-  #   mutate(LAD = elementnames)
-  
   WardData <- ls(pattern = "DATA", envir = globalenv()) %>%
     map_df(~eval(parse(text=.x)) %>%
-             #select(WardLowUsePerc, WardLowUse) %>%
-             mutate( WardLowUsePerc = ifelse(is.na(WardLowUsePerc),0, WardLowUsePerc)) %>%
+             group_by(LAD11CD) %>%
+             mutate( WardLowUsePerc = ifelse(is.na(WardLowUsePerc),0, WardLowUsePerc),
+                     LAD11CDCounts = n()) %>%
+             ungroup %>%
+             filter(LAD11CDCounts == max(LAD11CDCounts)) %>% #removes values that are classed as another borough
              summarise( maxPerc = max(WardLowUsePerc, na.rm=TRUE),
                         minPerc = min(WardLowUsePerc, na.rm=TRUE),
                         LADPerc = sum(WardLowUsePerc, na.rm=TRUE)/sum(Homes, na.rm=TRUE),
@@ -49,25 +22,40 @@ BootResSummaryData <- function(BootStrapRES){
                         Homes = sum(Homes, na.rm = TRUE),
                         LAD = sub("DATA", "", .x),
                         TurnoverPerc = sum(PercTurnover*Homes, na.rm = TRUE)/sum(Homes, na.rm = TRUE),
-                        LUPTurnoverPerc = sum(PercTurnover*LowUse, na.rm = TRUE)/sum(LowUse, na.rm = TRUE)
+                        LUPTurnoverPerc = sum(PercTurnover*LowUse, na.rm = TRUE)/sum(LowUse, na.rm = TRUE),
+                        LAD11CD = first(LAD11CD)
                         )
            )
   
   
-  skew <- BootStrapRES %>% map_df(~.x %>% group_by(class) %>%
-                                    summarise(skew = mean(RatioExvsAct, na.rm = TRUE)) %>%
-                                    summarise(skew = skewness(skew))
+  BootDeets <- BootStrapRES %>% map_df(~.x %>% group_by(ID) %>%
+                                    summarise(MedianHomes = first(MedianHomes),
+                                              MeanHomes = first(MeanHomes),
+                                              MedianLUPs = first(MedianLUPs),
+                                              MeanLUPs = first(MeanLUPs),
+                                              LAD11CD= first(LAD11CD),
+                                              HighVal = sum(HighVal)) %>%
+                                    group_by(LAD11CD) %>%
+                                    summarise_all(., mean, na.rm = TRUE) %>%
+                                      select(-ID)
   )
   
-  
-  Out <- left_join(WardData, TtestRES2, by = "LAD" ) %>% bind_cols(skew) %>%
+  #Perform the t-test on the resulting lists
+  TtestRESgreater <-BootStrapRES %>% map(~ValueTtest(.x))
+  #Tidy results of thejust the ttest
+  TtestRES2 <- TtestRESgreater %>% map_df(~.x$t.test %>% tidy) %>%
+    select(p.value) %>%
+    mutate(HomePrice = TtestRESgreater %>% map_dbl(~.x$HomePrice),
+           LowUsePrice = TtestRESgreater %>% map_dbl(~.x$LowUsePrice),
+           absdiff = TtestRESgreater %>% map_dbl(~.x$absdiff),
+           Percdiff = TtestRESgreater %>% map_dbl(~.x$Percdiff)) %>%
     rename(Ttest.p.value = p.value)
-
-    # Out <- left_join(ANOVARES, TtestRES2, by = "LAD" ) %>% left_join(WardData,by = "LAD" ) %>% bind_cols(skew) %>%
-  #   select(-sumsq,-meansq,-statistic.x, -estimate, -estimate1, -estimate2, -statistic.y) %>%
-  #   rename(ANOVA = p.value.x,
-  #          Ttest.p.value = p.value.y)
   
+
+  
+  Out <-   bind_cols(BootDeets, TtestRES2) %>% #BootDeets and TtestRES2 are both in the same order so can be column bound
+    left_join(., WardData, by = "LAD11CD" )
+
   return(Out)
   
 }
