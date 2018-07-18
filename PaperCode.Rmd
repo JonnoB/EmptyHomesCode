@@ -855,7 +855,7 @@ BootStrapFiles <- list.files(getwd()) %>% gsub("DATA.rds", "",.)
   #Save each boostrap as you go along to avoid losing it all in a crash
   if(length(newLADsnames)>0){
     newLADs  %>% walk(~{print(.x)
-      DistribCompareBootstrapper(get(.x), 1652, 10, type, PropertyTypes)%>%
+      DistribCompareBootstrapper(get(.x), 1652, 1000, type=NULL, PropertyTypes)%>%
       saveRDS(., file = paste0(.x, ".rds"))
       }) 
   }
@@ -880,8 +880,7 @@ Combine1ExO <- BootResSummaryData(BootStrapRESExO)
 ```
 
 
-#Analyse Bootstrap
-
+#Make class plots of bootstrap results
 
 ```{r}
 test <- BootStrapRESExO$WestminsterLON %>% 
@@ -974,6 +973,8 @@ LUPval$VancouverTax %>% sum(.)/1000
 
 #Explore results
 
+This chunk calculates for both A and B
+
 ```{r}
 
 LADNMs <- EW2 %>% group_by(LAD11CD) %>%
@@ -1007,8 +1008,6 @@ CombineAB <-left_join(ABratio2, ABratio3, by = "LAD11CD") %>%
 
 rm(ABratio); rm(ABratio2); rm(ABratio3)
 
-CombineAB %>%
-  ggplot(.,aes(x= diffPerc, y = Ttest.p.value, colour = Valueratio>1)) + geom_point()
 
 ```
 
@@ -1110,7 +1109,7 @@ OpenFormula <- as.formula(Reference~ Extent + price + VacantsPerc)
 
 set.seed(4622)
 Modeldf <- ModelMe  %>%
-  vfold_cv(., V = 10, repeats = 100) %>%
+  vfold_cv(., V = 10, repeats = 10) %>%
   mutate(LogisticFOI = splits %>%
   map(.,~{ glm(FOIFormula, data = analysis(.x),binomial(link='logit'))}
         ),
@@ -1134,7 +1133,7 @@ SaveFig("ModelCoeffs.pdf")
 
 
 ModComp <- Modeldf %>%
-  select(LogFoiAcc, LogOpenAcc) %>%
+  select(LogFoiAcc, LogOpenAcc, ForestOpenAcc) %>%
   gather
   
   ModComp %>%
@@ -1202,6 +1201,7 @@ BootPopHigh %>%
 
 #The 95 percent confidence interval of the mean
 QuantInfo<-quantile(BootPopHigh$Pop, probs = c(0.05, 0.5 ,0.95))
+QuantInfo
 quantile(BootPopHigh$PercPop, probs = c(0.05, 0.5 ,0.95))
 #diff is 3.6M
 QuantInfo[3]-QuantInfo[1]
