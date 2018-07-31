@@ -664,6 +664,10 @@ length(ls(pattern = "DATA"))/(EW2$LAD11NM %>% unique %>% length())
 
 
 #Saleries
+
+Problem here with the MSOA/LSOA code in the IncomeEst
+
+
 ```{r}
 
 unafford <- ls(pattern = "DATA") %>%
@@ -1309,8 +1313,7 @@ MakeBootPreds <- function(df, BootMod, testvect){
     
     tibble(v1 =predict(BootMod[[.x]], ModData[testvect,], type = "response")>0.5) 
   }) %>%
-  bind_cols() %>% set_names(make.names(1:length(BootMod)))# %>%
- # mutate(BootResult =rowSums(.)/ncol(.)>0.5)
+  bind_cols() %>% set_names(make.names(1:length(BootMod)))
   
   return(Predsdf)
   

@@ -138,7 +138,7 @@ MeanWardPrice <- prices %>%
          PrimePerc = Prime/counts, 
          SuperPrimePerc = SuperPrime/counts)
 
-MeanWardPrice %>% ggplot(., aes(x= counts)) + geom_density()
+#MeanWardPrice %>% ggplot(., aes(x= counts)) + geom_density()
 
 # WardDat2 <- WardDat %>% 
 #   left_join(., MeanWardPrice) %>% 
@@ -147,10 +147,6 @@ MeanWardPrice %>% ggplot(., aes(x= counts)) + geom_density()
 
 
 setwd(DataFolder)
-list.files()
-
-#Unnfordability at EW level salery 2014-2015
-mean(prices$X2)/31920
 
 #is mean income estimates
 IncomeEst <- read_excel("1smallareaincomeestimatesdataupdate.xls", sheet = 4, skip = 4) %>%
@@ -159,8 +155,8 @@ gsub("\\.(?=\\.*$)", "", ., perl=TRUE)) #removes trailing full stop.
 
 IncomeEst <- prices %>% 
   filter(X5 %in% c("D", "S", "T", "F")) %>%
-  left_join(., select(EW2, ECODE, MSOA11CD),
-            by =c("lsoa11cd"="ECODE")) %>%
+  #left_join(., select(EW2, ECODE, MSOA11CD),
+  #          by =c("lsoa11cd"="ECODE")) %>%
   group_by(MSOA11CD) %>%
   summarise(MedianPrice = median(X2),
             MeanPrice = mean(X2),

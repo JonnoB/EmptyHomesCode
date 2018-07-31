@@ -1,0 +1,143 @@
+---
+title: "Untitled"
+author: "Jonathan Bourne"
+date: "31 July 2018"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+
+Use the MSOA to make a model it has many examples and maps perfectly to the income estimates
+
+
+
+Number of MSOA per LAD
+```{r}
+
+testMSOA <- EW2 %>%
+  group_by(LAD11CD, MSOA11CD) %>%
+  summarise(counts = n()) %>%
+  group_by(LAD11CD) %>%
+  summarise(counts = n())
+
+testWard <- EW2 %>%
+  group_by(LAD11CD, Admin_ward_code) %>%
+  summarise(counts = n()) %>%
+  group_by(LAD11CD) %>%
+  summarise(counts = n())
+
+```
+
+
+```{r}
+
+test <- DistribCompareBootstrapper(ChelseaLONDATA, 1983, 100, type = NULL, PropertyTypes )
+test1 <- DistribCompareBootstrapper2(ChelseaLONDATA, 1983, 100, type = NULL, PropertyTypes )
+
+test2 <- DistribCompareBootstrapper2(ChelseaLONDATA, 1983, 100, type = NULL, PropertyTypes, GroupVars = "MSOA11CD" )
+
+
+```
+
+
+```{r}
+setwd("/home/jonno/Dropbox/SSE/Empty Homes/BootStrapAuthorities2")
+  
+#Find what needs to be bootstrapped
+BootStrapFiles <- list.files(getwd()) %>% gsub("DATA.rds", "",.)
+  newLADsnames <- sub("DATA", "", ls(pattern = "DATA", envir = globalenv())) %>% 
+    .[!(. %in% BootStrapFiles)] 
+  newLADs <- paste0(newLADsnames, "DATA") 
+
+  
+   #only bootstrap if there is something to add.
+  #Save each boostrap as you go along to avoid losing it all in a crash
+  if(length(newLADsnames)>0){
+    newLADs  %>% walk(~{print(.x)
+      DistribCompareBootstrapper(get(.x), 1652, 1000, type=NULL, PropertyTypes, GroupVars = "MSOA11CD" )%>%
+      saveRDS(., file = paste0(.x, ".rds"))
+      }) 
+  }
+
+  #once all Bootratps complete load them all into a list
+ BootStrapRES <- list.files(getwd()) %>%
+   map(~readRDS(.x))
+ 
+ #name the list
+ names(BootStrapRES) <- list.files(getwd()) %>% gsub(".rds", "",.)
+```
+
+
+#Make modelling dataframe
+
+The variables are
+
+mean deprivation decile
+Affordability
+
+
+
+```{r}
+
+MSOAdep <- LSOADep %>%
+  select(LSOA_CODE, Rank = Rank..where.1.is.most.deprived., Decile = Decile..where.1.is.most.deprived.10..of.LSOAs.) %>%
+  left_join(select(EW2, MSOA11CD, ECODE), by = c("LSOA_CODE"="ECODE")) %>%
+  select(-LSOA_CODE) %>%
+  group_by(MSOA11CD) %>%
+  summarise_all(mean)
+
+
+BootDeets <- BootStrapRES %>% 
+  map_df(~.x %>%
+           mutate(Reference = MedianHomes < MedianLUPs,
+                  MeanPropPrice = (HomesValue+LowUseValue)/(Homes+LowUse)) %>%
+           select(MSOA11CD, MeanPropPrice, Reference, ID)) %>%
+  left_join(select(IncomeEst, MSOA11CD, Yearly.income), by = "MSOA11CD") %>%
+  left_join(MSOAdep, by = "MSOA11CD") %>%
+  mutate(AffordRatio  = MeanPropPrice/Yearly.income,
+         AffordRatio2 = AffordRatio^2,
+         AffordRatio3 = AffordRatio^3)
+
+rm(MSOAdep)
+
+#Why do some have 2000?
+test <- BootDeets %>%
+  group_by(MSOA11CD) %>%
+  summarise(Majority = sum(Reference, na.rm = T)/1000,
+            Total = n())
+
+
+BootDeetsMean <- BootDeets %>%
+  select(MSOA11CD, Reference, Decile, AffordRatio) %>%
+  group_by(MSOA11CD) %>%
+  summarise_all(mean) %>%
+  mutate(Reference = Reference>0.5)
+
+set.seed(1983)
+TestResample <- 1:50 %>% map(~  resample_partition(BootDeetsMean, c(test = 0.1, train = 0.9)))
+
+OpenFormula <- as.formula(Reference~ AffordRatio+ Decile)
+
+BootMod <- MakeBootModels(BootDeets, as.integer(TestResample[[1]]$train))
+Predsdf <- MakeBootPreds(BootDeets, BootMod, as.integer(TestResample[[1]]$test))
+Accdf   <- MakeBootAccuracy(Predsdf, BootDeets, as.integer(TestResample[[1]]$test))
+
+sum(Accdf$Accuracy>Accdf$AccuracyNull)
+
+mean(Accdf$Accuracy)
+
+CoeffsMega <- 1 %>%
+  map_df(~{
+    print(.x)
+    BootMod <- MakeBootModels(BootDeets, as.integer(TestResample[[.x]]$train), ModForm =  OpenFormula)
+
+    #needs to be mapped again to extract every model not just the first 50!
+    Out <- 1:length(BootMod) %>% map_df(~
+                          BootMod[[.x]] %>% tidy %>% mutate(ID = .x)               
+                                        )%>%
+      mutate(Sample = .x)
+  })
+
+```
+

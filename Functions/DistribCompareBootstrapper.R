@@ -1,4 +1,4 @@
-DistribCompareBootstrapper <- function(df, seed, samples=100, type = NULL, PropertyTypes = NULL){
+DistribCompareBootstrapper <- function(df, seed, samples=100, type = NULL, PropertyTypes = NULL, GroupVars = c("class", "classVal", "CountryClass")){
   #df:data frame of processed area/s data
   #LADCD: The LAD code to fetch the correct price data
   # Random seed
@@ -17,10 +17,10 @@ DistribCompareBootstrapper <- function(df, seed, samples=100, type = NULL, Prope
     group_by(LAD11CD) %>%
     mutate(LADCount = n()) %>% ungroup %>%
     filter(!is.na(Admin_ward_code), LADCount == max(LADCount)) %>% #filter out any stray areas that are classed as a different authority
-  select(-LADCount)  
-    
+    select(-LADCount)  
+  
   #Function generated within the function to make sure both Homes and LUPs are calculated the same way.
-  StrappedLowUse <- function(WhichLowUse, HighValue = NA){
+  StrappedLowUse <- function(WhichLowUse, HighValue = NA, Grouping){
     test<- 1:samples %>%
       map_df(~{
         
@@ -41,7 +41,7 @@ DistribCompareBootstrapper <- function(df, seed, samples=100, type = NULL, Prope
           )  %>% mutate(HighVal = Price>HighValue[.x],
                         LADmedian = median(Price, na.rm = T),
                         LADmean = mean(Price, na.rm = T)) %>%
-          group_by(class, classVal, CountryClass) %>%
+          group_by_(.dots = Grouping) %>%
           summarise(Counts = n(),
                     Value = sum(Price),
                     HighVal = sum(HighVal),
@@ -59,10 +59,10 @@ DistribCompareBootstrapper <- function(df, seed, samples=100, type = NULL, Prope
   
   
   print("Start Bootstrapping Homes distribution")
-  #bootrapps LAD housing stock.
+  #bootstraps LAD housing stock.
   set.seed(seed)
-  dfWardHomesStrap1 <- StrappedLowUse("WardHomes") %>%
-    select(-HighVal, -classVal)
+  dfWardHomesStrap1 <- StrappedLowUse("WardHomes", Grouping = GroupVars) %>%
+    select(-HighVal)
   
   print("Start LUP distribution")
   
@@ -70,14 +70,14 @@ DistribCompareBootstrapper <- function(df, seed, samples=100, type = NULL, Prope
     group_by(ID) %>%
     summarise(LADmedian = first(LADmedian)) %>% .$LADmedian #get median price, this can often be the same throughout the vector
   
-  #bootrapps LAD housing stock.
+  #bootstraps LAD housing stock.
   set.seed(seed)
-  dfWardLowUseStrap1 <- StrappedLowUse("WardLowUse", HighValue = HighVal)
+  dfWardLowUseStrap1 <- StrappedLowUse("WardLowUse", HighValue = HighVal, Grouping = GroupVars)
   
   print("LUP distribution Complete")
   
   test1 <- dfWardHomesStrap1  %>% 
-    left_join(., dfWardLowUseStrap1, by = c("class", "ID", "CountryClass")) %>%
+    left_join(., dfWardLowUseStrap1, by = c("ID", GroupVars)) %>%
     rename(LowUse = Counts.y, 
            Homes = Counts.x,
            LowUseValue = Value.y,
