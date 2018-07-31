@@ -5,6 +5,23 @@ date: "5 July 2017"
 output: html_document
 ---
 
+Are LUPS concentrated in specific areas?
+  They are more concentrated than homes in general
+Are LUPs more or less expensive?
+  They tend to be concentrated in more expensive areas
+Are High value LUP LADS predictable?
+   They are predictable using number of vacants deprivation and price
+What is the relationship between LUPs and affordability?
+   A bath Tub curve
+What would the revenue from an empty homes tax be in the current situation?
+  A lot
+  
+What do I conclude?
+  That there is a clear relationship between LUPs and price/unnafordability with the theorized curve being observed.
+  That areas with high prices tend to have more LUPs
+  That these areas may not have the space to build new property
+That building property in areas of high value LUPs means more LUPs as buyers invest in property, thus negating the purpose of the buidling.
+
 new article and paper on airbnb effecr
 https://www.citylab.com/equity/2018/03/what-airbnb-did-to-new-york-city/552749/?utm_source=atlfb
 
@@ -46,7 +63,7 @@ As local authorities are public sector bodies (shown in the public sector classi
 
 "5.—(1) These Regulations do not apply to a document where—
 
-(a)the activity of supplying the document is one which falls outside the public task of the public sector body, provided that the scope of the public task of that body is transparent and subject to review; or""
+(a)the activity of supplying the document is one which falls outside the public task of the public sector body, provided that the scope of the public task of that body is transparent and subject to review"
 
 As the document the councils needed to complete is custom made and not part of the public task, the RPSI does not cover the resultant work and licencing reverts to the FOIA. 
 The FOIA states that a specific licence must be given for all datasets released under the act. As no charge has been levied against the use of the data then the default Open government licence is applied following section 69 of the "Datasets (sections 11, 19 & 45)" FOI guidance document.
@@ -511,50 +528,53 @@ DurhamDATA <- read_excel("County DurhamDiscountsLSOA.XLSX" , sheet=1) %>% .[,c(1
 
 #Wales
 
+Wales is removed to simplify the process.
+As the deprivation scales are separate for all countries this means wales cannot be included in the predictive model later. Also the council tax is seperate.
+
 ```{r}
-
-setwd(file.path(RegionsComp, "Region Wales"))
-list.files()
-
-#Ceredigion completed some major Student Halls which were transferred to the University, this created some very large B type transfers which artificially push the cost of second homes lower than the price of regular homes.
-
-CeredigionDATA <- read_excel("CTAX - Ceredigion Discounts LSOA.xlsx", sheet=1)%>% .[,1:4] %>%
-  StructureData(lowuse =c(8:13,15))
-
-MonmouthDATA <- read_excel("MCC Discounts Jul 17.xlsx", sheet=1)%>% .[,1:4] %>%
-  StructureData(lowuse = c(4:8))
-
-
-#includes the zero class which is descibeed as 
-#ZERO – tis is a 50% reduction which applies after exemptions that are time limited, have expired. They are awarded on the basis that the property remains unoccupied and unfurnished.
-  CarmarthenDATA <- read_excel("CarmarthenshireDiscountsLSOA.XLSX" , sheet=1)%>% .[,1:4] %>%
-    StructureData()
-
-#Strangely low numbers checking
-# PowysDATA <- read_excel("PowysDiscountsLSOA.XLSX"    , sheet=1)%>% .[,1:4] %>%
-#   StructureData(lowuse = c(3,5:6))
-
-#It seems Conwy really is this short on the discounts  
-ConwyDATA <- read_excel("Conwy FOI 0260-17.xlsx" , sheet=1) %>%
-  rename(Postcode = geo_postcode) %>%
-  mutate(Postcode = sub(" ", "", Postcode)) %>%
-  left_join(., PstCdLSOA.raw,  by=c("Postcode") ) %>%
-  rename(Exemption.type=disc_type_desc, LSOA_CODE = lsoa11cd) %>%
-  select(Exemption.type, LSOA_CODE, Postcode, Country_code) %>%
-  StructureData(lowuse = c(2,4))
-
-DenbigshireDATA <- read_excel("FOI 2503 Denbighshirev2 .xlsx" , sheet=1)%>% .[,1:4] %>%
-    StructureData(c(8:9,11,13))
-
-WrexhamDATA <- read_csv("WrexhamDiscountsLSOA.csv" )%>% .[,1:4] %>%
-    StructureData(2:5)
-
-#Pembrokeshire didn't send all the data
-PembrokeshireDATA <- read_excel("Copy of PembrokeshireDiscountsLSOA.xlsx"  , sheet=1)%>% .[,1:4] %>%
-    StructureData(3)
-
-FlintshireDATA <- read_excel("FOI R014329 FlintshireDiscounts LSOA.xlsx"  , sheet=1)%>% .[,1:4] %>%
-    StructureData()
+# 
+# setwd(file.path(RegionsComp, "Region Wales"))
+# list.files()
+# 
+# #Ceredigion completed some major Student Halls which were transferred to the University, this created some very large B type transfers which artificially push the cost of second homes lower than the price of regular homes.
+# 
+# CeredigionDATA <- read_excel("CTAX - Ceredigion Discounts LSOA.xlsx", sheet=1)%>% .[,1:4] %>%
+#   StructureData(lowuse =c(8:13,15))
+# 
+# MonmouthDATA <- read_excel("MCC Discounts Jul 17.xlsx", sheet=1)%>% .[,1:4] %>%
+#   StructureData(lowuse = c(4:8))
+# 
+# 
+# #includes the zero class which is descibeed as 
+# #ZERO – tis is a 50% reduction which applies after exemptions that are time limited, have expired. They are awarded on the basis that the property remains unoccupied and unfurnished.
+#   CarmarthenDATA <- read_excel("CarmarthenshireDiscountsLSOA.XLSX" , sheet=1)%>% .[,1:4] %>%
+#     StructureData()
+# 
+# #Strangely low numbers checking
+# # PowysDATA <- read_excel("PowysDiscountsLSOA.XLSX"    , sheet=1)%>% .[,1:4] %>%
+# #   StructureData(lowuse = c(3,5:6))
+# 
+# #It seems Conwy really is this short on the discounts  
+# ConwyDATA <- read_excel("Conwy FOI 0260-17.xlsx" , sheet=1) %>%
+#   rename(Postcode = geo_postcode) %>%
+#   mutate(Postcode = sub(" ", "", Postcode)) %>%
+#   left_join(., PstCdLSOA.raw,  by=c("Postcode") ) %>%
+#   rename(Exemption.type=disc_type_desc, LSOA_CODE = lsoa11cd) %>%
+#   select(Exemption.type, LSOA_CODE, Postcode, Country_code) %>%
+#   StructureData(lowuse = c(2,4))
+# 
+# DenbigshireDATA <- read_excel("FOI 2503 Denbighshirev2 .xlsx" , sheet=1)%>% .[,1:4] %>%
+#     StructureData(c(8:9,11,13))
+# 
+# WrexhamDATA <- read_csv("WrexhamDiscountsLSOA.csv" )%>% .[,1:4] %>%
+#     StructureData(2:5)
+# 
+# #Pembrokeshire didn't send all the data
+# PembrokeshireDATA <- read_excel("Copy of PembrokeshireDiscountsLSOA.xlsx"  , sheet=1)%>% .[,1:4] %>%
+#     StructureData(3)
+# 
+# FlintshireDATA <- read_excel("FOI R014329 FlintshireDiscounts LSOA.xlsx"  , sheet=1)%>% .[,1:4] %>%
+#     StructureData()
 
 
 ```
@@ -643,62 +663,15 @@ length(ls(pattern = "DATA"))/(EW2$LAD11NM %>% unique %>% length())
 ```
 
 
-#Plot stuff
-```{r}
-x <-bind_rows(SouthwarkLONDATA, TowerDATA, LambethLONDATA, CoLLONDATA, NewhamLONDATA) %>% MakeLeaflet
-
-z<- MakeLeaflet(AllerdaleDATA)
-z
-# 
-setwd(basewd)
- saveWidget(z, file=file.path(basewd, "Cumbria.html"), selfcontained = TRUE )
-
-#testSouth <- DistribCompareBootstrapper(SouthwarkLONDAls(pattern = "DATA")TA, 1652, 1000)
-testSouth %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100) %>% 
-  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
-  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
-
-ValueTtest(test)
-
-PlotMap(ConwyDATA)
-
-z <-ChelseaLONDATA %>% 
-  mutate(LAD11CD = ifelse(LAD11CD  == "E09000005", "E05009388" ,LAD11CD)) %>% #kept adding in Barnet
-  filter(LAD11NM =="Kensington and Chelsea") %>% 
-  MakeLeaflet()
-
-mapshot(z, file = file.path(Figures, "Chelsea.pdf"))
-
-CumbriaPlot <- ls(pattern = "CUMBRIA") %>% 
-  map_df(~get(.x)) %>%
-   group_by(LSOA_CODE) %>%
-   summarise(LowUse = sum(LowUse, na.rm = TRUE)) %>% 
-  CalcLowUse()
-
-z<- MakeLeaflet(CumbriaPlot)
-
-mapshot(z, file = file.path(Figures, "Cumbria.pdf"))
-
-
-
-z<- MakeLeaflet(CornwallDATA)
-mapshot(z, file = file.path(Figures, "Cornwall.pdf"))
-
-z<- MakeLeaflet(BarrowCUMBRIADATA)
-mapshot(z, file = file.path(Figures, "Barrow.pdf"))
-
-
-MakeLeaflet(ConwyDATA)
-
-```
-
-#Look at saleries
+#Saleries
 ```{r}
 
 unafford <- ls(pattern = "DATA") %>%
   map_df(~get(.x) %>% select(LowUse:WardLowuseClass)) %>%
-  group_by(MSOA11CD) %>%
-  summarise(LowUse = sum(LowUse, na.rm = T),
+  group_by(MSOA11CD) %>% # ward code is used for consistency
+  summarise(
+    #MSOA11CD = first(MSOA11CD), #MSOA is kept to allow joining of income
+    LowUse = sum(LowUse, na.rm = T),
             Homes = sum(Homes, na.rm = T),
             Pop = sum(Pop, na.rm = T)) %>%
   mutate(LowUsePerc = LowUse/Homes) %>%
@@ -714,18 +687,6 @@ unaffordExLon <- unafford %>%
 unaffordLon <- unafford %>%
   filter(Region.name == "London") %>%
   mutate(decile = ntile(ratio, 50))
-
-cor(unaffordExLon$LowUsePerc, unaffordExLon$ratio)
-cor(unafford$Yearly.income, unafford$ratio, "complete.obs")
-
-cor(unaffordExLon$LowUsePerc, unaffordExLon$MedianPrice)
-cor(unaffordExLon$Yearly.income, unaffordExLon$MedianPrice)
-cor(unafford$Yearly.income, unafford$MeanPrice, "complete.obs")
-
-
-test <- lm(MedianPrice ~ LowUsePerc + Yearly.income, data  = unafford)
-
-summary(test)
 
 decile <- bind_rows(mutate(unaffordExLon, type = "Excluding London"), 
                     mutate(unafford, type = "Including London"),
@@ -745,54 +706,34 @@ decile <- bind_rows(mutate(unaffordExLon, type = "Excluding London"),
          expvalneg = exp(-decile)) %>%
   filter(!is.na(decile))
 
+cor(unafford$Yearly.income, unafford$ratio, "complete.obs")
+cor(unaffordExLon$Yearly.income, unaffordExLon$MedianPrice)
+cor(unafford$Yearly.income, unafford$MeanPrice, "complete.obs")
+lm(MedianPrice ~ LowUsePerc + Yearly.income, data  = unafford) %>% summary
+
+rm(unafford); rm(unaffordExLon); rm(unaffordLon)
+
 #Looking at the relationship between unaffordability and LUP percentage
 
 decile %>% 
-#  filter(type == "Only London") %>% 
+  #filter(type == "Excluding London") %>% 
   ggplot(aes(x= decile, y = median)) + 
   facet_grid(.~type) + 
   #geom_point(data =unaffordExLon , aes(x= decile, y = LowUsePerc), alpha = 0.2 )+
   geom_point(aes(colour = type))  +
   labs(x = "2 percentile group", y = "median Percent Low Use") + 
   theme(legend.position= "none") + 
-  geom_smooth(method="loess",se=FALSE, colour = "black")
+  geom_smooth(method="loess",se=FALSE, colour = "black") +
+ coord_cartesian(ylim = c(0.01, 0.05)) +
+   scale_y_continuous(labels = scales::percent)
 SaveFig("LowUsePercVSratio.pdf")
 
-decile %>% 
-  filter(type == "Excluding London") %>% 
-  ggplot(aes(x= ratio, y = median)) + 
-  facet_grid(.~type) + 
-  #geom_point(data =unaffordExLon , aes(x= decile, y = LowUsePerc), alpha = 0.2 )+
-  geom_point(aes(colour = type))  +
-  labs(x = "ith 2 percentile group", y = "median Percent Low Use") + 
-  theme(legend.position= "none") + 
-  geom_smooth(method="loess",se=FALSE, colour = "black")
-
-
-#model fit
-decile %>% 
-    filter(type == "Excluding London") %>% 
-  lm(median~decile +decile2, data = .) %>% summary
-
-#model fit
-decile %>% 
-    filter(type == "Excluding London") %>% 
-lm(median~ratio + ratio2, data = .) %>% summary
-
-decile %>% 
-    filter(type == "Excluding London") %>% 
-lm(median~expval + expvalneg, data = .) %>% summary
 
 #make nonlinear  model
 mod <- decile %>% 
     filter(type == "Excluding London") %>% 
   nls(median ~ exp(a + b*decile)+  exp(d + c*decile), data = ., 
       start = list(a = 0, b = -3, c = 0, d = 0))
-
-mod2 <- decile %>% 
-    filter(type == "Only London") %>% 
-  nls(median ~ exp(a + b*decile), data = ., 
-      start = list(a = 0, b = -3))
 
 summary(mod)
 
@@ -801,10 +742,6 @@ decile %>%
   ggplot(aes(x = decile, y = median))+
   geom_point() +
   geom_line(aes(y = predict(mod, list(x = decile))))
-
-
-unafford %>%
-  ggplot(aes(x= ratio, y = MeanPrice)) + geom_point()
 
 #Example of the theoretical relationship
 
@@ -841,7 +778,7 @@ unaffordLAD <- unafford %>%
 Now all the data is loaded each LAD needs to be bootstrapped
 
 ```{r}
-
+PropertyTypes <- c("D", "S", "T", "F")
 setwd("/home/jonno/Dropbox/SSE/Empty Homes/BootStrapAuthorities")
   
 #Find what needs to be bootstrapped
@@ -868,85 +805,65 @@ BootStrapFiles <- list.files(getwd()) %>% gsub("DATA.rds", "",.)
  names(BootStrapRES) <- list.files(getwd()) %>% gsub(".rds", "",.)
 
 
-BootStrapRESExO <- BootStrapRES
-#Should clean up and remove EXO
-rm(BootStrapRES)
-
 #Make a summary dataframe
-Combine1ExO <- BootResSummaryData(BootStrapRESExO) 
+Combine1ExO <- BootResSummaryData(BootStrapRES) 
 
 
 
 ```
 
 
-#Make class plots of bootstrap results
+#Analyse Bootstrap
+
 
 ```{r}
-test <- BootStrapRESExO$WestminsterLON %>% 
-  group_by(class) %>%
-  summarise_all(funs(mean))
-
-
-test2 <- test %>%
-  select(-class) %>%
-  summarise_all(funs(sum)) %>%
-  mutate(LowUseValue = LowUseValue/1e9)
-
-
 #99% of the LADs are significantly different from 0 at the 95% level
 sum(Combine1ExO$Ttest.p.value>0.975 |Combine1ExO$Ttest.p.value<0.025)/nrow(Combine1ExO)
 
-PlotClassDiff(BootStrapRESExO$ChelseaLON, "Kensington and Chelsea")
+CleanForPlotClassDiff <- function(df){ #not a seperate function for ease of editing
+  df %>% 
+  group_by(ID, class) %>%
+  summarise(Homes = sum(Homes), LowUse = sum(LowUse)) %>%
+  group_by(ID)%>%
+  mutate(RatioExvsAct = LowUse/sum(LowUse)) %>%
+  mutate(RatioExvsAct = (RatioExvsAct/0.25)-1)
+}
+
+CleanForPlotClassDiff(BootStrapRES$ChelseaLON)  %>%
+PlotClassDiff(., "Kensington and Chelsea")
 SaveFig("ClassdiffChelsea.pdf")
 
-PlotClassDiff(BootStrapRESExO$Cornwall, "Cornwall")
+CleanForPlotClassDiff(BootStrapRES$Cornwall)  %>%
+PlotClassDiff(., "Cornwall")
 SaveFig("ClassdiffCornwall.pdf")
 
-PlotClassDiff(BootStrapRESExO$BarrowCUMBRIA, "Barrow")
+CleanForPlotClassDiff(BootStrapRES$BarrowCUMBRIA) %>%
+PlotClassDiff(., "Barrow")
 SaveFig("ClassdiffBarrow.pdf")
 
-test <- BootStrapRESExO %>% 
-  bind_rows %>%
-  select(-LAD11CD) %>%
-  group_by(class, ID) %>%
-  summarise_all(sum) %>%
-  ungroup %>%
-  mutate(HomesPrice = HomesValue/Homes,
-         LowUsePrice = LowUseValue/LowUse,         
-         ratio = LowUse/Homes,
-         HomesPerc = Homes/sum(Homes, rm.na = T),
-         LowUsePerc = LowUse/sum(LowUse, rm.na = T),
-         ClassPerc = LowUse/Homes,
-         ExpectedHomes = HomesPerc*sum(LowUse, rm.na = T),
-         RatioExvsAct = LowUse/ExpectedHomes
-         ) %>%
-        mutate(class = fct_relevel(class,c("Lower", "Mid", "Upper", "Prime", "Super")),
-               LUPmore = RatioExvsAct>1)
 
-test2 <- test %>% group_by(class) %>%
+#Plot for all data
+All_data_class <- BootStrapRES %>% 
+  bind_rows %>%
+  select(CountryClass, ID, LowUse, Homes) %>%
+  rename(class = CountryClass)%>%
+  CleanForPlotClassDiff
+
+All_data_class %>% group_by(class) %>%
   summarise_all(mean)
 
-PlotClassDiff(test)
+
+PlotClassDiff(All_data_class)
 SaveFig("ClassdiffAllData.pdf")
-
-
-test %>% 
-  mutate(RatioExvsAct = LowUsePrice/HomesPrice) %>%
-   mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
-     ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + 
-     geom_boxplot() + 
-     labs(title = "Observed within class difference in Price from expected for LUPs")
-SaveFig("PricediffAllData.pdf")
 
 
 #Total value of homes and LUPS
 
-LADnames <- names(BootStrapRESExO)
+#LADnames <- names(BootStrapRES)
 
-LUPval <-   map2(.x =BootStrapRESExO, .y =   names(BootStrapRESExO),~ {.x %>% mutate(LAD  = .y)}) %>%
+LUPval <-   map2(.x =BootStrapRES, .y =   names(BootStrapRES),~ {.x %>% mutate(LAD  = .y)}) %>%
   bind_rows %>%
-  select(-class, -LAD11CD) %>%
+  select(-class, -LAD11CD, -CountryClass,-classVal) %>%
   group_by(LAD, ID) %>%
   summarise_all(sum) %>%
   group_by(LAD) %>%
@@ -969,18 +886,12 @@ LUPval$VancouverTax %>% sum(.)/1000
 
 ```
 
-
-
 #Explore results
-
-This chunk calculates for both A and B
 
 ```{r}
 
 LADNMs <- EW2 %>% group_by(LAD11CD) %>%
   summarise(LAD11NM = first(LAD11NM))
-
-PropertyTypes <- c("D", "S", "T", "F")
 
 #calulcate the number of properties sold and the mean price
 ABratio <- prices %>% 
@@ -1008,6 +919,63 @@ CombineAB <-left_join(ABratio2, ABratio3, by = "LAD11CD") %>%
 
 rm(ABratio); rm(ABratio2); rm(ABratio3)
 
+CombineAB %>%
+  ggplot(.,aes(x= diffPerc, y = Ttest.p.value, colour = Valueratio>1)) + geom_point()
+
+```
+
+
+#Overall Concentration plot
+
+This chunk makes a plot that shows that LUPs are more heavily concentrated than Homes
+
+```{r}
+   test <- ls(pattern = "DATA") %>%
+  map_df( ~get(.x) %>%
+            select(LSOA_CODE, Admin_ward_code, LowUse, Homes))%>%
+  group_by(Admin_ward_code) %>%
+  summarise(LowUse = sum(LowUse),
+            Homes = sum(Homes)) %>%
+  filter(!is.na(Homes)) 
+
+%>%
+  arrange(-LowUse) %>%
+  mutate(
+    CumsumLUP = cumsum(LowUse),
+    CumsumLUPPerc = CumsumLUP/sum(LowUse),
+    CumsumHomes = cumsum(Homes),
+    CumsumHomesPerc = CumsumHomes/max(CumsumHomes),
+    CumsumNumber = 1:nrow(.),
+    CumsumPercNumber = CumsumNumber/max(CumsumNumber)) 
+
+test2 <- test %>%
+  gather(key = Type, value = value, -Admin_ward_code) %>%
+  group_by(Type) %>%
+  arrange(-value) %>%
+  mutate(
+    Cumsum = cumsum(value),
+    CumPerc = Cumsum/sum(value),
+    CumsumNumber = 1:n(),
+    CumsumPercNumber = CumsumNumber/max(CumsumNumber)) 
+
+test2%>%
+  ggplot(aes(x = CumsumPercNumber, y = CumPerc, colour = Type)) + geom_line() +
+  labs(
+    title= "Comparison of LUP vs Home concentration", 
+       y= "Percent of total property type", 
+    x= "Cumulative percent of administrative wards") +
+  scale_color_discrete(labels = c("Homes", "LUPs"))+
+   scale_y_continuous(labels = scales::percent)+
+  scale_x_continuous(labels = scales::percent)
+SaveFig("LUPConcentration.pdf")
+
+test3 <-test2 %>%
+  select(Type, CumPerc, CumsumPercNumber) %>%
+  spread(key = "Type", value = "CumPerc") %>%
+  mutate(ratio = LowUse/Homes-1)
+
+test3 %>%
+  ggplot(aes(x= CumsumPercNumber, y = ratio)) + geom_line()
 
 ```
 
@@ -1053,17 +1021,38 @@ Combine1ExO %>% ggplot(.,aes(x= maxPerc, y = LUPdepExt, colour = absdiff>0)) +
 ##Create modelling dataframe
 
 ```{r}
+LADincome <- EW2 %>%
+  group_by(MSOA11CD) %>%
+  summarise(Pop = sum(Pop),
+            LAD11CD = first(LAD11CD)) %>%
+  ungroup %>%
+  select(LAD11CD,MSOA11CD, Pop)%>%
+ left_join(IncomeEst %>%
+              select( MSOA11CD, Yearly.income), by = "MSOA11CD") %>%
+  mutate(TotalIncome = Pop*Yearly.income) %>%
+  group_by(LAD11CD) %>%
+  summarise(Pop = sum(Pop),
+            income = sum(TotalIncome)) %>%
+   mutate(income = income/Pop)
+  
+
+
+
 LADprice <- prices %>%
   filter(X5!= "O") %>%
   group_by(Admin_district_code) %>%
 summarise(price = mean(X2)) %>%
-  mutate(pricepercent = percent_rank(price))
+  mutate(pricepercent = percent_rank(price)) %>%
+  ungroup
 
 ModelMe <- Combine1ExO %>%
   left_join(LADprice, by = c("LAD11CD"="Admin_district_code"))%>%
-  left_join(Vacants, by = "LAD11CD") %>%
+  left_join(Vacants, by = "LAD11CD") %>%  
+  left_join(LADincome %>%
+              select(LAD11CD, income ), by = "LAD11CD") %>%
   mutate(VacantsPerc = Vacants/Homes,
-         LTVPerc = Vacants/Homes) %>%
+         LTVPerc = Vacants/Homes,
+         afford = price/income) %>%
   #filter out wales
   filter(!grepl("W", LAD11CD)) %>%
   mutate(Reference = as.factor(absdiff>0) ) %>%
@@ -1072,9 +1061,17 @@ ModelMe <- Combine1ExO %>%
          LUPdepExt = scale(LUPdepExt) %>% as.numeric,
          maxPerc = scale(maxPerc) %>% as.numeric,
          VacantsPerc = scale(VacantsPerc) %>% as.numeric,
-         price = scale(price) %>% as.numeric,
-         Extent = scale(Extent) %>% as.numeric) %>%
-  mutate(Reference = (HighVal>(LUPS-HighVal)) %>% as.factor)
+         price = price %>% scale %>% as.numeric,
+         Extent = scale(Extent) %>% as.numeric) #%>%
+ # mutate(Reference = (HighVal>(LUPS-HighVal)) %>% as.factor)
+
+ModelMe %>% ggplot(aes(x = afford, y = (LUPS/(Homes+LUPS)), colour = Reference)) + geom_point()
+
+#57% of LADs have mostly high value properties
+table(ModelMe$Reference)
+
+rm(LADincome)
+
 ```
 
 
@@ -1106,21 +1103,26 @@ map2_dbl( select_(df,Var) %>% flatten, ~{assessment(.x) %>%
 
 FOIFormula <- as.formula(Reference~ LUPdepExt + price + VacantsPerc)
 OpenFormula <- as.formula(Reference~ Extent + price + VacantsPerc)
+OpenFormula2 <- as.formula(Reference~ Extent + price)
 
 set.seed(4622)
 Modeldf <- ModelMe  %>%
-  vfold_cv(., V = 10, repeats = 10) %>%
+  vfold_cv(., V = 5, repeats = 200) %>%
   mutate(LogisticFOI = splits %>%
   map(.,~{ glm(FOIFormula, data = analysis(.x),binomial(link='logit'))}
         ),
   LogisticOpen = splits %>%
   map(.,~{ glm(OpenFormula, data = analysis(.x),binomial(link='logit'))}
         ),
+  LogisticOpen2 = splits %>%
+  map(.,~{ glm(OpenFormula2, data = analysis(.x),binomial(link='logit'))}
+        ),
   ForestOpen = splits %>% 
-    map(., ~{rpart(OpenFormula, data=analysis(.x))})
+    map(., ~{rpart(OpenFormula2, data=analysis(.x))})
   ) %>%
   mutate(LogFoiAcc = GetAccuracy(., "splits", "LogisticFOI"),
-         LogOpenAcc = GetAccuracy(., "splits", "LogisticOpen"), 
+         LogOpenAcc = GetAccuracy(., "splits", "LogisticOpen"),
+         LogOpenAcc2 = GetAccuracy(., "splits", "LogisticOpen2"),
          ForestOpenAcc = GetAccuracyForest(., "splits", "ForestOpen"))
 
 Modeldf$LogisticOpen %>%
@@ -1133,7 +1135,7 @@ SaveFig("ModelCoeffs.pdf")
 
 
 ModComp <- Modeldf %>%
-  select(LogFoiAcc, LogOpenAcc, ForestOpenAcc) %>%
+  select(LogFoiAcc, LogOpenAcc, ForestOpenAcc, LogOpenAcc2) %>%
   gather
   
   ModComp %>%
@@ -1142,12 +1144,304 @@ ModComp <- Modeldf %>%
 
   ModComp %>%
   group_by(model) %>%
-  summarise(mean =mean(statistic))
+  summarise(mean =mean(statistic),
+            median = median(statistic))
+  
+  
+   test <- select_(Modeldf, "splits") %>% 
+     flatten %>%
+     map2(select_(Modeldf,"LogisticFOI") %>% flatten, ., ~{ augment(.x, newdata = assessment(.y)) %>%
+               mutate(.fitted = factor(.fitted > 0,
+                        levels = as.factor(c("FALSE", "TRUE"))))
+     }) 
+   
+
+
+```
+
+#Model two
+
+Older modelling style as I am not sure what is happening with the current method.
+```{r}
+reps <- 1000
+
+set.seed(1983)
+TestResample <- 1:reps %>% map(~  resample_partition(ModelMe, c(test = 0.2, train = 0.8)))
+
+LogFOI <- 1:reps %>% map_df(~{
+  train<- TestResample[[.x]]$train %>% as.data.frame
+  test <- TestResample[[.x]]$test %>% as.data.frame
+  ;
+  model <- glm(FOIFormula, 
+               family=binomial(link='logit'),
+               train)
+
+  Confmat <- confusionMatrix( predict(model, test, type = "response")>0.5,
+                              test$Reference) 
+
+  Out<- bind_cols(Confmat$overall %>% as.matrix %>%t %>% data.frame,
+          Confmat$byClass %>% as.matrix %>%t %>% data.frame,
+          coefficients(model)%>% as.matrix %>%t %>% data.frame) %>%
+  mutate(ID = .x)
+
+}
+)
+
+LogOpen<- 1:reps %>% map_df(~{
+  TestResample<- TestResample[[.x]]
+  
+  model <- glm(OpenFormula, 
+               family=binomial(link='logit'),
+               as.data.frame(TestResample$train))
+
+  Confmat <- confusionMatrix( predict(model, as.data.frame(TestResample$test), type = "response")>0.5,
+                              as.data.frame(TestResample$test)$Reference) 
+
+  Out<- bind_cols(Confmat$overall %>% as.matrix %>%t %>% data.frame,
+          Confmat$byClass %>% as.matrix %>%t %>% data.frame,
+          coefficients(model)%>% as.matrix %>%t %>% data.frame) %>%
+  mutate(ID = .x)
+
+}
+)
+
+ForestOpen<- 1:reps %>% map_df(~{
+  TestResample<- TestResample[[.x]]
+  
+  model <- rpart(OpenFormula, data = as.data.frame(TestResample$train))
+
+  Confmat <- confusionMatrix( predict(model, as.data.frame(TestResample$test), type = "prob")[,2]>0.5,
+                              as.data.frame(TestResample$test)$Reference) 
+
+  Out<- bind_cols(Confmat$overall %>% as.matrix %>%t %>% data.frame,
+          Confmat$byClass %>% as.matrix %>%t %>% data.frame) %>%
+  mutate(ID = .x)
+
+}
+)
+
+
+ModRes <- bind_rows(LogFOI, LogOpen, ForestOpen) %>%
+  mutate(Model = rep(c("LogFOI", "LogOpen", "ForestOpen"), each = reps))
+
+
+ModRes %>%
+  ggplot(aes(x= Model, y = Accuracy)) +
+  geom_boxplot()
+
+
+
+ModRes %>%
+  group_by(Model) %>%
+  summarise(mean = mean(Accuracy),
+            median = median(Accuracy),
+            above = sum(Accuracy>AccuracyNull)/reps,
+            above2 = median(Accuracy-AccuracyNull),
+            NullMean = mean(AccuracyNull),
+            NullMedian = median(AccuracyNull))
+
+
+```
+
+
+```{r}
+  
+  BootDeets <- BootStrapRES %>% map_df(~.x %>% group_by(ID) %>%
+                                    summarise(HighVal = sum(HighVal, na.rm = T),
+                                              LAD11CD= first(LAD11CD),) 
+  ) %>% 
+  left_join(., Combine1ExO %>% select(LAD11CD, LUPS)) %>%
+  mutate(Majority = HighVal>=(LUPS/2)) %>%
+  left_join(., select(ModelMe, LAD11CD, Extent, price, VacantsPerc), by = "LAD11CD") %>%
+  mutate(Reference = HighVal>(LUPS/2))
+
+
+#There is in fact boostrap variation on which LADS are majority
+test <- BootDeets %>%
+  group_by(LAD11CD) %>%
+  summarise(Majority = sum(Majority, na.rm = T)/1000,
+            Total = n(),
+            t2 = abs(Majority-0.5)+0.5)
+
+test %>%
+  ggplot(aes(x = Majority)) + geom_density()
+
+test2 <- BootStrapRES$IslingtonLONDATA %>%
+  group_by( ID) %>%
+  summarise(HighVal = sum(HighVal),
+            LowUse = sum(LowUse))
+
+
+median(test$t2)
+
+BootModData <- select(BootDeets, ID, LAD11CD, Majority) %>%
+  left_join(., select(ModelMe, LAD11CD, Reference,LUPdepExt, price, VacantsPerc, Extent))
+
+
+#make list of bootstrap models
+MakeBootModels <- function(df, trainvect, ModForm = OpenFormula){
+  
+  BootMod <- (1:max(df$ID)) %>%
+  map(~{
+    
+    ModData <- df %>%
+      filter(ID ==.x)
+
+  model <- glm(ModForm, 
+               family=binomial(link='logit'),
+               data = ModData[trainvect,])
+      
+  }
+    
+  )
+  
+}
+
+#extract predictions
+MakeBootPreds <- function(df, BootMod, testvect){
+  
+  Predsdf <- 1:length(BootMod) %>%
+  map(~{
+    
+        ModData <- df %>%
+      filter(ID ==.x)
+    
+    
+    tibble(v1 =predict(BootMod[[.x]], ModData[testvect,], type = "response")>0.5) 
+  }) %>%
+  bind_cols() %>% set_names(make.names(1:length(BootMod)))# %>%
+ # mutate(BootResult =rowSums(.)/ncol(.)>0.5)
+  
+  return(Predsdf)
+  
+}
+
+#get the accuracy across all bootstraps
+MakeBootAccuracy <- function(Predsdf, df, testvect){
+  
+    Accdf <- 1:ncol(Predsdf) %>%
+  map_df(~{
+    
+    ModData <- df %>%
+      filter(ID ==.x)
+    
+
+    Confmat <- confusionMatrix( Predsdf[,.x] %>% unlist,
+                              ModData$Reference[testvect])
+    # Confmat <- bind_cols(Predsdf %>% select(.x),
+    #                   as.data.frame(testvect) %>% select(Reference)) %>%
+    #   set_names(c("Predictions", "Reference")) %>%
+    #   mutate(Predictions = factor(Predictions,
+    #                     levels = as.factor(c("FALSE", "TRUE")))) %>%
+    #   conf_mat(truth = Reference, estimate = Predictions)
+
+          
+
+  Out<- bind_cols(Confmat$overall %>% as.matrix %>%t %>% data.frame,
+          Confmat$byClass %>% as.matrix %>%t %>% data.frame) %>%
+  mutate(ID = .x)
+  
+  })
+  
+}
+
+
+OpenFormula <- as.formula(Reference~ Extent + price)
+BootMod <- MakeBootModels(BootDeets, as.integer(TestResample[[1]]$train))
+Predsdf <- MakeBootPreds(BootDeets, BootMod, as.integer(TestResample[[1]]$test))
+Accdf   <- MakeBootAccuracy(Predsdf, BootDeets, as.integer(TestResample[[1]]$test))
+
+bind_rows(Accdf %>%mutate(modelOpen = "V1"), 
+          Accdf2 %>%mutate(modelOpen = "V2")) %>%
+  ggplot(aes(x = modelOpen, y = AccuracyPValue)) + geom_boxplot()
+
+Confmat <- confusionMatrix(rowSums(Predsdf)/ncol(Predsdf)>0.5, as.data.frame(TestResample[[1]]$test)$Reference)
+  BootOut <- bind_cols(Confmat$overall %>% as.matrix %>%t %>% data.frame,
+          Confmat$byClass %>% as.matrix %>%t %>% data.frame) %>%
+  mutate(ID = 1001)
+
+Coeffs1 <- 1:length(BootMod) %>%
+  map_df(~BootMod[[.x]] %>% tidy %>% mutate(ID = .x) ) %>%
+  mutate(model = "Open1")
+
+Coeffs1 %>%
+  filter(term != "VacantsPerc", term != "(Intercept)") %>%
+  ggplot(aes(x = term, y = p.value, fill = term)) + geom_boxplot() + 
+  coord_cartesian(y = c(0,0.12))
+  
+Accdf <- bind_rows(Accdf, BootOut)
+
+set.seed(1983)
+TestResample <- 1:50 %>% map(~  resample_partition(ModelMe, c(test = 0.1, train = 0.9)))
+
+AccMega <- 50:1 %>%
+  map_df(~{
+    print(.x)
+    BootMod <- MakeBootModels(BootDeets, as.integer(TestResample[[.x]]$train),ModForm =  as.formula(Reference~ + price))
+Predsdf <- MakeBootPreds(BootDeets, BootMod, as.integer(TestResample[[.x]]$test))
+Accdf   <- MakeBootAccuracy(Predsdf, BootDeets, as.integer(TestResample[[.x]]$test))
+
+Confmat <- confusionMatrix(rowSums(Predsdf)/ncol(Predsdf)>0.5, as.data.frame(TestResample[[.x]]$test)$Reference)
+  BootOut <- bind_cols(Confmat$overall %>% as.matrix %>%t %>% data.frame,
+          Confmat$byClass %>% as.matrix %>%t %>% data.frame) %>%
+  mutate(ID = 1001)
+  
+bind_rows(Accdf, BootOut) %>%
+  mutate(Sample = .x)
+  })
+
+
+CoeffsMega <- 50:1 %>%
+  map_df(~{
+    print(.x)
+    BootMod <- MakeBootModels(BootDeets, as.integer(TestResample[[.x]]$train), ModForm =  as.formula(Reference~ + price))
+
+    #needs to be mapped again to extract every model not just the first 50!
+BootMod[[.x]] %>% tidy %>% mutate(ID = .x) %>%
+  mutate(Sample = .x)
+  })
+
+CoeffsMega <- CoeffsMega %>%
+  mutate(beats = p.value<0.05)
+
+CoeffsMega %>%
+  filter(term != "VacantsPerc", term != "(Intercept)") %>%
+  ggplot(aes(x = term, y = p.value, fill = term)) + geom_boxplot() + 
+  coord_cartesian(y = c(0,0.12))
+
+
+test<- CoeffsMega %>%
+  group_by(term) %>%
+  summarise_all(funs(mean, median))
+
+  
+
+table((AccMega$Accuracy-AccMega$AccuracyNull)>0)/50050
+
+
+AccMega2 <- AccMega %>%
+  mutate(MajVote = ID == 1001)
+
+test <- AccMega2 %>%
+  group_by(MajVote) %>%
+  summarise_all(funs(mean, median))
+
+AccMega2 %>%
+  filter(ID == 1001) %>%
+  ggplot(aes(x = AccuracyPValue)) + geom_density()
+
+
+AccMega2 %>%
+  ggplot(aes(x = MajVote, y = Accuracy)) + geom_boxplot()
+
+median(AccMega$AccuracyPValue)
 
 ```
 
 
 #All England Bootstrap
+
+Can't be used as there is not enough power
 
 ```{r}
 #Create model using all data
@@ -1201,7 +1495,6 @@ BootPopHigh %>%
 
 #The 95 percent confidence interval of the mean
 QuantInfo<-quantile(BootPopHigh$Pop, probs = c(0.05, 0.5 ,0.95))
-QuantInfo
 quantile(BootPopHigh$PercPop, probs = c(0.05, 0.5 ,0.95))
 #diff is 3.6M
 QuantInfo[3]-QuantInfo[1]
@@ -1209,3 +1502,90 @@ QuantInfo[3]-QuantInfo[1]
 ```
 
 
+#Vancouver Tax
+
+```{r}
+setwd(DataFolder)
+QRC2017<- read_xlsx("QRC4-2017-2018.xlsx", sheet = 2, skip = 2) %>%
+  select(3:4) %>%
+  set_names("LAD11CD", "CouncilTax") %>%
+  mutate(CouncilTax = CouncilTax*1000)
+
+
+EmptyTax <- Combine1ExO %>%
+  left_join(., QRC2017) %>%
+  mutate(EmptyTax = MeanLUPs*LUPS*0.01,
+         EmptyOfCouncil = EmptyTax/CouncilTax)
+
+sum(EmptyTax$EmptyTax)/1e6
+mean(EmptyTax$EmptyOfCouncil, na.rm = T)
+median(EmptyTax$EmptyOfCouncil, na.rm = T)
+
+sum(EmptyTax$EmptyTax)/sum(EmptyTax$CouncilTax)
+
+EmptyTax %>%
+  ggplot(aes(x =EmptyOfCouncil)) + geom_density() +
+  coord_cartesian(x=c(0,0.7)) +
+  scale_x_continuous(labels = scales::percent) +
+  labs(title = "Distribution of value of Empty homes tax in terms of council tax by local authority", 
+       x = "Percent of council tax value")
+
+
+EmptyTax %>%
+  select(EmptyOfCouncil, LAD) %>%
+  arrange(EmptyOfCouncil) %>%
+  top_n(5,EmptyOfCouncil)
+
+
+
+```
+
+
+#Plot stuff
+```{r}
+x <-bind_rows(SouthwarkLONDATA, TowerDATA, LambethLONDATA, CoLLONDATA, NewhamLONDATA) %>% MakeLeaflet
+
+z<- MakeLeaflet(AllerdaleDATA)
+z
+# 
+setwd(basewd)
+ saveWidget(z, file=file.path(basewd, "Cumbria.html"), selfcontained = TRUE )
+
+#testSouth <- DistribCompareBootstrapper(SouthwarkLONDAls(pattern = "DATA")TA, 1652, 1000)
+testSouth %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100) %>% 
+  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
+  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+
+ValueTtest(test)
+
+PlotMap(ConwyDATA)
+
+z <-ChelseaLONDATA %>% 
+  mutate(LAD11CD = ifelse(LAD11CD  == "E09000005", "E05009388" ,LAD11CD)) %>% #kept adding in Barnet
+  filter(LAD11NM =="Kensington and Chelsea") %>% 
+  MakeLeaflet()
+
+mapshot(z, file = file.path(Figures, "Chelsea.pdf"))
+
+CumbriaPlot <- ls(pattern = "CUMBRIA") %>% 
+  map_df(~get(.x)) %>%
+   group_by(LSOA_CODE) %>%
+   summarise(LowUse = sum(LowUse, na.rm = TRUE)) %>% 
+  CalcLowUse()
+
+z<- MakeLeaflet(CumbriaPlot)
+
+mapshot(z, file = file.path(Figures, "Cumbria.pdf"))
+
+
+
+z<- MakeLeaflet(CornwallDATA)
+mapshot(z, file = file.path(Figures, "Cornwall.pdf"))
+
+z<- MakeLeaflet(BarrowCUMBRIADATA)
+mapshot(z, file = file.path(Figures, "Barrow.pdf"))
+
+
+MakeLeaflet(ConwyDATA)
+
+```

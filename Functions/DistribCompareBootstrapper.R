@@ -41,20 +41,20 @@ DistribCompareBootstrapper <- function(df, seed, samples=100, type = NULL, Prope
           )  %>% mutate(HighVal = Price>HighValue[.x],
                         LADmedian = median(Price, na.rm = T),
                         LADmean = mean(Price, na.rm = T)) %>%
-          group_by(class) %>%
+          group_by(class, classVal, CountryClass) %>%
           summarise(Counts = n(),
                     Value = sum(Price),
                     HighVal = sum(HighVal),
                     LADmedian = first(LADmedian),
                     LADmean = first(LADmean)) %>%
-          mutate(ID = .x) 
+          mutate(ID = .x) %>%
+          ungroup
         
         Out
         
       }) %>%  
       mutate(
-        Price = Value/Counts,
-        class = fct_relevel(class, "Upper", after = 2))
+        Price = Value/Counts)
   }
   
   
@@ -62,7 +62,7 @@ DistribCompareBootstrapper <- function(df, seed, samples=100, type = NULL, Prope
   #bootrapps LAD housing stock.
   set.seed(seed)
   dfWardHomesStrap1 <- StrappedLowUse("WardHomes") %>%
-    select(-HighVal)
+    select(-HighVal, -classVal)
   
   print("Start LUP distribution")
   
@@ -77,7 +77,7 @@ DistribCompareBootstrapper <- function(df, seed, samples=100, type = NULL, Prope
   print("LUP distribution Complete")
   
   test1 <- dfWardHomesStrap1  %>% 
-    left_join(., dfWardLowUseStrap1, by = c("class", "ID")) %>%
+    left_join(., dfWardLowUseStrap1, by = c("class", "ID", "CountryClass")) %>%
     rename(LowUse = Counts.y, 
            Homes = Counts.x,
            LowUseValue = Value.y,
@@ -104,7 +104,7 @@ DistribCompareBootstrapper <- function(df, seed, samples=100, type = NULL, Prope
            LowUsePerc = LowUse/sum(LowUse, rm.na = T),
            ClassPerc = LowUse/Homes,
            ExpectedHomes = HomesPerc*sum(LowUse, rm.na = T),
-           RatioExvsAct = LowUse/ExpectedHomes, rm.na = T) %>%
+           RatioExvsAct = LowUse/ExpectedHomes) %>%
     ungroup
   
   return(test1)

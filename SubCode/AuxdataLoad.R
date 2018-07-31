@@ -10,7 +10,7 @@ CTtaxstock<- read_csv("Table_CTSOP1.1_2016.csv")
 pop <- read_csv("SAPE2.csv")
 
 EW <- inner_join(select(CTtaxstock, ECODE, ALL_PROPERTIES),select(pop, `Area Codes`, `All Ages`),
-                 by=c("ECODE" = "Area Codes")) %>% setNames(c("ECODE", "Homes", "Pop")) 
+                 by=c("ECODE" = "Area Codes")) %>% setNames(c("ECODE", "Homes", "Pop"))
 
 
 #Load the LSOA shape data for EW 
@@ -72,7 +72,8 @@ EW2 <- inner_join(EW, lsoa, by = c("ECODE" = "LSOA11CD") ) %>%
   left_join(., select(wardnames, Admin_ward_code, WD16NM), by = "Admin_ward_code") %>%
   group_by(Admin_ward_code) %>%
   mutate(WardHomes = sum(Homes),  WardPop = sum(Pop)) %>% 
-  ungroup
+  ungroup %>%
+  filter(grepl("E", ECODE))
 rm(wardlsoa)
 rm(wardnames)
 
@@ -106,10 +107,23 @@ saveRDS(AG, file.path(DataFolder,"shapeframe.rds"))
 setwd(DataFolder)
 
 prices <-read_csv("pp-2016.csv", col_names = FALSE ) %>% 
-mutate(X4 = gsub(" ", "", X4)) %>% 
-left_join(., PstCdLSOA.raw %>% mutate(Postcode = gsub(" ", "", Postcode)), 
-by = c("X4"="Postcode")) %>% 
-filter(!is.na(lsoa11cd)) %>% mutate(Prime = X2>1e6, SuperPrime = X2>1e7)
+  mutate(X4 = gsub(" ", "", X4)) %>%
+  left_join(., PstCdLSOA.raw %>% mutate(Postcode = gsub(" ", "", Postcode)),
+            by = c("X4"="Postcode")) %>%
+  filter(!is.na(lsoa11cd)) %>% 
+  left_join(select(EW2, ECODE, MSOA11CD), by =c("lsoa11cd"="ECODE")) %>% #Add in the MSOA code
+  filter(Country_code == "E92000001") %>%
+  mutate(Prime = X2>1e6, SuperPrime = X2>1e7) #is this line necessary
+
+
+Quantiles <-c( 0, quantile(prices$X2)[2:4], Inf)
+
+prices <- prices %>%
+  mutate(CountryClass = cut(X2, Quantiles, 
+                   labels =     c("Lower", "Lower-Mid", "Upper-Mid", "Upper"), 
+                   right = F) %>% fct_relevel(., "Upper", after = 3))
+
+rm(Quantiles)
 
 MeanWardPrice <- prices %>%
   filter(X5 %in% c("D", "S", "T", "F")) %>%
