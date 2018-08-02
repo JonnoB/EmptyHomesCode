@@ -4,15 +4,15 @@ DistribCompareBootstrapper <- function(df, seed, samples=100, type = NULL, Prope
   # Random seed
   #Number of Bootstrap samples.
   #type: whether all purchese or only classes A or b are taken, enter a character "A" or "B" or leave NULL for all
-  #PriceCuts: the cut points for the different classes of housing, used only occaisionally has to start with 0 and end with Inf
-  #and in total have 6 elements
+  #GroupVars: the variables that will be used to summarise by group
   
   dfPrice <- df %>%
     filter(!is.na(Admin_ward_code)) %>%#filter(!is.na(Pop)) %>%#removes any NA rows which cause a crash
     SubsetPrice(., type, PropertyTypes)
   
+  
   dfWard <- df %>% 
-    group_by(Admin_ward_code) %>%
+    group_by(LSOA11CD) %>%
     summarise_all(funs(first)) %>% 
     group_by(LAD11CD) %>%
     mutate(LADCount = n()) %>% ungroup %>%
@@ -20,74 +20,68 @@ DistribCompareBootstrapper <- function(df, seed, samples=100, type = NULL, Prope
     select(-LADCount)  
   
   #Function generated within the function to make sure both Homes and LUPs are calculated the same way.
-  StrappedLowUse <- function(WhichLowUse, HighValue = NA, Grouping){
-    test<- 1:samples %>%
+  StrappedLowUse <- function(WhichLowUse, Grouping){
+    Tempdf<- unique(dfWard$LSOA11CD) %>%
       map_df(~{
+        #print(.x)
+        PriceData <- dfPrice %>% 
+          filter(LSOA11CD == .x)
+        #Sometimes an LSOA will have no sales in that year. In these thankfully rare cases the entire LAD is used.
+        if(nrow(PriceData)==0){
+          PriceData<-dfPrice
+        }
+        LowUseCounts <- sum(filter(dfWard, LSOA11CD == .x) %>% select_(WhichLowUse)) #sample rows from LSOA
         
-        Out <- unique(dfWard$Admin_ward_code) %>%
-          map_df(~{
-            #print(.x)
-            PriceData <- dfPrice %>% 
-              filter(Admin_ward_code == .x)
-            #Sometimes a ward will have no sales in that year. In these thankfully rare cases the entire LAD is used.
-            if(nrow(PriceData)==0){
-              PriceData<-dfPrice
-            }
-            LowUseCounts <- sum(filter(dfWard, Admin_ward_code == .x) %>% select_(WhichLowUse)) #sample rows from ward
-            
-            sample_n(PriceData, LowUseCounts, replace = TRUE)
-            
-          }
-          )  %>% mutate(HighVal = Price>HighValue[.x],
-                        LADmedian = median(Price, na.rm = T),
-                        LADmean = mean(Price, na.rm = T)) %>%
-          group_by_(.dots = Grouping) %>%
-          summarise(Counts = n(),
-                    Value = sum(Price),
-                    HighVal = sum(HighVal),
-                    LADmedian = first(LADmedian),
-                    LADmean = first(LADmean)) %>%
-          mutate(ID = .x) %>%
-          ungroup
+        SampledData <-sample_n(PriceData, LowUseCounts*samples, replace = TRUE) %>%
+          mutate(ID = rep(1:samples, nrow(.)/samples))
         
-        Out
-        
-      }) %>%  
-      mutate(
-        Price = Value/Counts)
+        SampledData
+      }
+      ) 
+    
+    Tempdf %>% 
+      group_by(ID) %>%
+      mutate(LADmedian = median(Price, na.rm = T),
+             LADmean = mean(Price, na.rm = T)) %>%
+      group_by_(.dots = c("ID", Grouping)) %>%
+      summarise(Counts = n(),
+                Value = sum(Price),
+                GeogMedian = median(Price),
+                GeogMean = mean(Price),
+                LADmedian = first(LADmedian),
+                LADmean = first(LADmean)) %>%
+      ungroup
+    
   }
   
   
   print("Start Bootstrapping Homes distribution")
   #bootstraps LAD housing stock.
   set.seed(seed)
-  dfWardHomesStrap1 <- StrappedLowUse("WardHomes", Grouping = GroupVars) %>%
-    select(-HighVal)
+  dfWardHomesStrap1 <- StrappedLowUse("Homes", Grouping = GroupVars)
   
   print("Start LUP distribution")
   
-  HighVal <- dfWardHomesStrap1 %>%
-    group_by(ID) %>%
-    summarise(LADmedian = first(LADmedian)) %>% .$LADmedian #get median price, this can often be the same throughout the vector
-  
   #bootstraps LAD housing stock.
   set.seed(seed)
-  dfWardLowUseStrap1 <- StrappedLowUse("WardLowUse", HighValue = HighVal, Grouping = GroupVars)
+  dfWardLowUseStrap1 <- StrappedLowUse("LowUse", Grouping = GroupVars)
   
   print("LUP distribution Complete")
   
-  test1 <- dfWardHomesStrap1  %>% 
+  test1 <- dfWardHomesStrap1  %>%
     left_join(., dfWardLowUseStrap1, by = c("ID", GroupVars)) %>%
-    rename(LowUse = Counts.y, 
+    rename(LowUse = Counts.y,
            Homes = Counts.x,
-           LowUseValue = Value.y,
-           HomesValue = Value.x,
-           LowUsePrice = Price.y,
-           HomesPrice =  Price.x,
-           MeanHomes = LADmean.x,
-           MedianHomes = LADmedian.x,
-           MeanLUPs = LADmean.y,
-           MedianLUPs = LADmedian.y) %>%
+           LowUseValue = Value.y, #In that grouping geography
+           HomesValue = Value.x, #In that grouping geography
+           MSOALowUseMean = GeogMean.y, #In that grouping geography
+           MSOAHomesMean =  GeogMean.x, #In that grouping geography
+           MSOALowUseMedian = GeogMedian.y, #In that grouping geography
+           MSOAHomesMedian =  GeogMedian.x, #In that grouping geography
+           LADHomesMean = LADmean.x, #Across whole LAD
+           LADHomesMedian = LADmedian.x, #Across whole LAD
+           LADLowUseMean = LADmean.y, #Across whole LAD
+           LADLowUseMedian = LADmedian.y) %>% #Across whole LAD
     mutate(LAD11CD = unique(dfWard$LAD11CD))
   
   #NA values were causing N issues all over the place, the NA's were caused by low levels of super prime, 
@@ -100,11 +94,9 @@ DistribCompareBootstrapper <- function(df, seed, samples=100, type = NULL, Prope
            HomesValue = ifelse(is.na(HomesValue), 0, HomesValue),
            Homes = ifelse(is.na(Homes), 0, Homes),
            ratio = LowUse/Homes,
-           HomesPerc = Homes/sum(Homes, rm.na = T),
-           LowUsePerc = LowUse/sum(LowUse, rm.na = T),
-           ClassPerc = LowUse/Homes,
-           ExpectedHomes = HomesPerc*sum(LowUse, rm.na = T),
-           RatioExvsAct = LowUse/ExpectedHomes) %>%
+           HomesPerc = Homes/sum(Homes, rm.na = T), #percentage of all homes
+           LowUsePerc = LowUse/sum(LowUse, rm.na = T) #percentage of all LUPS
+    ) %>% 
     ungroup
   
   return(test1)

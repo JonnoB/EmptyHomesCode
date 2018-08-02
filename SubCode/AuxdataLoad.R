@@ -106,37 +106,58 @@ saveRDS(AG, file.path(DataFolder,"shapeframe.rds"))
 #
 setwd(DataFolder)
 
-prices <-read_csv("pp-2016.csv", col_names = FALSE ) %>% 
-  mutate(X4 = gsub(" ", "", X4)) %>%
-  left_join(., PstCdLSOA.raw %>% mutate(Postcode = gsub(" ", "", Postcode)),
-            by = c("X4"="Postcode")) %>%
-  filter(!is.na(lsoa11cd)) %>% 
-  left_join(select(EW2, ECODE, MSOA11CD), by =c("lsoa11cd"="ECODE")) %>% #Add in the MSOA code
-  filter(Country_code == "E92000001") %>%
-  mutate(Prime = X2>1e6, SuperPrime = X2>1e7) #is this line necessary
+#Need to replace the prices file with the new larger prices file
 
 
-Quantiles <-c( 0, quantile(prices$X2)[2:4], Inf)
 
-prices <- prices %>%
-  mutate(CountryClass = cut(X2, Quantiles, 
-                   labels =     c("Lower", "Lower-Mid", "Upper-Mid", "Upper"), 
-                   right = F) %>% fct_relevel(., "Upper", after = 3))
+if(file.exists("prices.rds")){
+  
+  prices <- readRDS("prices.rds")
+} else {
+  #if you don't have enough ram this might crash your computer.
+  prices <- read_csv("pp-complete.csv", col_names = FALSE )
+  
+  prices <- prices %>%
+    filter(year(X3)>2012,year(X3)<2018) %>%
+    mutate(X4 = gsub(" ", "", X4)) %>%
+    left_join(., PstCdLSOA.raw %>% mutate(Postcode = gsub(" ", "", Postcode)),
+              by = c("X4"="Postcode")) %>%
+    filter(!is.na(lsoa11cd)) %>%
+    left_join(select(EW2, ECODE, MSOA11CD, LAD11CD), by =c("lsoa11cd"="ECODE")) %>% #Add in the MSOA code
+    filter(Country_code == "E92000001") %>%
+    select(X2, X5, X3, X15, X16, Admin_ward_code, lsoa11cd, MSOA11CD, LAD11CD) %>%
+    rename(LSOA11CD = lsoa11cd)
+  
+  Quantiles <-c( 0, quantile(prices$X2)[2:4], Inf)
+  
+  prices <- prices %>%
+    mutate(CountryClass = cut(X2, Quantiles, 
+                              labels =     c("Lower", "Lower-Mid", "Upper-Mid", "Upper"), 
+                              right = F) %>% fct_relevel(., "Upper", after = 3)) 
+  
+  rm(Quantiles)
+  
+  
+  saveRDS(prices, "prices.rds")
+  
+}
 
-rm(Quantiles)
 
+# 
+# test2 <- test %>% 
+#   group_by(lsoa11cd) %>%
+#   summarise(counts = n())
+# 
+# sum(test2$counts>30)/nrow(test2)
+
+
+#Was previously ward until I increased the number of years to allow the use of LSOA
 MeanWardPrice <- prices %>%
   filter(X5 %in% c("D", "S", "T", "F")) %>%
-  group_by(Admin_ward_code) %>% 
+  group_by(LSOA11CD) %>% 
   summarise( MeanPrice = mean(X2), 
              MedianPrice = median(X2),
-             counts =n(),  
-             Prime = sum(Prime), 
-             SuperPrime = sum(SuperPrime)) %>% 
-  mutate(TotPrime = Prime/sum(Prime), 
-         TotSupPrime = SuperPrime/sum(SuperPrime),
-         PrimePerc = Prime/counts, 
-         SuperPrimePerc = SuperPrime/counts)
+             counts =n())
 
 #MeanWardPrice %>% ggplot(., aes(x= counts)) + geom_density()
 
@@ -173,11 +194,6 @@ list.files()
 LADDep<-read_excel("File_10_ID2015_Local_Authority_District_Summaries.xlsx", sheet = 2) %>%
   setNames(make.names(names(.)) %>% gsub("IMD...", "",.) %>% trimws ) %>%
   rename(LAD11CD = Local.Authority.District.code..2013.)
-
-# LSOADomDep<-read_excel("File_2_ID_2015_Domains_of_deprivation.xlsx" , sheet = 2) %>%
-#   setNames(make.names(names(.))) %>%
-#   setNames(make.names(names(.)) %>% gsub("Index.of.Multiple.Deprivation..IMD..", "",.) %>% trimws ) %>%
-#   rename(LAD11CD = Local.Authority.District.code..2013.)
 
 LSOADep<-read_excel("File_1_ID_2015_Index_of_Multiple_Deprivation.xlsx", sheet = 2) %>%
   setNames(make.names(names(.))) %>%

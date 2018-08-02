@@ -35,13 +35,14 @@ testWard <- EW2 %>%
 test <- DistribCompareBootstrapper(ChelseaLONDATA, 1983, 100, type = NULL, PropertyTypes )
 test1 <- DistribCompareBootstrapper2(ChelseaLONDATA, 1983, 100, type = NULL, PropertyTypes )
 
-test2 <- DistribCompareBootstrapper2(ChelseaLONDATA, 1983, 100, type = NULL, PropertyTypes, GroupVars = "MSOA11CD" )
+test2 <- DistribCompareBootstrapper(BirminghamDATA, 1983, 100, type = NULL, PropertyTypes, GroupVars = "MSOA11CD" )
 
 
 ```
 
 
 ```{r}
+PropertyTypes <- c("D", "S", "T", "F")
 setwd("/home/jonno/Dropbox/SSE/Empty Homes/BootStrapAuthorities2")
   
 #Find what needs to be bootstrapped
@@ -57,9 +58,18 @@ BootStrapFiles <- list.files(getwd()) %>% gsub("DATA.rds", "",.)
     newLADs  %>% walk(~{print(.x)
       DistribCompareBootstrapper(get(.x), 1652, 1000, type=NULL, PropertyTypes, GroupVars = "MSOA11CD" )%>%
       saveRDS(., file = paste0(.x, ".rds"))
+      gc()
       }) 
   }
 
+    if(length(newLADsnames)>0){
+    for (.x in newLADs) {print(.x)
+      DistribCompareBootstrapper(get(.x), 1652, 1000, type=NULL, PropertyTypes, GroupVars = "MSOA11CD" )%>%
+      saveRDS(., file = paste0(.x, ".rds"))
+      gc()
+      } 
+  }
+  
   #once all Bootratps complete load them all into a list
  BootStrapRES <- list.files(getwd()) %>%
    map(~readRDS(.x))
@@ -90,7 +100,7 @@ MSOAdep <- LSOADep %>%
 
 BootDeets <- BootStrapRES %>% 
   map_df(~.x %>%
-           mutate(Reference = MedianHomes < MedianLUPs,
+           mutate(Reference = HighVal>(LowUse-HighVal),
                   MeanPropPrice = (HomesValue+LowUseValue)/(Homes+LowUse)) %>%
            select(MSOA11CD, MeanPropPrice, Reference, ID)) %>%
   left_join(select(IncomeEst, MSOA11CD, Yearly.income), by = "MSOA11CD") %>%
@@ -138,6 +148,54 @@ CoeffsMega <- 1 %>%
                                         )%>%
       mutate(Sample = .x)
   })
+
+CoeffsMega %>%
+  ggplot(aes(x = term))
+
+```
+
+Need to find MSOA that contain 100% of the LSOA of a ward
+
+```{r}
+
+  StrappedLowUse <- function(WhichLowUse, Grouping){
+    Tempdf<- unique(dfWard$LSOA11CD) %>%
+          map_df(~{
+            #print(.x)
+            PriceData <- dfPrice %>% 
+              filter(LSOA11CD == .x)
+            #Sometimes an LSOA will have no sales in that year. In these thankfully rare cases the entire LAD is used.
+            if(nrow(PriceData)==0){
+              PriceData<-dfPrice
+            }
+            LowUseCounts <- sum(filter(dfWard, LSOA11CD == .x) %>% select_(WhichLowUse)) #sample rows from LSOA
+            
+            SampledData <-sample_n(PriceData, LowUseCounts*samples, replace = TRUE) %>%
+              mutate(ID = rep(1:samples, nrow(.)/samples))
+            
+            SampledData
+          }
+          ) 
+    
+    Tempdf %>% 
+      group_by(ID) %>%
+      mutate(LADmedian = median(Price, na.rm = T),
+             LADmean = mean(Price, na.rm = T)) %>%
+      group_by_(.dots = c("ID", Grouping)) %>%
+      summarise(Counts = n(),
+                Value = sum(Price),
+                GeogMedian = median(Price),
+                GeogMean = mean(Price),
+                LADmedian = first(LADmedian),
+                LADmean = first(LADmean)) %>%
+      ungroup
+    
+  }
+
+dfWardHomesStrap1 <- StrappedLowUse("LowUse", Grouping = "MSOA11CD")
+
+ 
+
 
 ```
 

@@ -7,13 +7,13 @@ SubsetPrice <- function(df, type = NULL, PropertyTypes = NULL, Quantiles = NULL)
   if(is.character(df)){
     Code <- df
   } else{
-    #Som LADS have bits of other LADS mixed in this removes those
+    #Some LADS have bits of other LADS mixed in this removes those
     Code <- names(table(df$LAD11CD))[which.max(table(df$LAD11CD) %>% as.matrix)] 
   }
   
   #filter prices to only relevant rows
   pricesTemp <- prices %>%
-  filter(., grepl(Code, Admin_district_code)) 
+  filter(., grepl(Code, LAD11CD)) 
   
   if(!is.null(type)){
     pricesTemp <- pricesTemp %>%
@@ -33,7 +33,7 @@ SubsetPrice <- function(df, type = NULL, PropertyTypes = NULL, Quantiles = NULL)
   #The  model used to take multiple councils if there was overlap, but this caused some strange
   #Problems So I removed it. The current version only takes a single LAD
   pricesTemp %>%
-    select(Admin_ward_code, lsoa11cd, Price =X2, X15, PropType = X5, CountryClass, MSOA11CD) %>%
+    select(Admin_ward_code, LSOA11CD, Price =X2, X15, PropType = X5, CountryClass, MSOA11CD) %>%
     mutate(class = cut(Price, Quantiles, 
                        labels =     c("Lower", "Lower-Mid", "Upper-Mid", "Upper"), 
                        right = F) %>% fct_relevel(., "Upper", after = 3),

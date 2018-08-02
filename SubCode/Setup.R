@@ -1,7 +1,7 @@
 ##This code is used to setup the project it is common to both the empty homes doc and also the template creation doc.
 
 
-packages <- c("tidyverse", "spdep", "igraph", "maptools", "openxlsx", "readxl", "sp","rgdal", "rgeos", "raster", "broom", "leaflet",
+packages <- c("tidyverse", "lubridate","spdep", "igraph", "maptools", "openxlsx", "readxl", "sp","rgdal", "rgeos", "raster", "broom", "leaflet",
               "forcats", "e1071", "htmlwidgets", "stringr", "modelr", "caret", "xtable", "rpart", "broom", "yardstick", "rsample")
 
 #, "mapview"

@@ -5,6 +5,11 @@ date: "5 July 2017"
 output: html_document
 ---
 
+
+Do the CalcLowUse and ProcessDataMeanPrice functions need to be changed from LSOA to MSOA?
+
+
+
 Are LUPS concentrated in specific areas?
   They are more concentrated than homes in general
 Are LUPs more or less expensive?
@@ -120,7 +125,6 @@ AllerdaleCUMBRIADATA <- read_excel("F17.132_Copy of Allerdale discounts LSOA_170
 #Manchester
 
 ```{r}
-list.files()
 
 OldhamMANCDATA <- read_excel("FOI 10635 OldhamDiscounts LSOA.xlsx", sheet = 1 )[c(1,4:6)] %>%  
   StructureData(., c(5:6,8:11))
@@ -595,33 +599,34 @@ source(file.path(CommonCode, "LondonFullProcesss.R"))
 The LSOA will be assigned empty and low use homes by percentage
 
 ```{r}
-#ward folder
-setwd(SemiLondon)
+# #ward folder
+# setwd(SemiLondon)
+# 
+# 
+# wardnames <- EW2 %>% group_by(Admin_ward_code, WD16NM) %>% summarise(counts = n(), LAD11NM = first(LAD11NM), LAD11CD = first(LAD11CD)) %>% arrange(WD16NM)
 
-
-wardnames <- EW2 %>% group_by(Admin_ward_code, WD16NM) %>% summarise(counts = n(), LAD11NM = first(LAD11NM), LAD11CD = first(LAD11CD)) %>% arrange(WD16NM)
-
-
-#TowerHamlets
-TowerLONDATA <- read_excel("Towerhamlets.xlsx")[,c(1,3)] %>% 
-  filter(!is.na(DiscClass)) %>%
-  group_by(Ward, DiscClass) %>%
-  summarise(count = n()) %>% ungroup %>%
-  spread(., key =DiscClass, value = count, fill = 0 ) %>% 
-  mutate(Empty = rowSums(.[,4:8]), LowUse = B+BE+Empty) %>% 
-  slice(c(1:13, 15:17, 14, 18:20)) %>%
-   bind_cols(., wardnames %>% filter(grepl("Tower", LAD11NM))) %>%
-  SemiDataStructure
-
-
-HaveringLONDATA <- read_excel("AIR12965P Informatiion provided by Council Tax.xlsx" ) %>%
-  rename(DiscClass = X__1) %>%
-  select(-Mawneys, -`Aveley & Uplands`, -Whalebone) %>%
-  gather(key = "ward", value = "counts", -DiscClass) %>%
-  spread(key= DiscClass, value = counts, fill = 0) %>%
-  mutate(Empty = rowSums(.[,c(5:6,14,17)]), LowUse = Empty+ `Second Home Class A`+ `Second Homes Class B`) %>% 
-  bind_cols(., wardnames %>% filter(grepl("Havering", LAD11NM))) %>%
-  SemiDataStructure
+#These don't work now the LSOA are being used directly
+# 
+# #TowerHamlets
+# TowerLONDATA <- read_excel("Towerhamlets.xlsx")[,c(1,3)] %>% 
+#   filter(!is.na(DiscClass)) %>%
+#   group_by(Ward, DiscClass) %>%
+#   summarise(count = n()) %>% ungroup %>%
+#   spread(., key =DiscClass, value = count, fill = 0 ) %>% 
+#   mutate(Empty = rowSums(.[,4:8]), LowUse = B+BE+Empty) %>% 
+#   slice(c(1:13, 15:17, 14, 18:20)) %>%
+#    bind_cols(., wardnames %>% filter(grepl("Tower", LAD11NM))) %>%
+#   SemiDataStructure
+# 
+# 
+# HaveringLONDATA <- read_excel("AIR12965P Informatiion provided by Council Tax.xlsx" ) %>%
+#   rename(DiscClass = X__1) %>%
+#   select(-Mawneys, -`Aveley & Uplands`, -Whalebone) %>%
+#   gather(key = "ward", value = "counts", -DiscClass) %>%
+#   spread(key= DiscClass, value = counts, fill = 0) %>%
+#   mutate(Empty = rowSums(.[,c(5:6,14,17)]), LowUse = Empty+ `Second Home Class A`+ `Second Homes Class B`) %>% 
+#   bind_cols(., wardnames %>% filter(grepl("Havering", LAD11NM))) %>%
+#   SemiDataStructure
 
 ```
 
