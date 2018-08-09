@@ -1,4 +1,5 @@
-DistribCompareBootstrapper <- function(df, seed, samples=100, type = NULL, PropertyTypes = NULL, GroupVars = c("class", "classVal", "CountryClass")){
+DistribCompareBootstrapperSave <- function(df, seed, samples=100, type = NULL, PropertyTypes = NULL, GroupVars = c("class", "classVal", "CountryClass")){
+  #This version is used for big files such as Birmingham. It is really slow but the computer doesn't crash
   #df:data frame of processed area/s data
   #LADCD: The LAD code to fetch the correct price data
   # Random seed
@@ -8,45 +9,57 @@ DistribCompareBootstrapper <- function(df, seed, samples=100, type = NULL, Prope
   
   #The function saves the sample of each LSOA to the working directory. This stops the computer crashing on large LADS All files are deleted aftwords. 
   
-  dfPrice <- df %>%
-    filter(!is.na(Admin_ward_code)) %>%#filter(!is.na(Pop)) %>%#removes any NA rows which cause a crash
-    SubsetPrice(., type, PropertyTypes)
-  
-  
   dfWard <- df %>% 
-    group_by(LSOA11CD) %>%
+    group_by(LSOA11CD) %>%  #Remove double LSOA that may have sneaked in
     summarise_all(funs(first)) %>% 
-    group_by(LAD11CD) %>%
+    group_by(LAD11CD) %>% #Remove LAD data that is not from this lad. Occaisonly a few lsoa from other LADs get in and cause problems
     mutate(LADCount = n()) %>% ungroup %>%
     filter(!is.na(Admin_ward_code), LADCount == max(LADCount)) %>% #filter out any stray areas that are classed as a different authority
     select(-LADCount)  
   
+  
+  dfPrice <- dfWard %>%
+    filter(!is.na(Admin_ward_code)) %>%#filter(!is.na(Pop)) %>%#removes any NA rows which cause a crash
+    SubsetPrice(., type, PropertyTypes)
+  
   #Function generated within the function to make sure both Homes and LUPs are calculated the same way.
-  StrappedLowUse <-  function(WhichLowUse, Grouping){
-    Out <- 1:samples %>%
-      map_df(~{
-        print(.x)
-        Temp <- 1:length(unique(dfWard$LSOA11CD)) %>%
+  StrappedLowUse <- function(WhichLowUse, Grouping){
+    1:length(unique(dfWard$LSOA11CD)) %>%
+      walk(~{
+        LSOA <- unique(dfWard$LSOA11CD)[.x]
+        
+        print(paste(.x, "of",length(dfWard$LSOA11CD)))
+        PriceData <- dfPrice %>% 
+          filter(LSOA11CD == LSOA)
+        #Sometimes an LSOA will have no sales in that year. In these thankfully rare cases the entire LAD is used.
+        if(nrow(PriceData)==0){
+          PriceData<-dfPrice
+        }
+        LowUseCounts <- sum(filter(dfWard, LSOA11CD == LSOA) %>% select_(WhichLowUse)) #sample rows from LSOA
+        
+        SampledData <-sample_n(PriceData, LowUseCounts*samples, replace = TRUE) %>%
+          mutate(ID = rep(1:samples, nrow(.)/samples))
+        
+        SampledData  %>%
+          saveRDS(., file = paste0("Temp_", .x, ".rds"))
+      }
+      ) 
+    
+    
+    
+    Out <-1:samples %>%
+      map_df(~{ 
+        print(paste0("Aggregating ID", .x))
+        IDref <- .x
+        list.files(pattern = "Temp_") %>%
           map_df(~{
-            LSOA <- unique(dfWard$LSOA11CD)[.x]
             
-            #print(paste(.x, "of",length(dfWard$LSOA11CD)))
-            PriceData <- dfPrice %>% 
-              filter(LSOA11CD == LSOA)
-            #Sometimes an LSOA will have no sales in that year. In these thankfully rare cases the entire LAD is used.
-            if(nrow(PriceData)==0){
-              PriceData<-dfPrice
-            }
-            LowUseCounts <- sum(filter(dfWard, LSOA11CD == LSOA) %>% select_(WhichLowUse)) #sample rows from LSOA
+            print(.x)  
             
-            SampledData <-sample_n(PriceData, LowUseCounts, replace = TRUE)
-            
-            SampledData  
-          }
-          ) %>% 
-          mutate(ID = .x,
-                 LADmedian = median(Price, na.rm = T),
-                 LADmean = mean(Price, na.rm = T))   %>%
+            readRDS(.x) %>% 
+              filter(ID==IDref)}) %>%
+          mutate(LADmedian = median(Price, na.rm = T),
+                 LADmean = mean(Price, na.rm = T)) %>%
           group_by_(.dots = c("ID", Grouping)) %>%
           summarise(Counts = n(),
                     Value = sum(Price),
@@ -56,11 +69,10 @@ DistribCompareBootstrapper <- function(df, seed, samples=100, type = NULL, Prope
                     LADmean = first(LADmean)) %>%
           ungroup
         
-        Temp
         
       })
+    do.call(file.remove, list(list.files(pattern = "Temp_", full.names = TRUE)))
     
-
     Out
   }
   

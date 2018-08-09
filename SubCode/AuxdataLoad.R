@@ -69,11 +69,11 @@ select(lsoa11cd, Admin_ward_code)
 
 EW2 <- inner_join(EW, lsoa, by = c("ECODE" = "LSOA11CD") ) %>%
   left_join(., wardlsoa, by = c("ECODE"="lsoa11cd") ) %>% 
-  left_join(., select(wardnames, Admin_ward_code, WD16NM), by = "Admin_ward_code") %>%
+  left_join(., select(wardnames, Admin_ward_code, WD16NM, Region = GOR10NM), by = "Admin_ward_code") %>%
   group_by(Admin_ward_code) %>%
   mutate(WardHomes = sum(Homes),  WardPop = sum(Pop)) %>% 
-  ungroup %>%
-  filter(grepl("E", ECODE))
+  ungroup #%>%
+ # filter(grepl("E", ECODE)) don't filter wales
 rm(wardlsoa)
 rm(wardnames)
 
@@ -124,7 +124,7 @@ if(file.exists("prices.rds")){
               by = c("X4"="Postcode")) %>%
     filter(!is.na(lsoa11cd)) %>%
     left_join(select(EW2, ECODE, MSOA11CD, LAD11CD), by =c("lsoa11cd"="ECODE")) %>% #Add in the MSOA code
-    filter(Country_code == "E92000001") %>%
+    #filter(Country_code == "E92000001") %>% keep in wales
     select(X2, X5, X3, X15, X16, Admin_ward_code, lsoa11cd, MSOA11CD, LAD11CD) %>%
     rename(LSOA11CD = lsoa11cd)
   
@@ -172,57 +172,62 @@ setwd(DataFolder)
 #is mean income estimates
 IncomeEst <- read_excel("1smallareaincomeestimatesdataupdate.xls", sheet = 4, skip = 4) %>%
 setNames(make.names(names(.)) %>% 
-gsub("\\.(?=\\.*$)", "", ., perl=TRUE)) #removes trailing full stop.
+gsub("\\.(?=\\.*$)", "", ., perl=TRUE)) %>% #removes trailing full stop
+  rename(LAD11CD = Local.authority.code,
+         LAD11NM = Local.authority.name,
+         MSOA11CD = MSOA.code,
+         MSOA11NM = MSOA.name) %>%
+  mutate(Yearly.income= 52 * Total.weekly.income)
 
-IncomeEst <- prices %>% 
-  filter(X5 %in% c("D", "S", "T", "F")) %>%
-  #left_join(., select(EW2, ECODE, MSOA11CD),
-  #          by =c("lsoa11cd"="ECODE")) %>%
-  group_by(MSOA11CD) %>%
-  summarise(MedianPrice = median(X2),
-            MeanPrice = mean(X2),
-            counts = n()) %>%
-  left_join(., IncomeEst, by=c("MSOA11CD"= "MSOA.code")) %>%
-  mutate(Yearly.income= 52 * Total.weekly.income, 
-         ratio = MeanPrice/Yearly.income)
+# IncomeEst <- prices %>% 
+#   filter(X5 %in% c("D", "S", "T", "F")) %>%
+#   #left_join(., select(EW2, ECODE, MSOA11CD),
+#   #          by =c("lsoa11cd"="ECODE")) %>%
+#   group_by(MSOA11CD) %>%
+#   summarise(MedianPrice = median(X2),
+#             MeanPrice = mean(X2),
+#             counts = n()) %>%
+#   left_join(., IncomeEst, by=c("MSOA11CD"= "MSOA.code")) %>%
+#   mutate(Yearly.income= 52 * Total.weekly.income, 
+#          ratio = MeanPrice/Yearly.income)
 
-
-
-#Load Deprivation Data
-setwd(file.path(basewd, "Deprivation"))
-list.files()
-LADDep<-read_excel("File_10_ID2015_Local_Authority_District_Summaries.xlsx", sheet = 2) %>%
-  setNames(make.names(names(.)) %>% gsub("IMD...", "",.) %>% trimws ) %>%
-  rename(LAD11CD = Local.Authority.District.code..2013.)
-
-LSOADep<-read_excel("File_1_ID_2015_Index_of_Multiple_Deprivation.xlsx", sheet = 2) %>%
-  setNames(make.names(names(.))) %>%
-  setNames(make.names(names(.)) %>% gsub("Index.of.Multiple.Deprivation..IMD..", "",.) %>% trimws ) %>%
-  rename(LAD11CD = Local.Authority.District.code..2013.,
-         LSOA_CODE = LSOA.code..2011.)
-
-
-#Load Vacants Data
-setwd(DataFolder)
-Vacants <- read_excel("LT_615.xls", sheet = 2, skip = 5 ) %>%
-  set_names(make.names(names(.))) %>%
-  rename(LAD11CD = New.ONS.code, Vacants = X2016) %>%
-  filter(!is.na(LAD11CD)) %>%
-  select(LAD11CD, Vacants)
-
-LTV <- read_excel("LT_615.xls", sheet = 3, skip = 5 ) %>%
-  set_names(make.names(names(.))) %>%
-  rename(LAD11CD = New.ONS.code, LTV = X2016) %>%
-  filter(!is.na(LAD11CD)) %>%
-  select(LAD11CD, LTV)
-
-Vacants <- left_join(Vacants, LTV, by = "LAD11CD") %>%
-  #replace the st albarns and Welwyn codes
-  mutate(LAD11CD = case_when(
-    .$LAD11CD == "E07000100" ~ "E07000240",
-    .$LAD11CD == "E07000104" ~ "E07000241",
-    TRUE ~ .$LAD11CD
-  ))
-
-rm(LTV)
-
+#No longer necessary kept just in case
+# 
+# #Load Deprivation Data
+# setwd(file.path(basewd, "Deprivation"))
+# list.files()
+# LADDep<-read_excel("File_10_ID2015_Local_Authority_District_Summaries.xlsx", sheet = 2) %>%
+#   setNames(make.names(names(.)) %>% gsub("IMD...", "",.) %>% trimws ) %>%
+#   rename(LAD11CD = Local.Authority.District.code..2013.)
+# 
+# LSOADep<-read_excel("File_1_ID_2015_Index_of_Multiple_Deprivation.xlsx", sheet = 2) %>%
+#   setNames(make.names(names(.))) %>%
+#   setNames(make.names(names(.)) %>% gsub("Index.of.Multiple.Deprivation..IMD..", "",.) %>% trimws ) %>%
+#   rename(LAD11CD = Local.Authority.District.code..2013.,
+#          LSOA_CODE = LSOA.code..2011.)
+# 
+# 
+# #Load Vacants Data
+# setwd(DataFolder)
+# Vacants <- read_excel("LT_615.xls", sheet = 2, skip = 5 ) %>%
+#   set_names(make.names(names(.))) %>%
+#   rename(LAD11CD = New.ONS.code, Vacants = X2016) %>%
+#   filter(!is.na(LAD11CD)) %>%
+#   select(LAD11CD, Vacants)
+# 
+# LTV <- read_excel("LT_615.xls", sheet = 3, skip = 5 ) %>%
+#   set_names(make.names(names(.))) %>%
+#   rename(LAD11CD = New.ONS.code, LTV = X2016) %>%
+#   filter(!is.na(LAD11CD)) %>%
+#   select(LAD11CD, LTV)
+# 
+# Vacants <- left_join(Vacants, LTV, by = "LAD11CD") %>%
+#   #replace the st albarns and Welwyn codes
+#   mutate(LAD11CD = case_when(
+#     .$LAD11CD == "E07000100" ~ "E07000240",
+#     .$LAD11CD == "E07000104" ~ "E07000241",
+#     TRUE ~ .$LAD11CD
+#   ))
+# 
+# rm(LTV)
+# 

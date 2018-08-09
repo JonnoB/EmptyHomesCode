@@ -1,0 +1,1638 @@
+---
+title: "Untitled"
+author: "Jonathan Bourne"
+date: "5 July 2017"
+output: html_document
+---
+
+
+Do the CalcLowUse and ProcessDataMeanPrice functions need to be changed from LSOA to MSOA?
+
+
+
+Are LUPS concentrated in specific areas?
+  They are more concentrated than homes in general
+  Spatial Auto-Correlation?
+Are LUPs more or less expensive?
+  They tend to be concentrated in more expensive areas
+Are High value LUP LADS predictable?
+   They are predictable using number of vacants deprivation and price
+What is the relationship between LUPs and affordability?
+   A bath Tub curve
+What would the revenue from an empty homes tax be in the current situation?
+  A lot
+  
+What do I conclude?
+  That there is a clear relationship between LUPs and price/unnafordability with the theorized curve being observed.
+  That areas with high prices tend to have more LUPs
+  That these areas may not have the space to build new property
+That building property in areas of high value LUPs means more LUPs as buyers invest in property, thus negating the purpose of the buidling.
+
+new article and paper on airbnb effecr
+https://www.citylab.com/equity/2018/03/what-airbnb-did-to-new-york-city/552749/?utm_source=atlfb
+
+Islington should be removed and put back in when they send the correct data, it is giving a false negative
+
+#this uses rank for distance from LAD I think it should be dist check this
+
+
+Intellectual property rights and
+disclosures under the Freedom of
+Information Act
+
+16. It may not be apparent to recipients that the information is
+protected by copyright. Therefore when a public authority
+wishes to protect its own copyright, or the copyright is owned
+by a third party, it should advise the applicant that the
+information remains copyright protected.
+
+
+Please can you provide excel the file sent to Jonathan Bourne on xxx
+
+The reference number for this case is xxx.
+
+Yours faithfully,
+
+Jonathan Bourne
+
+
+#ico complaint ref
+fs-506-897-47
+
+#OGL licence claim
+
+All data used in this paper is covered by the Open Government Licence.
+
+The Data meets all 4 criteria described in section 56 of "Datasets (sections 11, 19 & 45)" FOI guidance document.
+These criteria are that the data is held by the authority, The data is part of a relveant copyright work (The data is held in a databse), the authority holds the copyright to the data (The information in the database is owned by the local council). 
+As local authorities are public sector bodies (shown in the public sector classification guide) and that council tax is a core task, normally the data would be covered by the RPSI. However, following section 5 of the Re use of public sector infrmation regulations 2015.
+
+"5.—(1) These Regulations do not apply to a document where—
+
+(a)the activity of supplying the document is one which falls outside the public task of the public sector body, provided that the scope of the public task of that body is transparent and subject to review"
+
+As the document the councils needed to complete is custom made and not part of the public task, the RPSI does not cover the resultant work and licencing reverts to the FOIA. 
+The FOIA states that a specific licence must be given for all datasets released under the act. As no charge has been levied against the use of the data then the default Open government licence is applied following section 69 of the "Datasets (sections 11, 19 & 45)" FOI guidance document.
+
+
+#Setup
+
+```{r setup}
+setwd( "~/Dropbox/SSE/Empty Homes/EmptyHomesCode/SubCode")
+source("Setup.R")
+
+setwd(Functions)
+list.files() %>% map(source)
+
+Figures <- "/home/jonno/Dropbox/Apps/ShareLaTeX/Empty Homes Write up 2/Figures" #file.path(basewd, "Figures")
+TexTables <- "/home/jonno/Dropbox/Apps/ShareLaTeX/Empty Homes Write up 2/Tables"
+source(file.path(CommonCode, "AuxdataLoad.R"))
+
+
+```
+
+
+#Cumbria
+```{r}
+setwd(file.path(RegionsComp, "Region North West"))
+
+BarrowCUMBRIADATA <- read_excel("Barrow-in-FurnessExemptionsLSOA.xlsx", sheet=1)[1:4]%>%  
+  StructureData(.,lowuse = c(2:6,8))
+
+SLakelandCUMBRIADATA <- read_excel("South LakelandExemptionsLSOA.XLSX", sheet=1)[,1:4] %>%
+    StructureData(., lowuse=2:9)
+
+#only inlcudes postcodes so the mergeing needs to be done manually
+CopelandCUMBRIADATA <- read_excel("CopelandFOI 5778 data 100517 CBC.XLSX", sheet=1) %>% 
+  mutate(Postcode = sub(" ", "", Postcode)) %>%
+  left_join(., PstCdLSOA.raw,  by=c("Postcode") ) %>%
+  rename(Exemption.type=`Disc Type Ind`, LSOA_CODE = lsoa11cd) %>%
+  select(Exemption.type, LSOA_CODE, Postcode, Country_code) %>%
+  StructureData()
+
+
+EdenCUMBRIADATA <- read_excel("EdenDiscountsLSOA.xlsx"  , sheet=1)[1:4] %>%  
+  StructureData(.,lowuse = c(2:6,8))
+
+CarliseCUMBRIADATA <- read_excel("FOI 5846 5983-CarlisleDiscountsLSOA June 2017.xlsx"  , sheet=1)[1:4] %>%  
+  StructureData(.)
+
+AllerdaleCUMBRIADATA <- read_excel("F17.132_Copy of Allerdale discounts LSOA_170815.xlsx"  , sheet=1)[1:4] %>%  
+  StructureData(c(4:10))
+
+```
+
+
+#Manchester
+
+```{r}
+
+OldhamMANCDATA <- read_excel("FOI 10635 OldhamDiscounts LSOA.xlsx", sheet = 1 )[c(1,4:6)] %>%  
+  StructureData(., c(5:6,8:11))
+
+ManchesterMANCDATA <- read_excel("ManchesterDiscountsLSOA.xlsx", sheet = 1 )[1:4] %>%  
+  StructureData(. )
+
+RochdaleMANCDATA <- read_excel("Rochdale Both.xlsx" , sheet = 1 )[1:4] %>%  
+  StructureData(., c(5,6,14,15,20:22))
+
+TamesideMANCDATA <- read_excel("Tameside FOI 6257A2.xlsx", sheet = 1 )[1:4] %>%  
+  StructureData(. )
+
+TraffordMANCDATA <- read_excel("Trafford Exemption and Levy.xlsx" , sheet = 1 )[1:4] %>%
+  filter(Exemption_type =="LEVY") %>% 
+  bind_rows(.,read_excel("TraffordDiscountsLSOA.XLSX", sheet = 1 )[1:4] %>% rename(Exemption_type = Class)) %>%
+  StructureData()
+
+WiganMANCDATA <- read_excel("Wigan 5528 DISCOUNTS.xlsx", sheet = 1 )[1:4] %>%  
+  StructureData(., lowuse = c(2:3, 5:9) )
+
+
+#hide plot
+#ls(pattern = "MANC") %>% map_df(~eval(parse(text=.x))) %>% PlotMap(., AG)
+
+
+```
+
+
+#West Midlands Brum
+```{r}
+
+setwd(file.path(RegionsComp, "Region West Midlands"))
+
+SandWellDATA <- read_excel("FOI - SandwellDiscountsLSOA - FS57000079 Disc.xlsx" )[1:4] %>%  
+  StructureData(2:6)
+
+WolverhamptonDATA <- read_excel("WolverhamptonDiscountsLSOA.XLSX"  )[1:4] %>%  
+  StructureData(c(2:5,7))
+
+WalsallDATA <- read_excel("WalsallDiscountsLSOA.XLSX" )[1:4] %>%  
+  StructureData(c(4:5,7:8))
+
+BirminghamDATA <-  read_excel("Birmingham CT EMPTIES.xlsx" )%>%
+mutate(Postcode = gsub(" ", "", `Post Code`)) %>%
+ left_join(.,PstCdLSOA.raw,  by=c("Postcode") ) %>%
+  rename(Exemption.type=`Current Discount Type Description`, LSOA_CODE = lsoa11cd) %>%
+  select(Exemption.type, LSOA_CODE, Country_code, Admin_district_code) %>%
+  StructureData(c(2,4:9))
+
+DudleyDATA <- read_excel("Completed DudleyDiscountsLSOA.xlsx"  )[1:4] %>%  
+  StructureData()
+
+```
+
+
+#SouthWest
+
+##Cornwall
+
+```{r}
+
+setwd(file.path(RegionsComp, "Region South West"))
+
+CornwallDATA <- read_excel("Cornwall.xlsx", sheet=1)%>% setNames(make.names(names(.))) %>% .[,1:4] %>%
+  StructureData(lowuse = c(2,23:28))
+```
+
+##Devon
+
+```{r}
+
+NorthDevonDATA <- read_excel("North DevonDiscountsLSOA.XLSX", sheet=1)[1:4] %>%
+  StructureData  
+
+PlymouthDATA <- read_excel("PlymouthDiscountsLSOA.XLSX" , sheet=1)[1:4] %>%
+  StructureData(lowuse = 4:8)
+
+TorbayDATA <- read_excel("Torbay_discounts 1718551.xlsx"  , sheet=1)[1:4] %>%
+  StructureData()
+
+MidDevonDATA <- read_excel("MidDevon FOI04942Information 3.xlsx" , sheet=1)[1:4] %>%
+  StructureData(c(7,10:11,20:22,26,28))
+
+TorridgeDATA <- read_excel("FOI_TorridgeDiscountsLSOA.XLSX" , sheet=1)[1:4] %>%
+  StructureData(c(4:5,7:10,13))
+
+```
+
+##Somerset
+
+```{r}
+NorthSomsertDATA <- read_excel("1501796 North SomersetDiscountsLSOA.xlsx" , sheet=1)[1:4] %>%
+  StructureData(lowuse= 2:6)  
+
+MendipDATA <- read_excel("Mendip 356 20170706 Response.xlsx" , sheet=1)[1:4] %>%
+  StructureData(lowuse= c(37:39,52:54,65:66,69)) 
+
+#Bristol appears to have not included second homes
+#BristolDATA <- read_excel("Bristol%2c City ofDiscountsLSOA_as at 110817.xlsx")[c(1:4)] %>%
+#  StructureData()
+
+```
+
+
+##Dorset
+
+```{r}
+BournemouthDATA <- read_excel("BournemouthDiscountsLSOA_R.xlsx" )[1:4] %>%
+  StructureData(c(6,8,9:13))
+
+PooleDATA <- read_excel("Copy of FOI - 265 - Bourne - PooleDiscountsLSOA.xlsx" , sheet=1)[1:4] %>%
+  StructureData(lowuse = c(5,11:14,18))
+
+ChristchurchDATA <- read_excel("Christchurch FOI17 - 0312 - Bourne - Ctax Discounts and Exemptions.xls",
+                               sheet=1)[1:4] %>%
+  StructureData(lowuse = c(6,12:17,20))
+
+WeymouthDATA <-  read_excel("63687 Weymouth and PortlandDiscountsLSOA - 010817.xlsx"    ,
+                               sheet=1)[1:4] %>%
+  StructureData()
+
+WestDorsetDATA <-  read_excel("47019 West DorsetDiscountsLSOA - 010817.xlsx"     ,
+                               sheet=1)[1:4] %>%
+  StructureData()
+
+
+
+PurbeckDATA <-  read_excel("PurbeckDiscountsLSOA - 010817.xlsx"      ,
+                               sheet=1)[1:4] %>%
+  StructureData()
+
+```
+
+
+##Wiltshire
+
+```{r}
+#Wiltshire have not included everything
+WiltshireDATA <- read_excel("Wiltshire ENQ07536 - Council tax discounts 2.xlsx",
+                               sheet=1)[1:4] %>%
+  StructureData(lowuse = 3:8)
+
+SwindonDATA <- read_excel("Swindon - 7th July 2017 - Part 2 (Discounts).xlsx" ,
+                               sheet=1)[1:4] %>%
+  StructureData(2:6)
+```
+
+#East of England
+
+##Suffolk
+
+
+```{r}
+setwd(file.path(RegionsComp, "Region East of England"))
+list.files()
+
+
+#Serparete in to the two LADS
+# CoastWaveDATA <- bind_rows(read.xlsx("FOI IMT178324 SuffolkCoastal.xlsx")[1:4] , read.xlsx("FOI IMT178324 Waveney.xlsx")[1:4]) %>% setNames(make.names(names(.))) %>%
+#   mutate(Exemption.type = Exemption.type %>% trimws %>%
+#            make.names %>% 
+#            gsub("\\.{2,}" , ".", .))  %>%
+#   StructureData(., lowuse = c(5,6,13,14,16:18))
+
+CoastSUFFDATA <- read.xlsx("FOI IMT178324 SuffolkCoastal.xlsx")[1:4] %>% setNames(make.names(names(.))) %>%
+  mutate(Exemption.type = Exemption.type %>% trimws %>%
+           make.names %>% 
+           gsub("\\.{2,}" , ".", .))  %>%
+  StructureData(.,c(5,6,11,12,14:16))
+
+WaveneySUFFDATA <- read.xlsx("FOI IMT178324 Waveney.xlsx")[1:4] %>% setNames(make.names(names(.))) %>%
+  mutate(Exemption.type = Exemption.type %>% trimws %>%
+           make.names %>% 
+           gsub("\\.{2,}" , ".", .))  %>%
+  StructureData(., lowuse = c(5,6,13,14,16:18))
+
+StEdmundsDATA <- read.xlsx("se FOI 146  3948502_Copy+of+St+EdmundsburyDiscountsLSOA.xlsx")[1:4] %>%
+  StructureData()
+
+ForestHeathDATA <- read.xlsx("FH FOI 146 Discounts.xlsx")[1:4] %>%
+  StructureData()
+
+IpswichDATA <- read_xlsx("IpswichDiscountsLSOA.xlsx")[1:4] %>%
+   StructureData(c(2:4,6:11,13:15))
+
+#Mid Suffolk and Babergh
+#These have been combined and are just the postcodes so need to be fixed
+#Missing loads of postcodes
+MidSuffolkDATA <- read_excel("MidSuffolk FOI MF379 1718 Discount.xlsx") %>%
+mutate(Postcode = gsub(" ", "", `Post Code`)) %>%
+ left_join(.,PstCdLSOA.raw,  by=c("Postcode") ) %>%
+  rename(Exemption.type=`Discount Type Description`, LSOA_CODE = lsoa11cd) %>%
+  select(Exemption.type, LSOA_CODE, Country_code, Admin_district_code) %>%
+  StructureData(c(2:12,14:15))
+
+
+BaberghDATA <- read_excel("Babergh FOI BF378 1718 Discount.xlsx")%>%
+mutate(Postcode = gsub(" ", "", `Post Code`)) %>%
+ left_join(.,PstCdLSOA.raw,  by=c("Postcode") ) %>%
+  rename(Exemption.type=`Discount Type Description`, LSOA_CODE = lsoa11cd) %>%
+  select(Exemption.type, LSOA_CODE, Country_code, Admin_district_code) %>%
+  StructureData(c(2:6,8:11,13:15))
+
+
+```
+
+##Norfolk
+```{r}
+#This is being checked
+BroadlandsDATA <- read_excel("BroadlandDiscountsLSOA.xlsx", sheet=1)[1:4] %>%
+  StructureData(4:9)
+
+KingsLynnDATA <- read_excel("197782 - King s Lynn and West NorfolkDiscountsLSOA (2).xlsx" , sheet=1)[1:4] %>%
+  StructureData(2:11)
+
+NorthNorfolkDATA <- read_excel("North NorfolkDiscountsLSOA.XLSX" , sheet=1)[1:4] %>%
+  StructureData()
+
+BrecklandsDATA <- read_excel("BFOI-003031 BrecklandDiscountsLSOA.xlsx" , sheet=1)[1:4] %>%
+  StructureData()
+
+SNorfolkDATA <- read_excel("SNorfolk 17-307 Discounts.xlsx"  , sheet=1)[1:4] %>%
+  StructureData()
+
+
+NorwichDATA <- read_excel("Norwich Discounts FINAL.xlsx"  , sheet=1)[1:4] %>%
+  StructureData(2:8)
+
+
+```
+
+
+##Cambridge
+```{r}
+EastCambsDATA <- read_excel("EC FOI 130 - DISC_FOI_0_3944413b.xlsx", sheet=1)[1:4] %>%
+  StructureData()
+
+
+FenlandDATA <- read_excel("FL FOI 4544 DISCOUNTS.XLSX" , sheet=1)[1:4] %>%
+  StructureData()
+
+HuntingdonDATA <- read_excel("Huntingdonshire  FOI 568discounts.xlsx" , sheet=1)[1:4] %>%
+  StructureData(lowuse = 2:8)
+
+PeterboroughDATA <- read_excel("Peterborough 1707267585 completed.xlsx" , sheet=1)[1:4] %>%
+  StructureData(lowuse = c(4,6:7,11))
+
+CambridgeDATA <- read_excel("566 - Copy of Copy of CambridgeDiscountsLSOA .xlsx" , sheet=1)[1:4] %>%
+  StructureData(2:5)
+
+```
+
+#South East
+
+
+```{r}
+
+setwd(file.path(RegionsComp, "Region South East"))
+list.files()
+
+BrightonDATA <- read_excel("Copy of Brighton and HoveDiscountsLSOA (4).xlsx", sheet=1)%>% .[,c(2,3:5)] %>%
+  StructureData(lowuse = 2:8)
+#MakeLeaflet(BournemouthDATA)
+
+
+ValeWhiteDATA <- read_excel("Vale of White HorseDiscountsLSOA (00000002).xlsx" , sheet=1)[1:4] %>%
+  StructureData(c(5,7,8,9,10,14))
+
+SouthOxfordDATA <- read_excel("South OxfordshireDiscountsLSOA.xlsx" , sheet=1)[1:4] %>%
+  StructureData(c(5,7,8,9,10,14))
+
+```
+
+
+#Yorkshire and the Humber
+```{r}
+setwd(file.path(RegionsComp, "Region Yorkshire and The Humber"))
+
+#Hull
+
+HullDATA <-read_excel("KINGSTON UPON HULL%2c CITY OFDISCOUNTSLSOA.XLSX")[-c(c(1:6)),1:4] %>%
+  StructureData(.)
+
+#Harrowgate
+
+HarrogateDATA <-read_excel("Harrogate DiscountsExemptionsLSOA.xlsx" )[,1:4] %>%
+  StructureData(.,3:10)
+
+#Selby
+SelbyDATA <-read_excel("SelbyExemptionsLSOA.xlsx" )[,1:4]%>%
+  StructureData(20:27)
+
+
+# HambletonDATA <- read_excel("HDC1088.xlsx")[,1:4] %>%
+#  StructureData()
+
+ScarboroughDATA <- read_excel("FOIA 5156 Scarborough Discounts LSOA.xlsx"  )[,1:4]%>%
+  StructureData(2:8)
+
+
+
+# Middlesbrough sent the wrong data
+# MiddlesbroughDATA <- read_excel( "Middlesbrough FOI RES - 011397 Discounts.xlsx"   )[,1:4]%>%
+#   StructureData()
+
+#Ryedale
+RyedaleDATA <-  read_excel("Ryedale FOI 4597.xlsx")[,1:4]%>%
+  StructureData(2:6)
+
+#Crave they sent full addresses by mistake I'll do a temporary fix
+CravenDATA <- read_excel("Craven Discounts.xlsx" ) %>%
+  setNames(make.names(names(.))) %>%
+  mutate(Postcode = str_split(Full.Property.Address, "(,)(?!.*,)", simplify = T)[,2] %>% 
+           gsub(" ", "", .)) %>%
+  left_join(., PstCdLSOA.raw,  by=c("Postcode") ) %>%
+  rename(Exemption.type=Discount.Type.Description, LSOA_CODE = lsoa11cd) %>%
+  select(Exemption.type, LSOA_CODE, Postcode, Country_code) %>%
+  StructureData(c(2:5,7))
+
+#Redcar and cleveland
+
+RedcarDATA <-  read_excel("Redcar 0614 attachment 1.xlsx")[,1:4]%>%
+  StructureData(2:10)
+
+
+CalderdaleDATA <- read_excel("Copy of CalderdaleDiscountsLSOA.xlsx" )[,1:4]%>%
+  StructureData(c(7,10,22:25))
+
+BradfordDATA <- read_excel("Copy of BradfordDiscountsLSOA.xlsx")[1:4] %>%
+  StructureData(c(2:7))
+
+
+RichmondshireDATA <- read_excel("Richmondshire FOI 4960.xls", col_names = FALSE)[1:2] %>%
+    setNames(c("Exemption.type", "Postcode")) %>%
+  mutate(Postcode = sub(" ", "", Postcode)) %>%
+  left_join(., PstCdLSOA.raw,  by=c("Postcode") ) %>%
+  rename(LSOA_CODE = lsoa11cd) %>%
+  select(Exemption.type, LSOA_CODE, Postcode, Country_code) %>%
+  StructureData(lowuse = c(2:7))
+  
+
+KirkleesDATA <- read_excel("Jonathan Bourne KirkleesDiscountsLSOA Complete.xlsx" )[1:4] %>%
+  StructureData(2:5)
+
+WakefieldData <-  read_excel("WakefieldDiscountsLSOA.xlsx" )[1:4] %>%
+  StructureData(2:7)
+
+```
+
+#North East
+
+##Tyneside
+
+```{r}
+
+setwd(file.path(RegionsComp, "Region North East"))
+list.files()
+#Not sure all are there ask for confirmation
+ SunderlandDATA <- read_excel("Sunderland Freedom of Informaton Request from Jonathan Bourne- 17-07-21-Discounts.xlsx"  , sheet=1)%>% .[,1:4] %>%
+   StructureData(lowuse = c(2:4,6,8:10))
+
+
+NewcastleDATA <- read_excel("Newcastle upon TyneDiscountsLSOA.xlsx", sheet=1)%>% .[,c(1,3:5)] %>%
+    StructureData(lowuse = 2:7)
+
+
+#FOr some reason Gateshead has the wrong LAD11CD I don't know why. I have changed it to the right one but feel that perhaps I should check them all, but how?
+GatesheadDATA <- read_excel("Copy of GatesheadExemptionsLSOA.XLSX"   , sheet=1)%>% .[,1:4] %>%
+   StructureData(lowuse = c(2:3, 20,22:25)) %>%
+  mutate(LAD11CD = ifelse(is.na(LAD11CD), NA, "E08000037"))
+
+STynesideDATA <- read_excel("FOI 17.18456 - South Tyneside Discounts.xlsx", sheet=1)[,c(1,4:6)] %>%
+    StructureData(c(32:35,38))
+
+```
+
+
+##Northumberland
+
+```{r}
+NorthumberlandDATA <- read_excel("FOI 2762 data NorthumberlandDiscounts.xlsx", sheet=1)%>% .[,1:4] %>%
+    StructureData(2:7) %>%
+  #The LAD code is wrong for some reason
+  mutate(LAD11CD = "E06000057")
+
+```
+
+
+##Durham
+```{r}
+  
+DurhamDATA <- read_excel("County DurhamDiscountsLSOA.XLSX" , sheet=1) %>% .[,c(1,4:6)] %>%
+    StructureData()
+
+  DarlingtonDATA <- read_excel("Darlington DBC-0809-17.xlsx" , sheet=1) %>% .[,1:4] %>%
+    StructureData()
+
+  HartlepoolDATA <- read_csv("FOI 7942 HartlepoolDiscountsLSOA.csv") %>% .[,1:4] %>%
+    StructureData(2:7)
+  
+
+```
+
+
+#Wales
+
+Wales is removed to simplify the process.
+As the deprivation scales are separate for all countries this means wales cannot be included in the predictive model later. Also the council tax is seperate.
+
+```{r}
+
+setwd(file.path(RegionsComp, "Region Wales"))
+list.files()
+
+#Ceredigion completed some major Student Halls which were transferred to the University, this created some very large B type transfers which artificially push the cost of second homes lower than the price of regular homes.
+
+CeredigionDATA <- read_excel("CTAX - Ceredigion Discounts LSOA.xlsx", sheet=1)%>% .[,1:4] %>%
+  StructureData(lowuse =c(8:13,15))
+
+MonmouthDATA <- read_excel("MCC Discounts Jul 17.xlsx", sheet=1)%>% .[,1:4] %>%
+  StructureData(lowuse = c(4:8))
+
+
+#includes the zero class which is descibeed as
+#ZERO – tis is a 50% reduction which applies after exemptions that are time limited, have expired. They are awarded on the basis that the property remains unoccupied and unfurnished.
+  CarmarthenDATA <- read_excel("CarmarthenshireDiscountsLSOA.XLSX" , sheet=1)%>% .[,1:4] %>%
+    StructureData()
+
+#Strangely low numbers checking
+# PowysDATA <- read_excel("PowysDiscountsLSOA.XLSX"    , sheet=1)%>% .[,1:4] %>%
+#   StructureData(lowuse = c(3,5:6))
+
+#It seems Conwy really is this short on the discounts
+ConwyDATA <- read_excel("Conwy FOI 0260-17.xlsx" , sheet=1) %>%
+  rename(Postcode = geo_postcode) %>%
+  mutate(Postcode = sub(" ", "", Postcode)) %>%
+  left_join(., PstCdLSOA.raw,  by=c("Postcode") ) %>%
+  rename(Exemption.type=disc_type_desc, LSOA_CODE = lsoa11cd) %>%
+  select(Exemption.type, LSOA_CODE, Postcode, Country_code) %>%
+  StructureData(lowuse = c(2,4))
+
+DenbigshireDATA <- read_excel("FOI 2503 Denbighshirev2 .xlsx" , sheet=1)%>% .[,1:4] %>%
+    StructureData(c(8:9,11,13))
+
+WrexhamDATA <- read_csv("WrexhamDiscountsLSOA.csv" )%>% .[,1:4] %>%
+    StructureData(2:5)
+
+#Pembrokeshire didn't send all the data
+PembrokeshireDATA <- read_excel("Copy of PembrokeshireDiscountsLSOA.xlsx"  , sheet=1)%>% .[,1:4] %>%
+    StructureData(3)
+
+FlintshireDATA <- read_excel("FOI R014329 FlintshireDiscounts LSOA.xlsx"  , sheet=1)%>% .[,1:4] %>%
+    StructureData()
+
+
+```
+
+
+# London using the full data
+
+```{r}
+#Source the code from another file as it is very long
+source(file.path(CommonCode, "LondonFullProcesss.R"))
+
+#MakeLeaflet(NewhamLONDATA)
+
+```
+
+#Semi data 
+
+The LSOA will be assigned empty and low use homes by percentage
+
+```{r}
+# #ward folder
+# setwd(SemiLondon)
+# 
+# 
+# wardnames <- EW2 %>% group_by(Admin_ward_code, WD16NM) %>% summarise(counts = n(), LAD11NM = first(LAD11NM), LAD11CD = first(LAD11CD)) %>% arrange(WD16NM)
+
+#These don't work now the LSOA are being used directly
+# 
+# #TowerHamlets
+# TowerLONDATA <- read_excel("Towerhamlets.xlsx")[,c(1,3)] %>% 
+#   filter(!is.na(DiscClass)) %>%
+#   group_by(Ward, DiscClass) %>%
+#   summarise(count = n()) %>% ungroup %>%
+#   spread(., key =DiscClass, value = count, fill = 0 ) %>% 
+#   mutate(Empty = rowSums(.[,4:8]), LowUse = B+BE+Empty) %>% 
+#   slice(c(1:13, 15:17, 14, 18:20)) %>%
+#    bind_cols(., wardnames %>% filter(grepl("Tower", LAD11NM))) %>%
+#   SemiDataStructure
+# 
+# 
+# HaveringLONDATA <- read_excel("AIR12965P Informatiion provided by Council Tax.xlsx" ) %>%
+#   rename(DiscClass = X__1) %>%
+#   select(-Mawneys, -`Aveley & Uplands`, -Whalebone) %>%
+#   gather(key = "ward", value = "counts", -DiscClass) %>%
+#   spread(key= DiscClass, value = counts, fill = 0) %>%
+#   mutate(Empty = rowSums(.[,c(5:6,14,17)]), LowUse = Empty+ `Second Home Class A`+ `Second Homes Class B`) %>% 
+#   bind_cols(., wardnames %>% filter(grepl("Havering", LAD11NM))) %>%
+#   SemiDataStructure
+
+```
+
+
+#Scrub the names
+
+Remove LSOA that belong to another LAD
+
+```{r}
+
+
+
+for(i in ls(pattern = "DATA")){
+ 
+  Temp <-get(i) %>% 
+    group_by(LSOA11CD) %>%  #Remove double LSOA that may have sneaked in
+    summarise_all(funs(first)) %>% 
+    group_by(LAD11CD) %>% #Remove LAD data that is not from this lad. Occaisonly a few lsoa from other LADs get in and cause problems
+    mutate(LADCount = n()) %>% ungroup %>%
+    filter(!is.na(Admin_ward_code), LADCount == max(LADCount)) %>% #filter out any stray areas that are classed as a different authority
+    select(-LADCount)  
+  
+  assign(i, Temp)
+  
+  } 
+
+```
+
+
+General Stats
+#UK population
+
+
+```{r}
+
+#number of LUPS and Total Homes
+DataCover <- ls(pattern = "DATA") %>% map_df(~eval(parse(text=.x))) %>% 
+  filter(!is.na(LAD11NM)) %>%
+  summarise(
+           'LADs' = length(ls(pattern = "DATA", envir = globalenv())), #bits of other LADS cause the number to be higher than reality so the ls function is used again
+           '% of all LADs' = length(ls(pattern = "DATA", envir = globalenv()))/(EW2$LAD11NM %>% unique %>% length())*100,
+           LUPs = sum(LowUse, na.rm = T),
+           Homes = sum(Homes, na.rm = T),
+           '% of all Homes' = Homes/sum(EW2$Homes)*100,
+           Population = sum(Pop, na.rm= T),
+           '% of total population' = Population/sum(EW2$Pop)*100) %>%
+  mutate_if(.<1, funs(signif(.,3))) %>%
+  mutate_if(.>1, as.integer) %>%
+  mutate_all(as.character) %>% 
+  gather 
+
+DataCover 
+
+xtable(DataCover, caption="Summary of collected data coverage",
+       label = "tab:DataCover") %>% 
+  print(., type="latex", file=file.path(TexTables,"DataCover.tex"))
+
+#Percentage of EW LADS
+length(ls(pattern = "DATA"))/(EW2$LAD11NM %>% unique %>% length())
+
+#check which lads are present even though I don't have data due to postcode matching
+#test <- ls(pattern = "DATA") %>% map_df(~eval(parse(text=.x)))  %>% arrange(LAD11NM)
+#unique(test$LAD11NM)
+
+```
+
+
+#Saleries
+
+Problem here with the MSOA/LSOA code in the IncomeEst
+
+
+```{r}
+
+unafford <- ls(pattern = "DATA") %>%
+  map_df(~get(.x) %>% select(LowUse:MSOALowuseClass)) %>%
+  group_by(MSOA11CD) %>% # ward code is used for consistency
+  summarise(
+    #MSOA11CD = first(MSOA11CD), #MSOA is kept to allow joining of income
+    LowUse = sum(LowUse, na.rm = T),
+            Homes = sum(Homes, na.rm = T),
+            Pop = sum(Pop, na.rm = T)) %>%
+  mutate(LowUsePerc = LowUse/Homes) %>%
+  left_join(IncomeEst, by = "MSOA11CD") %>%
+  mutate(decile = ntile(ratio, 50))
+
+
+unaffordExLon <- unafford %>%
+  filter(Region.name != "London") %>%
+  mutate(decile = ntile(ratio, 50))
+
+#London follows the same pattern it just happens further up the scale
+unaffordLon <- unafford %>%
+  filter(Region.name == "London") %>%
+  mutate(decile = ntile(ratio, 50))
+
+decile <- bind_rows(mutate(unaffordExLon, type = "Excluding London"), 
+                    mutate(unafford, type = "Including London"),
+                    mutate(unaffordLon, type = "Only London")) %>%
+    group_by(type) %>%
+    mutate(decile = ntile(ratio, 50)) %>%
+      group_by(decile, type) %>%
+    summarise(mean = mean(LowUsePerc),
+              median = median(LowUsePerc),
+              counts = n(),
+              ratio= mean(ratio)
+              ) %>%
+  mutate(decile2 = decile^2,
+         ratio2 = ratio^2,
+         logval = log(decile),
+         expval = exp(decile),
+         expvalneg = exp(-decile)) %>%
+  filter(!is.na(decile))
+
+cor(unafford$Yearly.income, unafford$ratio, "complete.obs")
+cor(unaffordExLon$Yearly.income, unaffordExLon$MedianPrice)
+cor(unafford$Yearly.income, unafford$MeanPrice, "complete.obs")
+lm(MedianPrice ~ LowUsePerc + Yearly.income, data  = unafford) %>% summary
+
+rm(unafford); rm(unaffordExLon); rm(unaffordLon)
+
+#Looking at the relationship between unaffordability and LUP percentage
+
+decile %>% 
+  #filter(type == "Excluding London") %>% 
+  ggplot(aes(x= decile, y = median)) + 
+  facet_grid(.~type) + 
+  #geom_point(data =unaffordExLon , aes(x= decile, y = LowUsePerc), alpha = 0.2 )+
+  geom_point(aes(colour = type))  +
+  labs(x = "2 percentile group", y = "median Percent Low Use") + 
+  theme(legend.position= "none") + 
+  geom_smooth(method="loess",se=FALSE, colour = "black") +
+ coord_cartesian(ylim = c(0.01, 0.05)) +
+   scale_y_continuous(labels = scales::percent)
+SaveFig("LowUsePercVSratio.pdf")
+
+
+#make nonlinear  model
+mod <- decile %>% 
+    filter(type == "Excluding London") %>% 
+  nls(median ~ exp(a + b*decile)+  exp(d + c*decile), data = ., 
+      start = list(a = 0, b = -3, c = 0, d = 0))
+
+summary(mod)
+
+decile %>%
+      filter(type == "Excluding London") %>% 
+  ggplot(aes(x = decile, y = median))+
+  geom_point() +
+  geom_line(aes(y = predict(mod, list(x = decile))))
+
+#Example of the theoretical relationship
+
+data_frame(Index = 1:100) %>%
+  mutate(Primary = exp(-0.05*(Index))+0.05, 
+         Auxilary = (exp(Index/100)-1),
+    Total = Primary + Auxilary) %>%
+  gather(key = "Type", value = "value", -Index) %>%
+  ggplot(aes(x= Index, y = value, colour = Type )) +
+  geom_line() +
+  labs(title = "LUP percentage as a function of primary and Auxilary demand",
+       x = "Demand",
+       y = "LUP percentage") +
+  theme(
+  axis.text.x = element_blank(),
+  axis.text.y = element_blank()
+  )
+SaveFig("TheoreticalDemand.pdf")
+
+
+#Is n
+unaffordLAD <- unafford %>%
+  rename(LAD11CD = Local.authority.code) %>%
+  group_by(LAD11CD) %>%
+  mutate(TotInc = Yearly.income*Homes) %>%
+  summarise(TotInc = sum(TotInc),
+            Homes = sum(Homes)) %>%
+  mutate(meanInc = TotInc/Homes)
+
+```
+
+
+#Bootstrap
+
+Now all the data is loaded each LAD needs to be bootstrapped
+
+```{r}
+PropertyTypes <- c("D", "S", "T", "F")
+setwd("/home/jonno/Dropbox/SSE/Empty Homes/BootStrapAuthorities")
+  
+#Find what needs to be bootstrapped
+BootStrapFiles <- list.files(getwd()) %>% gsub("DATA.rds", "",.)
+  newLADsnames <- sub("DATA", "", ls(pattern = "DATA", envir = globalenv())) %>% 
+    .[!(. %in% BootStrapFiles)] 
+  newLADs <- paste0(newLADsnames, "DATA") 
+
+  
+   #only bootstrap if there is something to add.
+  #Save each boostrap as you go along to avoid losing it all in a crash
+  if(length(newLADsnames)>0){
+    newLADs  %>% walk(~{print(.x)
+      DistribCompareBootstrapper(get(.x), 1652, 1000, type=NULL, PropertyTypes)%>%
+      saveRDS(., file = paste0(.x, ".rds"))
+      }) 
+  }
+
+  #once all Bootratps complete load them all into a list
+ BootStrapRES <- list.files(getwd()) %>%
+   map(~readRDS(.x))
+ 
+ #name the list
+ names(BootStrapRES) <- list.files(getwd()) %>% gsub(".rds", "",.)
+
+
+#Make a summary dataframe
+Combine1ExO <- BootResSummaryData(BootStrapRES) 
+
+
+
+```
+
+
+#Analyse Bootstrap
+
+
+```{r}
+#99% of the LADs are significantly different from 0 at the 95% level
+sum(Combine1ExO$Ttest.p.value>0.975 |Combine1ExO$Ttest.p.value<0.025)/nrow(Combine1ExO)
+
+CleanForPlotClassDiff <- function(df){ #not a seperate function for ease of editing
+  df %>% 
+  group_by(ID, class) %>%
+  summarise(Homes = sum(Homes), LowUse = sum(LowUse)) %>%
+  group_by(ID)%>%
+  mutate(RatioExvsAct = LowUse/sum(LowUse)) %>%
+  mutate(RatioExvsAct = (RatioExvsAct/0.25)-1)
+}
+
+CleanForPlotClassDiff(BootStrapRES$ChelseaLON)  %>%
+PlotClassDiff(., "Kensington and Chelsea")
+SaveFig("ClassdiffChelsea.pdf")
+
+CleanForPlotClassDiff(BootStrapRES$Cornwall)  %>%
+PlotClassDiff(., "Cornwall")
+SaveFig("ClassdiffCornwall.pdf")
+
+CleanForPlotClassDiff(BootStrapRES$BarrowCUMBRIA) %>%
+PlotClassDiff(., "Barrow")
+SaveFig("ClassdiffBarrow.pdf")
+
+
+#Plot for all data
+All_data_class <- BootStrapRES %>% 
+  bind_rows %>%
+  select(CountryClass, ID, LowUse, Homes) %>%
+  rename(class = CountryClass)%>%
+  CleanForPlotClassDiff
+
+All_data_class %>% group_by(class) %>%
+  summarise_all(mean)
+
+
+PlotClassDiff(All_data_class)
+SaveFig("ClassdiffAllData.pdf")
+
+
+#Total value of homes and LUPS
+
+#LADnames <- names(BootStrapRES)
+
+LUPval <-   map2(.x =BootStrapRES, .y =   names(BootStrapRES),~ {.x %>% mutate(LAD  = .y)}) %>%
+  bind_rows %>%
+  select(-class, -LAD11CD, -CountryClass,-classVal) %>%
+  group_by(LAD, ID) %>%
+  summarise_all(sum) %>%
+  group_by(LAD) %>%
+  summarise_all(mean) %>%
+  ungroup %>%
+  mutate(HomesPrice = HomesValue/Homes,
+         LowUsePrice = LowUseValue/LowUse,         
+         ratio = LowUse/Homes,
+         HomesPerc = Homes/sum(Homes, rm.na = T),
+         LowUsePerc = LowUse/sum(LowUse, rm.na = T),
+         ClassPerc = LowUse/Homes,
+         ExpectedHomes = HomesPerc*sum(LowUse, rm.na = T),
+         RatioExvsAct = LowUse/ExpectedHomes
+         ) %>%
+  mutate(VancouverTax = LowUseValue*0.01/1000)
+
+
+#value is billions of pounds of a vancouver tax in England and wales.
+LUPval$VancouverTax %>% sum(.)/1000
+
+```
+
+#Explore results
+
+```{r}
+
+LADNMs <- EW2 %>% group_by(LAD11CD) %>%
+  summarise(LAD11NM = first(LAD11NM))
+
+#calulcate the number of properties sold and the mean price
+ABratio <- prices %>% 
+  filter(X5 %in% PropertyTypes) %>%
+  group_by(Admin_district_code, X15) %>%
+  summarise(count = n(), 
+            mean = mean(X2)) %>%
+  rename(LAD11CD = Admin_district_code)
+
+ABratio2 <- ABratio%>%
+  select(-mean) %>%
+spread(key = X15, value = count) %>%
+  mutate(Countratio = B/(A+B)) %>%
+  rename(CountofA = A, CountofB = B)
+
+ABratio3 <- ABratio%>%
+  select(-count) %>%
+spread(key = X15, value = mean) %>%
+  mutate(Valueratio = B/(A)) %>%
+  rename(MeanofA= A, MeanofB = B)
+
+
+CombineAB <-left_join(ABratio2, ABratio3, by = "LAD11CD") %>%
+  left_join(Combine1ExO, ., by = "LAD11CD") 
+
+rm(ABratio); rm(ABratio2); rm(ABratio3)
+
+CombineAB %>%
+  ggplot(.,aes(x= diffPerc, y = Ttest.p.value, colour = Valueratio>1)) + geom_point()
+
+```
+
+
+#Overall Concentration plot
+
+This chunk makes a plot that shows that LUPs are more heavily concentrated than Homes
+
+```{r}
+   test <- ls(pattern = "DATA") %>%
+  map_df( ~get(.x) %>%
+            select(LSOA_CODE, Admin_ward_code, LowUse, Homes))%>%
+  group_by(Admin_ward_code) %>%
+  summarise(LowUse = sum(LowUse),
+            Homes = sum(Homes)) %>%
+  filter(!is.na(Homes)) 
+
+%>%
+  arrange(-LowUse) %>%
+  mutate(
+    CumsumLUP = cumsum(LowUse),
+    CumsumLUPPerc = CumsumLUP/sum(LowUse),
+    CumsumHomes = cumsum(Homes),
+    CumsumHomesPerc = CumsumHomes/max(CumsumHomes),
+    CumsumNumber = 1:nrow(.),
+    CumsumPercNumber = CumsumNumber/max(CumsumNumber)) 
+
+test2 <- test %>%
+  gather(key = Type, value = value, -Admin_ward_code) %>%
+  group_by(Type) %>%
+  arrange(-value) %>%
+  mutate(
+    Cumsum = cumsum(value),
+    CumPerc = Cumsum/sum(value),
+    CumsumNumber = 1:n(),
+    CumsumPercNumber = CumsumNumber/max(CumsumNumber)) 
+
+test2%>%
+  ggplot(aes(x = CumsumPercNumber, y = CumPerc, colour = Type)) + geom_line() +
+  labs(
+    title= "Comparison of LUP vs Home concentration", 
+       y= "Percent of total property type", 
+    x= "Cumulative percent of administrative wards") +
+  scale_color_discrete(labels = c("Homes", "LUPs"))+
+   scale_y_continuous(labels = scales::percent)+
+  scale_x_continuous(labels = scales::percent)
+SaveFig("LUPConcentration.pdf")
+
+test3 <-test2 %>%
+  select(Type, CumPerc, CumsumPercNumber) %>%
+  spread(key = "Type", value = "CumPerc") %>%
+  mutate(ratio = LowUse/Homes-1)
+
+test3 %>%
+  ggplot(aes(x= CumsumPercNumber, y = ratio)) + geom_line()
+
+```
+
+
+#Inlcuding deprivation
+```{r}
+
+#creating the empty deprivation extent
+maxLSOA <- max(LSOADep$Rank..where.1.is.most.deprived.)
+
+ExtentWeight <- LSOADep%>%
+  mutate(percentile = (Rank..where.1.is.most.deprived./maxLSOA),
+         perc2 = percentile-0.11,
+         weight = ifelse(percentile<.11|percentile>.3,0, 0.95 - (0.95/.20)*perc2 ),
+         weight = ifelse(percentile<0.11, 1, weight)) %>%
+  select(LSOA_CODE, weight)
+
+#Create the extent of deprivation of the LUPs
+LUPdepExt <- ls(pattern = "DATA") %>% map_dbl(~{
+df <- get(.x)
+test <- df %>% 
+  left_join(., ExtentWeight, by= "LSOA_CODE")  %>%
+  mutate(WeightedLUP = (LowUse*weight)/sum(LowUse))
+
+sum(test$WeightedLUP, na.rm = TRUE)
+})
+
+
+#Add in deprivation
+Combine1ExO <- select(LADDep, LAD11CD ,Extent) %>% 
+  left_join(CombineAB, ., by = "LAD11CD") %>%
+  mutate(LUPdepExt) 
+
+Combine1ExO %>% ggplot(.,aes(x= maxPerc, y = LUPdepExt, colour = absdiff>0)) +
+  geom_jitter()
+
+
+```
+
+
+#Model
+
+##Create modelling dataframe
+
+```{r}
+LADincome <- EW2 %>%
+  group_by(MSOA11CD) %>%
+  summarise(Pop = sum(Pop),
+            LAD11CD = first(LAD11CD)) %>%
+  ungroup %>%
+  select(LAD11CD,MSOA11CD, Pop)%>%
+ left_join(IncomeEst %>%
+              select( MSOA11CD, Yearly.income), by = "MSOA11CD") %>%
+  mutate(TotalIncome = Pop*Yearly.income) %>%
+  group_by(LAD11CD) %>%
+  summarise(Pop = sum(Pop),
+            income = sum(TotalIncome)) %>%
+   mutate(income = income/Pop)
+  
+
+
+
+LADprice <- prices %>%
+  filter(X5!= "O") %>%
+  group_by(Admin_district_code) %>%
+summarise(price = mean(X2)) %>%
+  mutate(pricepercent = percent_rank(price)) %>%
+  ungroup
+
+ModelMe <- Combine1ExO %>%
+  left_join(LADprice, by = c("LAD11CD"="Admin_district_code"))%>%
+  left_join(Vacants, by = "LAD11CD") %>%  
+  left_join(LADincome %>%
+              select(LAD11CD, income ), by = "LAD11CD") %>%
+  mutate(VacantsPerc = Vacants/Homes,
+         LTVPerc = Vacants/Homes,
+         afford = price/income) %>%
+  #filter out wales
+  filter(!grepl("W", LAD11CD)) %>%
+  mutate(Reference = as.factor(absdiff>0) ) %>%
+  #scaled so that the binomial can be interpreted
+  mutate(pricepercent = scale(pricepercent) %>% as.numeric,
+         LUPdepExt = scale(LUPdepExt) %>% as.numeric,
+         maxPerc = scale(maxPerc) %>% as.numeric,
+         VacantsPerc = scale(VacantsPerc) %>% as.numeric,
+         price = price %>% scale %>% as.numeric,
+         Extent = scale(Extent) %>% as.numeric) #%>%
+ # mutate(Reference = (HighVal>(LUPS-HighVal)) %>% as.factor)
+
+ModelMe %>% ggplot(aes(x = afford, y = (LUPS/(Homes+LUPS)), colour = Reference)) + geom_point()
+
+#57% of LADs have mostly high value properties
+table(ModelMe$Reference)
+
+rm(LADincome)
+
+```
+
+
+##create functions to get out model preds
+
+```{r}
+ GetAccuracy <- function(df, splits , Var ) {
+  select_(df,splits) %>% flatten %>%
+           map2_dbl(select_(df,Var) %>% flatten, ., ~{ augment(.x, newdata = assessment(.y)) %>%
+               mutate(.fitted = factor(.fitted > 0,
+                        levels = as.factor(c("FALSE", "TRUE"))))  %>%
+              accuracy(., Reference, .fitted)} ) }
+
+#If this one is used on the logistic regression I get an "incorrect number of dimensions error"
+GetAccuracyForest <- function(df, splits , Var ) {
+   select_(df,splits) %>% flatten %>%
+map2_dbl( select_(df,Var) %>% flatten, ~{assessment(.x) %>%
+   mutate(fitted = predict(.y, .) %>% .[,colnames(.)=="TRUE"],
+          fitted = factor(fitted > 0,
+                        levels = as.factor(c("FALSE", "TRUE")))) %>%
+              accuracy(., Reference, fitted) 
+}) }
+
+
+```
+
+#Create Models
+```{r}
+
+FOIFormula <- as.formula(Reference~ LUPdepExt + price + VacantsPerc)
+OpenFormula <- as.formula(Reference~ Extent + price + VacantsPerc)
+OpenFormula2 <- as.formula(Reference~ Extent + price)
+
+set.seed(4622)
+Modeldf <- ModelMe  %>%
+  vfold_cv(., V = 5, repeats = 200) %>%
+  mutate(LogisticFOI = splits %>%
+  map(.,~{ glm(FOIFormula, data = analysis(.x),binomial(link='logit'))}
+        ),
+  LogisticOpen = splits %>%
+  map(.,~{ glm(OpenFormula, data = analysis(.x),binomial(link='logit'))}
+        ),
+  LogisticOpen2 = splits %>%
+  map(.,~{ glm(OpenFormula2, data = analysis(.x),binomial(link='logit'))}
+        ),
+  ForestOpen = splits %>% 
+    map(., ~{rpart(OpenFormula2, data=analysis(.x))})
+  ) %>%
+  mutate(LogFoiAcc = GetAccuracy(., "splits", "LogisticFOI"),
+         LogOpenAcc = GetAccuracy(., "splits", "LogisticOpen"),
+         LogOpenAcc2 = GetAccuracy(., "splits", "LogisticOpen2"),
+         ForestOpenAcc = GetAccuracyForest(., "splits", "ForestOpen"))
+
+Modeldf$LogisticOpen %>%
+   map_df(., ~coefficients(.x) %>%
+            as.data.frame(.) %>% rownames_to_column()) %>%
+   setNames(c("key", "value")) %>%
+  ggplot(aes(x= key, y = value, fill = key)) +geom_boxplot() +
+  labs(title = "Coefficient values across 100 samples of 10 fold cross validation")
+SaveFig("ModelCoeffs.pdf")
+
+
+ModComp <- Modeldf %>%
+  select(LogFoiAcc, LogOpenAcc, ForestOpenAcc, LogOpenAcc2) %>%
+  gather
+  
+  ModComp %>%
+  ggplot(aes(x=model, y = statistic, fill = model)) + 
+  geom_boxplot()
+
+  ModComp %>%
+  group_by(model) %>%
+  summarise(mean =mean(statistic),
+            median = median(statistic))
+  
+  
+   test <- select_(Modeldf, "splits") %>% 
+     flatten %>%
+     map2(select_(Modeldf,"LogisticFOI") %>% flatten, ., ~{ augment(.x, newdata = assessment(.y)) %>%
+               mutate(.fitted = factor(.fitted > 0,
+                        levels = as.factor(c("FALSE", "TRUE"))))
+     }) 
+   
+
+
+```
+
+#Model two
+
+Older modelling style as I am not sure what is happening with the current method.
+```{r}
+reps <- 1000
+
+set.seed(1983)
+TestResample <- 1:reps %>% map(~  resample_partition(ModelMe, c(test = 0.2, train = 0.8)))
+
+LogFOI <- 1:reps %>% map_df(~{
+  train<- TestResample[[.x]]$train %>% as.data.frame
+  test <- TestResample[[.x]]$test %>% as.data.frame
+  ;
+  model <- glm(FOIFormula, 
+               family=binomial(link='logit'),
+               train)
+
+  Confmat <- confusionMatrix( predict(model, test, type = "response")>0.5,
+                              test$Reference) 
+
+  Out<- bind_cols(Confmat$overall %>% as.matrix %>%t %>% data.frame,
+          Confmat$byClass %>% as.matrix %>%t %>% data.frame,
+          coefficients(model)%>% as.matrix %>%t %>% data.frame) %>%
+  mutate(ID = .x)
+
+}
+)
+
+LogOpen<- 1:reps %>% map_df(~{
+  TestResample<- TestResample[[.x]]
+  
+  model <- glm(OpenFormula, 
+               family=binomial(link='logit'),
+               as.data.frame(TestResample$train))
+
+  Confmat <- confusionMatrix( predict(model, as.data.frame(TestResample$test), type = "response")>0.5,
+                              as.data.frame(TestResample$test)$Reference) 
+
+  Out<- bind_cols(Confmat$overall %>% as.matrix %>%t %>% data.frame,
+          Confmat$byClass %>% as.matrix %>%t %>% data.frame,
+          coefficients(model)%>% as.matrix %>%t %>% data.frame) %>%
+  mutate(ID = .x)
+
+}
+)
+
+ForestOpen<- 1:reps %>% map_df(~{
+  TestResample<- TestResample[[.x]]
+  
+  model <- rpart(OpenFormula, data = as.data.frame(TestResample$train))
+
+  Confmat <- confusionMatrix( predict(model, as.data.frame(TestResample$test), type = "prob")[,2]>0.5,
+                              as.data.frame(TestResample$test)$Reference) 
+
+  Out<- bind_cols(Confmat$overall %>% as.matrix %>%t %>% data.frame,
+          Confmat$byClass %>% as.matrix %>%t %>% data.frame) %>%
+  mutate(ID = .x)
+
+}
+)
+
+
+ModRes <- bind_rows(LogFOI, LogOpen, ForestOpen) %>%
+  mutate(Model = rep(c("LogFOI", "LogOpen", "ForestOpen"), each = reps))
+
+
+ModRes %>%
+  ggplot(aes(x= Model, y = Accuracy)) +
+  geom_boxplot()
+
+
+
+ModRes %>%
+  group_by(Model) %>%
+  summarise(mean = mean(Accuracy),
+            median = median(Accuracy),
+            above = sum(Accuracy>AccuracyNull)/reps,
+            above2 = median(Accuracy-AccuracyNull),
+            NullMean = mean(AccuracyNull),
+            NullMedian = median(AccuracyNull))
+
+
+```
+
+
+```{r}
+  
+  BootDeets <- BootStrapRES %>% map_df(~.x %>% group_by(ID) %>%
+                                    summarise(HighVal = sum(HighVal, na.rm = T),
+                                              LAD11CD= first(LAD11CD),) 
+  ) %>% 
+  left_join(., Combine1ExO %>% select(LAD11CD, LUPS)) %>%
+  mutate(Majority = HighVal>=(LUPS/2)) %>%
+  left_join(., select(ModelMe, LAD11CD, Extent, price, VacantsPerc), by = "LAD11CD") %>%
+  mutate(Reference = HighVal>(LUPS/2))
+
+
+#There is in fact boostrap variation on which LADS are majority
+test <- BootDeets %>%
+  group_by(LAD11CD) %>%
+  summarise(Majority = sum(Majority, na.rm = T)/1000,
+            Total = n(),
+            t2 = abs(Majority-0.5)+0.5)
+
+test %>%
+  ggplot(aes(x = Majority)) + geom_density()
+
+test2 <- BootStrapRES$IslingtonLONDATA %>%
+  group_by( ID) %>%
+  summarise(HighVal = sum(HighVal),
+            LowUse = sum(LowUse))
+
+
+median(test$t2)
+
+BootModData <- select(BootDeets, ID, LAD11CD, Majority) %>%
+  left_join(., select(ModelMe, LAD11CD, Reference,LUPdepExt, price, VacantsPerc, Extent))
+
+
+#make list of bootstrap models
+MakeBootModels <- function(df, trainvect, ModForm = OpenFormula){
+  
+  BootMod <- (1:max(df$ID)) %>%
+  map(~{
+    
+    ModData <- df %>%
+      filter(ID ==.x)
+
+  model <- glm(ModForm, 
+               family=binomial(link='logit'),
+               data = ModData[trainvect,])
+      
+  }
+    
+  )
+  
+}
+
+#extract predictions
+MakeBootPreds <- function(df, BootMod, testvect){
+  
+  Predsdf <- 1:length(BootMod) %>%
+  map(~{
+    
+        ModData <- df %>%
+      filter(ID ==.x)
+    
+    
+    tibble(v1 =predict(BootMod[[.x]], ModData[testvect,], type = "response")>0.5) 
+  }) %>%
+  bind_cols() %>% set_names(make.names(1:length(BootMod)))
+  
+  return(Predsdf)
+  
+}
+
+#get the accuracy across all bootstraps
+MakeBootAccuracy <- function(Predsdf, df, testvect){
+  
+    Accdf <- 1:ncol(Predsdf) %>%
+  map_df(~{
+    
+    ModData <- df %>%
+      filter(ID ==.x)
+    
+
+    Confmat <- confusionMatrix( Predsdf[,.x] %>% unlist,
+                              ModData$Reference[testvect])
+    # Confmat <- bind_cols(Predsdf %>% select(.x),
+    #                   as.data.frame(testvect) %>% select(Reference)) %>%
+    #   set_names(c("Predictions", "Reference")) %>%
+    #   mutate(Predictions = factor(Predictions,
+    #                     levels = as.factor(c("FALSE", "TRUE")))) %>%
+    #   conf_mat(truth = Reference, estimate = Predictions)
+
+          
+
+  Out<- bind_cols(Confmat$overall %>% as.matrix %>%t %>% data.frame,
+          Confmat$byClass %>% as.matrix %>%t %>% data.frame) %>%
+  mutate(ID = .x)
+  
+  })
+  
+}
+
+
+OpenFormula <- as.formula(Reference~ Extent + price)
+BootMod <- MakeBootModels(BootDeets, as.integer(TestResample[[1]]$train))
+Predsdf <- MakeBootPreds(BootDeets, BootMod, as.integer(TestResample[[1]]$test))
+Accdf   <- MakeBootAccuracy(Predsdf, BootDeets, as.integer(TestResample[[1]]$test))
+
+bind_rows(Accdf %>%mutate(modelOpen = "V1"), 
+          Accdf2 %>%mutate(modelOpen = "V2")) %>%
+  ggplot(aes(x = modelOpen, y = AccuracyPValue)) + geom_boxplot()
+
+Confmat <- confusionMatrix(rowSums(Predsdf)/ncol(Predsdf)>0.5, as.data.frame(TestResample[[1]]$test)$Reference)
+  BootOut <- bind_cols(Confmat$overall %>% as.matrix %>%t %>% data.frame,
+          Confmat$byClass %>% as.matrix %>%t %>% data.frame) %>%
+  mutate(ID = 1001)
+
+Coeffs1 <- 1:length(BootMod) %>%
+  map_df(~BootMod[[.x]] %>% tidy %>% mutate(ID = .x) ) %>%
+  mutate(model = "Open1")
+
+Coeffs1 %>%
+  filter(term != "VacantsPerc", term != "(Intercept)") %>%
+  ggplot(aes(x = term, y = p.value, fill = term)) + geom_boxplot() + 
+  coord_cartesian(y = c(0,0.12))
+  
+Accdf <- bind_rows(Accdf, BootOut)
+
+set.seed(1983)
+TestResample <- 1:50 %>% map(~  resample_partition(ModelMe, c(test = 0.1, train = 0.9)))
+
+AccMega <- 50:1 %>%
+  map_df(~{
+    print(.x)
+    BootMod <- MakeBootModels(BootDeets, as.integer(TestResample[[.x]]$train),ModForm =  as.formula(Reference~ + price))
+Predsdf <- MakeBootPreds(BootDeets, BootMod, as.integer(TestResample[[.x]]$test))
+Accdf   <- MakeBootAccuracy(Predsdf, BootDeets, as.integer(TestResample[[.x]]$test))
+
+Confmat <- confusionMatrix(rowSums(Predsdf)/ncol(Predsdf)>0.5, as.data.frame(TestResample[[.x]]$test)$Reference)
+  BootOut <- bind_cols(Confmat$overall %>% as.matrix %>%t %>% data.frame,
+          Confmat$byClass %>% as.matrix %>%t %>% data.frame) %>%
+  mutate(ID = 1001)
+  
+bind_rows(Accdf, BootOut) %>%
+  mutate(Sample = .x)
+  })
+
+
+CoeffsMega <- 50:1 %>%
+  map_df(~{
+    print(.x)
+    BootMod <- MakeBootModels(BootDeets, as.integer(TestResample[[.x]]$train), ModForm =  as.formula(Reference~ + price))
+
+    #needs to be mapped again to extract every model not just the first 50!
+BootMod[[.x]] %>% tidy %>% mutate(ID = .x) %>%
+  mutate(Sample = .x)
+  })
+
+CoeffsMega <- CoeffsMega %>%
+  mutate(beats = p.value<0.05)
+
+CoeffsMega %>%
+  filter(term != "VacantsPerc", term != "(Intercept)") %>%
+  ggplot(aes(x = term, y = p.value, fill = term)) + geom_boxplot() + 
+  coord_cartesian(y = c(0,0.12))
+
+
+test<- CoeffsMega %>%
+  group_by(term) %>%
+  summarise_all(funs(mean, median))
+
+  
+
+table((AccMega$Accuracy-AccMega$AccuracyNull)>0)/50050
+
+
+AccMega2 <- AccMega %>%
+  mutate(MajVote = ID == 1001)
+
+test <- AccMega2 %>%
+  group_by(MajVote) %>%
+  summarise_all(funs(mean, median))
+
+AccMega2 %>%
+  filter(ID == 1001) %>%
+  ggplot(aes(x = AccuracyPValue)) + geom_density()
+
+
+AccMega2 %>%
+  ggplot(aes(x = MajVote, y = Accuracy)) + geom_boxplot()
+
+median(AccMega$AccuracyPValue)
+
+```
+
+
+#All England Bootstrap
+
+Can't be used as there is not enough power
+
+```{r}
+#Create model using all data
+Mod <- ModelMe %>% 
+  glm(OpenFormula, data = ., binomial(link='logit'))
+
+LadHomes <-  EW2 %>%
+  group_by(LAD11CD) %>%
+  summarise(Homes = sum(Homes, na.rm = TRUE),
+            Pop = sum(Pop, na.rm = TRUE))
+
+
+EnglandComp <- LADDep %>% 
+  select (LAD11CD, LAD11NM = Local.Authority.District.name..2013., Extent)%>% 
+  left_join(., Vacants, by = "LAD11CD") %>%
+  left_join(LADprice, by = c("LAD11CD" = "Admin_district_code")) %>%
+  left_join( LadHomes, by = "LAD11CD") %>%
+  ungroup %>%
+  #left_join(Rural, by = "LAD11CD") %>%
+  as.data.frame() %>%
+  mutate(VacantsPerc = Vacants/Homes,
+  #scaled so that the binomial can be interpreted
+  pricepercent = pricepercent %>% scale %>% as.numeric,
+         VacantsPerc = scale(VacantsPerc) %>% as.numeric,
+         price = scale(price) %>% as.numeric,
+         Extent = scale(Extent) %>% as.numeric) %>%
+  mutate(Prob = predict(Mod, newdata = ., type ="response")) %>%
+  #merge on the truth
+  left_join(ModelMe %>% select(LAD11CD, Reference), by = "LAD11CD") %>%
+  mutate(BootCol = case_when(Reference == TRUE ~1,
+                             Reference == FALSE ~ 0,
+                             TRUE ~ Prob),
+         Comp.Type = Prob>0.5)
+  
+BootPopHigh <-map2(EnglandComp$Pop, EnglandComp$BootCol, 
+            ~sample(c(.x, 0), size = 1000, 
+                    replace = TRUE,
+                    prob = c(.y, 1-.y)) %>%
+              as.tibble) %>%
+  bind_cols() %>%
+  rowSums() %>%
+  tibble(Pop=.) %>%
+  mutate(PercPop = Pop/sum(EnglandComp$Pop))
+
+
+BootPopHigh %>%
+  ggplot(aes(x = PercPop)) +
+  geom_density()
+
+
+
+#The 95 percent confidence interval of the mean
+QuantInfo<-quantile(BootPopHigh$Pop, probs = c(0.05, 0.5 ,0.95))
+quantile(BootPopHigh$PercPop, probs = c(0.05, 0.5 ,0.95))
+#diff is 3.6M
+QuantInfo[3]-QuantInfo[1]
+
+```
+
+
+#Vancouver Tax
+
+```{r}
+setwd(DataFolder)
+QRC2017<- read_xlsx("QRC4-2017-2018.xlsx", sheet = 2, skip = 2) %>%
+  select(3:4) %>%
+  set_names("LAD11CD", "CouncilTax") %>%
+  mutate(CouncilTax = CouncilTax*1000)
+
+
+EmptyTax <- Combine1ExO %>%
+  left_join(., QRC2017) %>%
+  mutate(EmptyTax = MeanLUPs*LUPS*0.01,
+         EmptyOfCouncil = EmptyTax/CouncilTax)
+
+sum(EmptyTax$EmptyTax)/1e6
+mean(EmptyTax$EmptyOfCouncil, na.rm = T)
+median(EmptyTax$EmptyOfCouncil, na.rm = T)
+
+sum(EmptyTax$EmptyTax)/sum(EmptyTax$CouncilTax)
+
+EmptyTax %>%
+  ggplot(aes(x =EmptyOfCouncil)) + geom_density() +
+  coord_cartesian(x=c(0,0.7)) +
+  scale_x_continuous(labels = scales::percent) +
+  labs(title = "Distribution of value of Empty homes tax in terms of council tax by local authority", 
+       x = "Percent of council tax value")
+
+
+EmptyTax %>%
+  select(EmptyOfCouncil, LAD) %>%
+  arrange(EmptyOfCouncil) %>%
+  top_n(5,EmptyOfCouncil)
+
+
+
+```
+
+
+#Plot stuff
+```{r}
+x <-bind_rows(SouthwarkLONDATA, TowerDATA, LambethLONDATA, CoLLONDATA, NewhamLONDATA) %>% MakeLeaflet
+
+z<- MakeLeaflet(AllerdaleDATA)
+z
+# 
+setwd(basewd)
+ saveWidget(z, file=file.path(basewd, "Cumbria.html"), selfcontained = TRUE )
+
+#testSouth <- DistribCompareBootstrapper(SouthwarkLONDAls(pattern = "DATA")TA, 1652, 1000)
+testSouth %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100) %>% 
+  ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + geom_boxplot() + 
+  labs(title = "Bootstrapped difference from expected number of low-use homes", y = "% difference from expected")
+
+ValueTtest(test)
+
+PlotMap(ConwyDATA)
+
+z <-ChelseaLONDATA %>% 
+  mutate(LAD11CD = ifelse(LAD11CD  == "E09000005", "E05009388" ,LAD11CD)) %>% #kept adding in Barnet
+  filter(LAD11NM =="Kensington and Chelsea") %>% 
+  MakeLeaflet()
+
+mapshot(z, file = file.path(Figures, "Chelsea.pdf"))
+
+CumbriaPlot <- ls(pattern = "CUMBRIA") %>% 
+  map_df(~get(.x)) %>%
+   group_by(LSOA11CD) %>%
+   summarise(LowUse = sum(LowUse, na.rm = TRUE)) %>% 
+  CalcLowUse()
+
+z<- MakeLeaflet(CumbriaPlot)
+
+mapshot(z, file = file.path(Figures, "Cumbria.pdf"))
+
+
+
+z<- MakeLeaflet(CornwallDATA)
+mapshot(z, file = file.path(Figures, "Cornwall.pdf"))
+
+z<- MakeLeaflet(BarrowCUMBRIADATA)
+mapshot(z, file = file.path(Figures, "Barrow.pdf"))
+
+
+MakeLeaflet(WestminsterLONDATA)
+
+#MSOA version
+
+NorthDevonDATA %>%
+ # left_join(select(BootDeetsMean, MSOA11CD, AffordRatio)) %>%
+ # mutate(LowUsePerc = AffordRatio/mean(AffordRatio)) %>% 
+  mutate(LAD11CD = ifelse(LAD11CD  == "E09000005", "E05009388" ,LAD11CD)) %>% #kept adding in Barnet
+  filter(LAD11NM =="Kensington and Chelsea") %>% 
+  MakeLeaflet()
+  
+  MakeLeaflet(NorthDevonDATA)
+
+```
