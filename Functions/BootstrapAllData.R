@@ -1,5 +1,5 @@
-BootstrapAllData <- function(DATAdf, GroupingVars = c("class", "classVal", "CountryClass"), Reps=501, LimitValue, RandomSeed = 1652){
-  PropertyTypes <- c("D", "S", "T", "F")  
+BootstrapAllData <- function(DATAdf, GroupingVars = c("class", "classVal", "CountryClass"), Reps=501, LimitValue, RandomSeed = 1652, PropertyTypes= c("D", "S", "T", "F") ){
+  
   #Find the length of each vector so that it can be sampled as quickly as possible
   LADBootInfo <- DATAdf %>%
     group_by(LAD11CD) %>%
@@ -16,11 +16,12 @@ BootstrapAllData <- function(DATAdf, GroupingVars = c("class", "classVal", "Coun
   #only bootstrap if there is something to add.
   #Save each boostrap as you go along to avoid losing it all in a crash
   if(length(newLADsnames)>0){
-    newLADsnames  %>% walk(~{print(.x)
+    1:length(newLADsnames)  %>% walk(~{
+      print(paste0("Bootstrapping ", LADBootInfo$LAD11NM[LADBootInfo$LAD11CD==newLADsnames[.x]],". LADs remaining ", length(newLADsnames)-.x))
       DATAdf %>% 
-        filter(LAD11CD == .x) %>%
+        filter(LAD11CD == newLADsnames[.x]) %>%
         DistribCompareBootstrapper(., RandomSeed, Reps, type=NULL, PropertyTypes, Limit = LimitValue, GroupVars = GroupingVars ) %>%
-        saveRDS(., file = paste0(.x, ".rds"))
+        saveRDS(., file = paste0( newLADsnames[.x], ".rds"))
       gc()
     }) 
   }

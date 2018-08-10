@@ -32,6 +32,9 @@ It also cleans all postcodes that are in other LADs out... should it just combin
 #creates a data frame called DATAdf
 source(file.path(SubCode, "LOADandProcessLADData.R"))
 
+#This is no longer needed
+rm(PstCdLSOA.raw)
+
 ```
 
 #MSOA to LAD
@@ -88,6 +91,25 @@ From this we can find out if the majority of a LADs Low Use properties are inves
 
 The same can be done at MSOA level but the areas are so small that you don't get enough variation in the house price levels to get a meaningful result. A better way to do this would be to use the ego network of MSOA around a target to find the "Neighbourhood LAD" and see if that is investment. However as I don't have the the low use property data for all adjoining MSOA this is not possible.
 
+#Calculate Quantiles
+
+ This is not the right way to do it but give almost identical values to the weighted sampled quantiles. 
+ if you don't believe me see "MSOAmodel.Rmd" section "Calc Real Quantiles for all data". It takes ages and you regret everything
+
+```{r}
+
+ PropertyTypes <- c("D", "S", "T", "F")   #I need to specify this is what is being included in write up
+
+  #Adds in Quantiles based on the LADs we have data for
+  prices <- prices %>%
+    mutate(CountryClass = cut(X2, 
+                              X2 %>% .[LAD11CD %in% unique(DATAdf$LAD11CD)] %>% quantile(.) %>%
+                                .[2:4] %>% c(0,., Inf), 
+                              labels =     c("Lower", "Lower-Mid", "Upper-Mid", "Upper"), 
+                              right = F) %>% fct_relevel(., "Upper", after = 3)) 
+  
+```
+
 
 ##Quartiles Bootstrap
 
@@ -96,7 +118,7 @@ Needed for creating the skew plots
 
 setwd("/home/jonno/Dropbox/SSE/Empty Homes/BootstrapQuartiles")
 BootstrapAllData(DATAdf, LimitValue = 1.3e5, Reps = 501)
-BootStrapRes <- LoadBootstrapData()
+BootStrapQuartiles <- LoadBootstrapData()
 
 ```
 
@@ -105,11 +127,9 @@ Used for most of the analysis
 ```{r}
 
 setwd("/home/jonno/Dropbox/SSE/Empty Homes/BootstrapMSOA2")
-BootstrapAllData(DATAdf, LimitValue = 1.3e5, Reps = 501, GroupingVars = "MSOA11CD")
+BootstrapAllData(DATAdf, LimitValue = 2e5, Reps = 501, GroupingVars = "MSOA11CD")
 
-#Temporay untill the proper one is complete
-setwd("/home/jonno/Dropbox/SSE/Empty Homes/BootstrapMSOA2")
-BootStrapRes <- LoadBootstrapData()
+BootStrapMSOA <- LoadBootstrapData()
 
 ```
 
@@ -122,18 +142,44 @@ This chunk plots which of the LADs affordability quartiles the LUPs fall into.
 ```{r}
 CleanForPlotClassDiff <- function(df){ #not a seperate function for ease of editing
   df %>% 
-  group_by(ID, class) %>%
+  group_by(ID, Class) %>%
   summarise(Homes = sum(Homes), LowUse = sum(LowUse)) %>%
   group_by(ID)%>%
   mutate(RatioExvsAct = LowUse/sum(LowUse)) %>%
-  mutate(RatioExvsAct = (RatioExvsAct/0.25)-1)
+  mutate(RatioExvsAct = (RatioExvsAct/0.25)-1) %>%
+    ungroup
 }
+
+
+test1 <- system.time(result <-  StrappedLowMem(dfPrice, dfWard, samples, Grouping = GroupVars))
+test2 <- system.time(result <-  StrappedHighMem(dfPrice, dfWard, samples, Grouping = GroupVars))
+
+LADS<-DATAdf%>%
+  group_by(LAD11CD) %>%
+  summarise(LAD11NM = first(LAD11NM)) %>%
+  arrange(LAD11NM)
 
 #I think I should have 1 plot with high value skew, one plot with low value skew and 1 plot for all data
 #These three plots should be shown as a panel of data
 
-CleanForPlotClassDiff(BootStrapRES$ChelseaLON)  %>%
-PlotClassDiff(., "Kensington and Chelsea")
+test <- BootStrapQuartiles$E09000020
+
+test <-DistribCompareBootstrapper(DATAdf%>%filter(LAD11CD == "E09000020"), samples = 100)
+
+test2 <- test %>% 
+  mutate(LowUse = Homes) %>%
+  CleanForPlotClassDiff() 
+
+test3 <-test%>%
+  group_by(ID)%>%
+  mutate(RatioExvsAct = Homes/sum(Homes)) %>%
+  mutate(RatioExvsAct = (RatioExvsAct/0.25)-1) %>%
+    ungroup 
+
+test2 %>% PlotClassDiff()
+
+CleanForPlotClassDiff(BootStrapQuartiles$E09000020)  %>%
+  PlotClassDiff(., "Kensington and Chelsea")
 SaveFig("ClassdiffChelsea.pdf")
 
 CleanForPlotClassDiff(BootStrapRES$BarrowCUMBRIA) %>% #maybe choose a better place than barrow?
@@ -142,11 +188,22 @@ SaveFig("ClassdiffBarrow.pdf")
 
 
 #Plot for all data
-All_data_class <- BootStrapRES %>% 
+All_data_class <- BootStrapQuartiles %>% 
   bind_rows %>%
   select(CountryClass, ID, LowUse, Homes) %>%
-  rename(class = CountryClass)%>%
+  rename(class = CountryClass) %>%
   CleanForPlotClassDiff
+
+
+BootStrapQuartiles %>% 
+  bind_rows %>%
+  select(CountryClass, ID, LowUse, Homes) %>%
+  rename(class = CountryClass) %>%
+  #mutate(LowUse = Homes) %>%
+  CleanForPlotClassDiff %>% 
+  group_by(class) %>%
+  summarise_all(mean)
+  
 
 All_data_class %>% group_by(class) %>%
   summarise_all(mean)
@@ -154,6 +211,7 @@ All_data_class %>% group_by(class) %>%
 
 PlotClassDiff(All_data_class)
 SaveFig("ClassdiffAllData.pdf")
+
 
 ```
 

@@ -58,7 +58,6 @@ lsoa <- lsoa %>%
   select(-LAD11CD) %>%
   rename(LAD11CD = Admin_district_code)
 
-rm(LSOAfix)
 
 setwd(AddGeog)
 wardnames <- read_csv("Ward_to_Local_Authority_District_to_County_to_Region_to_Country_December_2016_Lookup_in_United_Kingdom_V2.csv") %>% setNames(c("Admin_ward_code", names(.)[-1]))
@@ -67,16 +66,13 @@ wardnames <- read_csv("Ward_to_Local_Authority_District_to_County_to_Region_to_C
 wardlsoa <- PstCdLSOA.raw %>% distinct(lsoa11cd, .keep_all = TRUE) %>% 
 select(lsoa11cd, Admin_ward_code)
 
-EW2 <- inner_join(EW, lsoa, by = c("ECODE" = "LSOA11CD") ) %>%
+EW2 <- inner_join(EW, lsoa, by = c("ECODE" = "LSOA11CD") ) %>% #inner join gets rid of all non-LSOA from EW
   left_join(., wardlsoa, by = c("ECODE"="lsoa11cd") ) %>% 
   left_join(., select(wardnames, Admin_ward_code, WD16NM, Region = GOR10NM), by = "Admin_ward_code") %>%
   group_by(Admin_ward_code) %>%
   mutate(WardHomes = sum(Homes),  WardPop = sum(Pop)) %>% 
   ungroup #%>%
  # filter(grepl("E", ECODE)) don't filter wales
-rm(wardlsoa)
-rm(wardnames)
-
 
 
 #Convert shape file to dataframe and join in the LSOA data
@@ -118,6 +114,7 @@ if(file.exists("prices.rds")){
   prices <- read_csv("pp-complete.csv", col_names = FALSE )
   
   prices <- prices %>%
+    filter(X5 %in% c("D", "S", "T", "F")) %>% #The property types, filtering hear greatly reduces the size of the vector
     filter(year(X3)>2012,year(X3)<2018) %>%
     mutate(X4 = gsub(" ", "", X4)) %>%
     left_join(., PstCdLSOA.raw %>% mutate(Postcode = gsub(" ", "", Postcode)),
@@ -125,37 +122,21 @@ if(file.exists("prices.rds")){
     filter(!is.na(lsoa11cd)) %>%
     left_join(select(EW2, ECODE, MSOA11CD, LAD11CD), by =c("lsoa11cd"="ECODE")) %>% #Add in the MSOA code
     #filter(Country_code == "E92000001") %>% keep in wales
-    select(X2, X5, X3, X15, X16, Admin_ward_code, lsoa11cd, MSOA11CD, LAD11CD) %>%
+    select(X2, X5, X3, X15, X16,lsoa11cd, MSOA11CD, LAD11CD) %>%
     rename(LSOA11CD = lsoa11cd)
-  
-  Quantiles <-c( 0, quantile(prices$X2)[2:4], Inf)
-  
-  prices <- prices %>%
-    mutate(CountryClass = cut(X2, Quantiles, 
-                              labels =     c("Lower", "Lower-Mid", "Upper-Mid", "Upper"), 
-                              right = F) %>% fct_relevel(., "Upper", after = 3)) 
-  
-  rm(Quantiles)
-  
-  
+    
+
   saveRDS(prices, "prices.rds")
   
 }
 
 
-# 
-# test2 <- test %>% 
-#   group_by(lsoa11cd) %>%
-#   summarise(counts = n())
-# 
-# sum(test2$counts>30)/nrow(test2)
-
 
 #Was previously ward until I increased the number of years to allow the use of LSOA
 MeanWardPrice <- prices %>%
   filter(X5 %in% c("D", "S", "T", "F")) %>%
-  group_by(LSOA11CD) %>% 
-  summarise( MeanPrice = mean(X2), 
+  group_by(LSOA11CD) %>%
+  summarise( MeanPrice = mean(X2),
              MedianPrice = median(X2),
              counts =n())
 
@@ -178,6 +159,15 @@ gsub("\\.(?=\\.*$)", "", ., perl=TRUE)) %>% #removes trailing full stop
          MSOA11CD = MSOA.code,
          MSOA11NM = MSOA.name) %>%
   mutate(Yearly.income= 52 * Total.weekly.income)
+
+#Remoe stuff which isn't used again.
+rm(pop)
+rm(CTtaxstock)
+rm(EW)
+rm(wardlsoa)
+rm(wardnames)
+rm(lsoa)
+rm(LSOAfix)
 
 # IncomeEst <- prices %>% 
 #   filter(X5 %in% c("D", "S", "T", "F")) %>%

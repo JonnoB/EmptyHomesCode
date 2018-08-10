@@ -14,7 +14,7 @@ PlotClassDiff <-function(df, LAD = NULL){
                    "Upper" = "#00B0F6")
   
   df %>% 
-     ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + 
+      ggplot(., aes(x= Class, y = RatioExvsAct, fill = Class)) + 
      geom_boxplot() + 
      labs(title = titlewords, 
           y = "% difference from expected", x= "Price Quartile") +

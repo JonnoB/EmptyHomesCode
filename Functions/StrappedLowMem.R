@@ -8,7 +8,7 @@ StrappedLowMem <-  function(dfPrice, dfWard, samples, WhichLowUse, Grouping){
   Out <- 1:samples %>%
     map_df(~{
       print(.x)
-      Temp <- 1:length(unique(dfWard$LSOA11CD)) %>%
+      HomesTemp <- 1:length(unique(dfWard$LSOA11CD)) %>%
         map_df(~{
           LSOA <- unique(dfWard$LSOA11CD)[.x]
           
@@ -19,17 +19,36 @@ StrappedLowMem <-  function(dfPrice, dfWard, samples, WhichLowUse, Grouping){
           if(nrow(PriceData)==0){
             PriceData<-dfPrice
           }
-          LowUseCounts <- sum(filter(dfWard, LSOA11CD == LSOA) %>% select_(WhichLowUse)) #sample rows from LSOA
+          LowUseCounts <- filter(dfWard, LSOA11CD == LSOA) %>% pull(Homes) #sample rows from LSOA
           
           SampledData <-sample_n(PriceData, LowUseCounts, replace = TRUE)
           
           SampledData  
         }
-        ) %>% 
-        mutate(ID = .x,
-               LADmedian = median(Price, na.rm = T),
+        ) %>%
+        mutate(Class = cut(Price, 
+                           Price %>% quantile(.) %>%
+                             .[2:4] %>% c(0,., Inf), 
+                           labels =     c("Lower", "Lower-Mid", "Upper-Mid", "Upper"), 
+                           right = F) %>% fct_relevel(., "Upper", after = 3))
+      
+      
+      LowUseTemp <-  1:length(unique(dfWard$LSOA11CD)) %>% map_df(~{
+        
+        
+        LSOA <- unique(dfWard$LSOA11CD)[.x]
+        CurrentHomes <- HomesTemp %>% filter(LSOA11CD == LSOA) 
+        Counts <- filter(dfWard, LSOA11CD == LSOA) %>% pull(LowUse)
+        
+        SampledData <-CurrentHomes %>%
+          sample_n( Counts, replace = FALSE) #This is a strict subset of the Homes data not a bootstrap!
+        
+      })
+      
+      HomesTemp <- HomesTemp %>% 
+        mutate(LADmedian = median(Price, na.rm = T),
                LADmean = mean(Price, na.rm = T))   %>%
-        group_by_(.dots = c("ID", Grouping)) %>%
+        group_by_(.dots = c(Grouping)) %>%
         summarise(Counts = n(),
                   Value = sum(Price),
                   GeogMedian = median(Price),
@@ -38,7 +57,38 @@ StrappedLowMem <-  function(dfPrice, dfWard, samples, WhichLowUse, Grouping){
                   LADmean = first(LADmean)) %>%
         ungroup
       
-      Temp
+      
+      LowUseTemp <- LowUseTemp %>% 
+        mutate(LADmedian = median(Price, na.rm = T),
+               LADmean = mean(Price, na.rm = T))   %>%
+        group_by_(.dots = c(Grouping)) %>%
+        summarise(Counts = n(),
+                  Value = sum(Price),
+                  GeogMedian = median(Price),
+                  GeogMean = mean(Price),
+                  LADmedian = first(LADmedian),
+                  LADmean = first(LADmean)) %>%
+        ungroup
+      
+      
+      Out <- HomesTemp   %>%
+        left_join(., LowUseTemp, by = c(Grouping)) %>%
+        rename(LowUse = Counts.y,
+               Homes = Counts.x,
+               LowUseValue = Value.y, #In that grouping geography
+               HomesValue = Value.x, #In that grouping geography
+               MSOALowUseMean = GeogMean.y, #In that grouping geography
+               MSOAHomesMean =  GeogMean.x, #In that grouping geography
+               MSOALowUseMedian = GeogMedian.y, #In that grouping geography
+               MSOAHomesMedian =  GeogMedian.x, #In that grouping geography
+               LADHomesMean = LADmean.x, #Across whole LAD
+               LADHomesMedian = LADmedian.x, #Across whole LAD
+               LADLowUseMean = LADmean.y, #Across whole LAD
+               LADLowUseMedian = LADmedian.y) %>% #Across whole LAD
+        mutate(LAD11CD = unique(dfWard$LAD11CD),
+               ID = .x)
+      
+      Out
       
     })
   

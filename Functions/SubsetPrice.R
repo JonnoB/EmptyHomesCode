@@ -1,4 +1,4 @@
-SubsetPrice <- function(df, type = NULL, PropertyTypes = NULL, Quantiles = NULL){
+SubsetPrice <- function(df, type = NULL, PropertyTypes = NULL){
   #Subsets the price frame to be just for the specific LAD
   #Takes either the DATA dataframe or the character string LAD11CD
   #this allows the subsetting of the price list without looking up the LAD code
@@ -25,21 +25,12 @@ SubsetPrice <- function(df, type = NULL, PropertyTypes = NULL, Quantiles = NULL)
     pricesTemp <- pricesTemp %>%
       filter(X5 %in% PropertyTypes)
   }
-  
-  if(is.null(Quantiles)){
-    Quantiles<-c(0, quantile(pricesTemp$X2)[2:4], Inf)
-  }
+
 
   #The  model used to take multiple councils if there was overlap, but this caused some strange
   #Problems So I removed it. The current version only takes a single LAD
   pricesTemp %>%
-    select(Admin_ward_code, LSOA11CD, Price =X2, X15, PropType = X5, CountryClass, MSOA11CD) %>%
-    mutate(class = cut(Price, Quantiles, 
-                       labels =     c("Lower", "Lower-Mid", "Upper-Mid", "Upper"), 
-                       right = F) %>% fct_relevel(., "Upper", after = 3),
-           classVal = cut(Price, Quantiles, 
-                          labels =     c(Quantiles[2:4], paste0("x>", Quantiles[5])), 
-                          right = F),
-           Price = as.numeric(Price)) #there was some number overflow thing changing to numeric solves this
+    select( LSOA11CD, Price =X2, X15, PropType = X5, CountryClass, MSOA11CD) %>%
+    mutate(Price = as.numeric(Price)) #there was some number overflow thing changing to numeric solves this
   
 }

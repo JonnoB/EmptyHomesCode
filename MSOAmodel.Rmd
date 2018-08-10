@@ -197,8 +197,11 @@ LSOAPriceList <- readRDS("LSOAPriceList2.rds")
 
 ```
 
+#Calc Real Quantiles for all data
 
-```{r}
+This takes ages and gives an almost identical number to simple running quantiles on the whole dataset
+
+```{r Real Quantile Chunk}
 
 StratifiedBoot <- function(dataList, LSOAcode, SamplesVect, samples = 1000){
   #datadf
@@ -225,10 +228,20 @@ PriceCounts2 <- PriceCounts %>%
   filter(LSOA11CD %in% unique(DATAdf$LSOA11CD))
 
 AllDataQuartiles <- StratifiedBoot(LSOAPriceList2, PriceCounts2$LSOA11CD, PriceCounts2$Homes2, samples = 501)
+setwd(basewd)
 
+saveRDS(AllDataQuartiles, "AllDataQuartiles.rds")
 
-test <- LSOAPriceList %>% map_int(length(.x))
+test <-  AllDataQuartiles %>%
+   select(-X0.,-X100.) %>%
+   summarise_all(funs(mean, sd)) %>%
+   mutate(X25Perc = X25._sd/X25._mean,
+          X50Perc = X50._sd/X50._mean,
+          X75Perc = X75._sd/X75._mean) 
 
+prices %>%
+   filter(X5 %in% c("D", "S", "T", "F")) %>%
+  pull(X2) %>% quantile()
 
 ```
 

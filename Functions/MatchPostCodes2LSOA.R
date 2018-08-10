@@ -1,6 +1,6 @@
 MatchPostCode2LSOA<-function(ONSpostcodes, ONSpostcodeMeta){
   #Matches all postcodes to the relevant LSOA
-  #The function uses the ONS code point postcode data which can be found at
+  #The function uses the ONS code to point to postcode data which can be found at
   #https://www.ordnancesurvey.co.uk/business-and-government/products/code-point-open.html
   #This data set is updated regularly
   #ONSpostcodes: the path of the ONS postcodes CSVs
