@@ -1,4 +1,4 @@
-ResampledModelPerf <- function(Modeldf, TestResample, ModelFormula){
+LinearResampledModelPerf <- function(Modeldf, TestResample, ModelFormula){
   #Cretes a dataframe with the Classification performance of many resampled models.
   #This allows the same resample set to be used across multiple model builds
   
@@ -16,20 +16,18 @@ ResampledModelPerf <- function(Modeldf, TestResample, ModelFormula){
     
     Mod2 <- Modeldf  %>%
       slice(trainrows) %>%
-      glm(formula = ModelFormula, data = ., family=binomial(link='logit'))
-
-    preds2<- Modeldf  %>%
+      lm(formula = ModelFormula, data = .)
+    
+    preds2 <- Modeldf  %>%
       slice(testrows) %>%
-      predict(Mod2, newdata = ., type = "response" ) 
+      predict(Mod2, newdata = . ) 
     
     Refs <- Modeldf  %>%
       slice(testrows) %>%
       pull(Reference)
     
-    ConfOut <-Refs %>%
-      confusionMatrix( data =factor(preds2>0.5, levels = c("FALSE", "TRUE")), reference = .)
-
-    ConfOut$overall %>% t %>% data.frame() %>% as.tibble %>%
+    ConfOut <-preds2 %>%
+      postResample(pred = ., Refs) %>% t %>% data.frame() %>% as.tibble %>%
       mutate(sample = .x)
     
     

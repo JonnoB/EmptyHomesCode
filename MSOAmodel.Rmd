@@ -165,12 +165,14 @@ BootDeetsMean %>%
 #Sample quantiles
 
 ```{r}
+
+#Create a data frame of LSO
 PriceCounts <-prices %>%
   filter(X5 %in% c("D", "S", "T", "F")) %>%
   group_by(LSOA11CD) %>%
   summarise(counts = n()) %>%
   arrange(counts)
-
+##The subsampling is 1/10 of the number of homes in each LSOA, this stops crashes
 PriceCounts<- EW2 %>%
   select(LSOA11CD = ECODE, Homes, Pop, LAD11CD, MSOA11CD) %>%
   left_join(.,PriceCounts, by = "LSOA11CD") %>%
@@ -180,20 +182,62 @@ PriceCounts<- EW2 %>%
 
 
 
-#Create a list of vectors by LSOA
+#Create a list of price vectors by LSOA
+#This process can take a while
 setwd(basewd)
- LSOAPriceList <- 1:nrow(PriceCounts) %>% map(~{
+if(file.exists("LSOAPriceList2.rds")){
+  
+  LSOAPriceList <- readRDS("LSOAPriceList2.rds")
+  
+}else{
+   
+  LSOAPriceList <- 1:nrow(PriceCounts) %>% map(~{
    print(.x)
     prices %>%
       filter(LSOA11CD==PriceCounts$LSOA11CD[.x], 
              X5 %in% c("D", "S", "T", "F")) %>%
       pull(X2)
- })
- 
- names(LSOAPriceList) <- PriceCounts$LSOA11CD
-saveRDS(LSOAPriceList, "LSOAPriceList2.rds")
+    })
+  names(LSOAPriceList) <- PriceCounts$LSOA11CD
+  saveRDS(LSOAPriceList, "LSOAPriceList2.rds")
 
-LSOAPriceList <- readRDS("LSOAPriceList2.rds")
+}
+
+if(file.exists("AllDataQuartiles.rds")){
+  
+  AllDataQuartiles <- readRDS("AllDataQuartiles.rds")
+  
+}else{
+  #Subset list to only the LADs used in analyis
+  LSOAPriceList2 <- LSOAPriceList[names(LSOAPriceList) %in% unique(DATAdf$LSOA11CD)]
+  PriceCounts2 <- PriceCounts %>%
+    filter(LSOA11CD %in% unique(DATAdf$LSOA11CD))
+  
+  AllDataQuartiles <- StratifiedBoot(LSOAPriceList2, PriceCounts2$LSOA11CD, PriceCounts2$Homes2, samples = 501)
+  
+  saveRDS(AllDataQuartiles, "AllDataQuartiles.rds")
+  
+  rm(list = c("LSOAPriceList2", "PriceCounts2"))
+
+}
+
+rm(LSOAPriceList)
+
+AllDataQuartilesSummary <- AllDataQuartiles %>%
+  summarise_all(funs(mean, sd))
+
+BasicQuartiles <- prices$X2 %>% .[prices$LAD11CD %in% unique(DATAdf$LAD11CD)] %>% quantile(.)
+
+#difference between the two up to 8% this has knock on effects later in the analysis if the quartiles are not calculated correctly
+AllDataQuartilesSummary[2:4]/BasicQuartiles[2:4]
+
+prices <- prices %>%
+  mutate(CountryClass = cut(X2, AllDataQuartilesSummary[2:4] %>% c(0,., Inf), 
+                              labels =     c("Lower", "Lower-Mid", "Upper-Mid", "Upper"), 
+                              right = F) %>% fct_relevel(., "Upper", after = 3)) 
+
+rm(BasicQuartiles);rm(AllDataQuartiles);rm(AllDataQuartilesSummary)
+
 
 ```
 
@@ -202,35 +246,6 @@ LSOAPriceList <- readRDS("LSOAPriceList2.rds")
 This takes ages and gives an almost identical number to simple running quantiles on the whole dataset
 
 ```{r Real Quantile Chunk}
-
-StratifiedBoot <- function(dataList, LSOAcode, SamplesVect, samples = 1000){
-  #datadf
- 1: samples %>% map_df(~{
-   print(.x)
-  SubData <- 1:length(LSOAcode) %>% map(~{
-    #print(.x)
-    dataList[[LSOAcode[.x]]] %>%
-      sample(., SamplesVect[.x], replace = TRUE)
-
-    }) %>% unlist 
-  
-  SubData%>%
-       quantile(.) %>% t %>% as.data.frame %>% setNames(names(.) %>% make.names) %>%
-      mutate(mean = mean(SubData),
-             ID = .x)
- }) 
-}
-
-
-#Subset list to only the LADs used in analyis
-LSOAPriceList2 <- LSOAPriceList[names(LSOAPriceList) %in% unique(DATAdf$LSOA11CD)]
-PriceCounts2 <- PriceCounts %>%
-  filter(LSOA11CD %in% unique(DATAdf$LSOA11CD))
-
-AllDataQuartiles <- StratifiedBoot(LSOAPriceList2, PriceCounts2$LSOA11CD, PriceCounts2$Homes2, samples = 501)
-setwd(basewd)
-
-saveRDS(AllDataQuartiles, "AllDataQuartiles.rds")
 
 test <-  AllDataQuartiles %>%
    select(-X0.,-X100.) %>%
@@ -242,6 +257,10 @@ test <-  AllDataQuartiles %>%
 prices %>%
    filter(X5 %in% c("D", "S", "T", "F")) %>%
   pull(X2) %>% quantile()
+
+
+
+
 
 ```
 
@@ -455,98 +474,148 @@ LocalAfford <-NeighbourhoodQuartiles %>%
 ```
 
 
+#Complex models
+
+These models work at MSOA level only and include data from the LAD level
+Tehy are rubbish so aren't included in the main work. Just kept here so I don't forget I have already checked.
+
 ```{r}
-LupPerc <- ls(pattern= "DATA") %>% map_df(~{
-  get(.x) %>% select(MSOA11CD, LowUse, Homes)
-  
-}) %>%
-  group_by(MSOA11CD) %>%
-  summarise_all(sum) %>%
-  mutate(LowUsePerc = LowUse/(LowUse+Homes),
-         Q1 = LowUsePerc>0.033,
-         Q2 = LowUsePerc>0.02,
-         Top90 = LowUsePerc>0.058)
 
-#Top quartile of LUPS
-quantile(LupPerc$LowUsePerc)
-quantile(LupPerc$LowUsePerc, prob = seq(0, 1, length = 11))
+DATAdf %>%
+  arrange(LAD11NM) %>% pull(LAD11NM) %>% unique
 
-MSOABootQuartiles2 <- MSOABootQuartiles %>%
-   select(-X0.,-X100.) %>%
-   group_by(MSOA11CD) %>%
-   summarise_all(funs(mean, sd)) %>%
-   mutate(X25Perc = X25._sd/X25._mean,
-          X50Perc = X50._sd/X50._mean,
-          X75Perc = X75._sd/X75._mean)  %>%
-   left_join(., EW2%>%
-               select(MSOA11CD, LAD11CD, LAD11NM) %>% distinct()) %>%
-   left_join(., IncomeEst) %>%
-   select(MedianPrice=X50._mean, Yearly.income, MSOA11CD, LAD11CD, LAD11NM)  %>%
-  left_join(LocalAfford, by = "MSOA11CD") %>%
-  left_join(LupPerc, by = "MSOA11CD")%>%
-  filter(!is.na(LowUse)) %>%
-   mutate(AffordRatio = MedianPrice/Yearly.income,
-          AffordLocalRatio = AffordRatio/LocalAfford,
-          AffordRank = percent_rank(AffordRatio),
-          AffordLocalRank = percent_rank(AffordLocalRatio),
-          LowUseRank = percent_rank(LowUse)>0.75)
+MSOAMean2 <-MSOAMean %>%
+  mutate(RelativeAfford = AffordRatio/LADAffordRatio,
+         RelativeTourismDens = TourismDensity/LADTourismDensity,
+         RelativeTourismDens = ifelse(is.finite(RelativeTourismDens), RelativeTourismDens, 100)) %>%
+  filter(!is.na(HighVal)) #Temporary  until I work out how to get rid of those weird MSOA
+
+KitchenSink <- as.formula(Reference ~ TourismDensity+ AffordRatio+ AffordRatio2+ RelativeAfford +RelativeTourismDens+
+                            LADTourismDensity+ LADAffordRatio+ LADAffordRatio2)
+
+KitchenSink2 <- as.formula(Reference ~RelativeAfford +RelativeTourismDens+
+                            LADTourismDensity+ LADAffordRatio)
+Formulas2 <- c(as.formula(Reference ~ TourismDensity+ AffordRatio+ AffordRatio2),
+               KitchenSink)
 
 
-MSOABootQuartiles2 %>%
-  ggplot(aes(x= AffordRatio , y = AffordLocalRatio, colour = LowUseRank)) + geom_point()
+set.seed(1983)
+TestResample <- 1:100 %>% map(~  resample_partition(MSOAMean2 , c(test = 0.2, train = 0.8)))
+
+
+MSOAModels2 <-LinearClassifierCombiner(MSOAMean2,  Outcomes, Formulas2, TestResample) %>%
+  mutate(IncAfford2 = grepl("2", Formula),
+           LAD = grepl("LAD", Formula)
+         )
+
+#No difference
+MSOAModels2 %>%
+  group_by(Dependent, IncAfford2, LAD) %>%
+  summarise('Beats NULL' = sum(Accuracy>AccuracyNull)/n(), #How many times did the models beat NULL
+            Accuracy = mean(Accuracy), #What was the mean accuracy
+            'NULL Model' = mean(AccuracyNull),
+           'Null Difference' = mean(Accuracy-AccuracyNull) #Mean difference relative to NULL
+            ) %>%
+  ungroup %>%
+   mutate(Dependent = ifelse(Dependent=="HighLUP", "High LUP %", "High LUP value")) 
+
+library(ranger)
+
+#Just under 78% better than all other models
+ResOut <- MSOAMean2 %>%
+  mutate(Reference = HighLUP) %>% 
+  TreeResampledModelPerf(., TestResample, KitchenSink)
+
+ResOut2 <- MSOAMean2 %>%
+  mutate(Reference = HighLUP) %>%
+  TreeResampledModelPerf(., TestResample, KitchenSink2)
+
+
+ResOut %>%
+  summarise('Beats NULL' = sum(Accuracy>AccuracyNull)/n(), #How many times did the models beat NULL
+            Accuracy = mean(Accuracy), #What was the mean accuracy
+            'NULL Model' = mean(AccuracyNull),
+           'Null Difference' = mean(Accuracy-AccuracyNull) #Mean difference relative to NULL
+            )
+
+
+ResOut2 %>%
+  summarise('Beats NULL' = sum(Accuracy>AccuracyNull)/n(), #How many times did the models beat NULL
+            Accuracy = mean(Accuracy), #What was the mean accuracy
+            'NULL Model' = mean(AccuracyNull),
+           'Null Difference' = mean(Accuracy-AccuracyNull) #Mean difference relative to NULL
+            )
+
 
 ```
 
 
-#Quadrant
-
 
 ```{r}
-  BootDeets <- BootStrapRES %>% map_df(~.x %>% group_by(ID) %>%
-                                    summarise(MedianHomes = first(MedianHomes),
-                                              MeanHomes = first(MeanHomes),
-                                              MedianLUPs = first(MedianLUPs),
-                                              MeanLUPs = first(MeanLUPs),
-                                              LAD11CD= first(LAD11CD),
-                                              HighVal = sum(HighVal),
-                                              Homes = sum(Homes),
-                                              LowUse = sum(LowUse)) %>%
-                                    group_by(LAD11CD) %>%
-                                    summarise_all(., mean, na.rm = TRUE) %>%
-                                      select(-ID)
-  ) 
+#This model uses information from the over all LUP as a result I need to subset the data by lups then train on the MSOA
+set.seed(1983)
+TestResample <- 1:100 %>% map(~  resample_partition(LADMean , c(test = 0.2, train = 0.8)))
+
+ComplexModels <- c("BothHighLUP", "BothHighVal", "MSOALUPLADVal", "LADHighLUP", "HighLUP", "LADHighVal") %>%
+  map_df(~{
+    print(.x)
+    ResOut2 <- MSOAMean2 %>%
+      rename_(Reference = .x) %>%
+      TreeResampledModelPerf(., TestResample, KitchenSink, CombineData = TRUE) %>%
+      mutate(Dependent = .x)
+})
+
+
+ComplexModels %>%
+  group_by(Dependent) %>%
+  summarise('Beats NULL' = sum(Accuracy>AccuracyNull)/n(), #How many times did the models beat NULL
+            Accuracy = mean(Accuracy), #What was the mean accuracy
+            'NULL Model' = mean(AccuracyNull),
+           'Null Difference' = mean(Accuracy-AccuracyNull) #Mean difference relative to NULL
+            )
 
 
 
-BootDeets2 <- BootDeets %>%
-  mutate(MedianPercDiff = (MedianLUPs-MedianHomes)/MedianHomes,
-         PercLowUse = LowUse/Homes,
-         RankLowUse = percent_rank(PercLowUse),
-         RankMedianDiff = percent_rank(MedianPercDiff),
-         Catagory = case_when( 
-           RankLowUse>=0.5 & RankMedianDiff>=0.5 ~ 1, #High low use and High price difference
-           RankLowUse>=0.5 & RankMedianDiff<0.5 ~ 2, #High low Use and Low rank price difference
-           RankLowUse<0.5 & RankMedianDiff>=0.5 ~3, # Low low use and high price difference
-           TRUE ~ 4 #Low low use low price difference
-         ) %>% as.factor)%>%
-  left_join(EW2 %>%
-  group_by(LAD11CD, LAD11NM) %>%
-  summarise(TotMSOA = n(),
-         Homes = sum(Homes)) %>%
-  arrange(-TotMSOA) %>%
-  summarise(TotMSOA = first(TotMSOA),
-            LAD11NM = first(LAD11NM)), by = "LAD11CD")
 
-BootDeets2 %>%
-  ggplot(aes(x= RankLowUse, y = RankMedianDiff, colour = Catagory)) + geom_point()
+KitchenSink2 <- as.formula(Reference ~RelativeAfford +RelativeTourismDens+
+                            LADTourismDensity+ LADAffordRatio)
+
+ComplexModels2 <- c("BothHighLUP", "BothHighVal", "MSOALUPLADVal", "LADHighLUP", "HighLUP", "LADHighVal") %>%
+  map_df(~{
+    print(.x)
+    ResOut2 <- MSOAMean2 %>%
+      rename_(Reference = .x) %>%
+      TreeResampledModelPerf(., TestResample, KitchenSink2, CombineData = TRUE) %>%
+      mutate(Dependent = .x)
+})
+
+ComplexModels2 %>%
+  group_by(Dependent) %>%
+  summarise('Beats NULL' = sum(Accuracy>AccuracyNull)/n(), #How many times did the models beat NULL
+            Accuracy = mean(Accuracy), #What was the mean accuracy
+            'NULL Model' = mean(AccuracyNull),
+           'Null Difference' = mean(Accuracy-AccuracyNull) #Mean difference relative to NULL
+            )
+
+Modeldf <-MSOAMean2 %>%
+      rename_(Reference = "LADHighLUP")
+
+```
 
 
-test <- MSOABootQuartiles2 %>%
-  left_join(select(BootDeets2, LAD11CD, Catagory), by = "LAD11CD") 
- 
- %>%
-  ggplot(aes(x= AffordRank , y = AffordLocalRank, colour = Catagory)) + geom_point()
-   
+#Collaspy tree voting
+```{r}
+
+test <- MSOAMean2 %>%
+      rename_(Reference = "LADHighLUP") %>%
+MSOATreeVoting(., TestResample, KitchenSink )
+
+test %>%
+  summarise('Beats NULL' = sum(Accuracy>AccuracyNull)/n(), #How many times did the models beat NULL
+            Accuracy = mean(Accuracy), #What was the mean accuracy
+            'NULL Model' = mean(AccuracyNull),
+           'Null Difference' = mean(Accuracy-AccuracyNull) #Mean difference relative to NULL
+            )
 
 ```
 

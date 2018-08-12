@@ -1,12 +1,7 @@
-PlotClassDiff <-function(df, LAD = NULL){
+PlotClassDiff <-function(df, Var= "LowUseRatio1"){
    #Takes the Out put of Bootstrap Res and plots a box plot of the difference from expected
    #df: The dataframe of a specific LAD from BootStrapRES
-  
-  if(is.null(LAD)){
-    titlewords <- "Low use homes by Local Authority house price quartile"
-  } else{
-    titlewords <- paste0("Bootstrapped difference from the expected number of low-use homes in\n each price quartile of ", LAD)
-  }
+   #Var the column name that you wish to be plotted
   
    colourTypes <- c( "Lower" = "#F8766D", 
                     "Lower-Mid" = "#A3A500", 
@@ -14,12 +9,12 @@ PlotClassDiff <-function(df, LAD = NULL){
                    "Upper" = "#00B0F6")
   
   df %>% 
-      ggplot(., aes(x= Class, y = RatioExvsAct, fill = Class)) + 
+    rename_(Ratio = Var) %>%
+      ggplot(., aes(x= Class, y = Ratio, fill = Class)) + 
      geom_boxplot() + 
-     labs(title = titlewords, 
-          y = "% difference from expected", x= "Price Quartile") +
+     labs(y = "% difference from expected", x= "Price Quartile") +
     scale_fill_manual(values = colourTypes) +
-    theme(legend.position = "none") +
+    theme(legend.position = "none", axis.text.x = element_text(angle = 15, hjust = 1)) +
     scale_y_continuous(labels = scales::percent)
    
 }

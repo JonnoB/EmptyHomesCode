@@ -343,7 +343,7 @@ RichmondshireDATA <- read_excel("Richmondshire FOI 4960.xls", col_names = FALSE)
 KirkleesDATA <- read_excel("Jonathan Bourne KirkleesDiscountsLSOA Complete.xlsx" )[1:4] %>%
   StructureData(2:5)
 
-WakefieldData <-  read_excel("WakefieldDiscountsLSOA.xlsx" )[1:4] %>%
+WakefieldDATA <-  read_excel("WakefieldDiscountsLSOA.xlsx" )[1:4] %>%
   StructureData(2:7)
 
 
@@ -454,22 +454,6 @@ source(file.path(CommonCode, "LondonFullProcesss.R"))
 # Scrub the data to remove Cross overs with other LADs
 #
 
-print("Scrubbing loose ends")
-
-for(i in ls(pattern = "DATA$")){
-  
-  Temp <-get(i) %>% 
-    group_by(LSOA11CD) %>%  #Remove double LSOA that may have sneaked in
-    summarise_all(funs(first)) %>% 
-    group_by(LAD11CD) %>% #Remove LAD data that is not from this lad. Occaisonly a few lsoa from other LADs get in and cause problems
-    mutate(LADCount = n()) %>% ungroup %>%
-    filter(!is.na(Admin_ward_code), LADCount == max(LADCount)) %>% #filter out any stray areas that are classed as a different authority
-    select(-LADCount)  
-  
-  assign(i, Temp)
-  
-} 
-
 
 #
 #
@@ -484,3 +468,20 @@ DATAdf <- ls(pattern = "DATA$") %>%
   })
 
 rm(list = ls(pattern = "DATA$"))
+
+print("Scrubbing loose ends")
+
+
+DATAdf <-DATAdf %>% 
+    group_by(LSOA11CD) %>%  #Remove double LSOA that may have sneaked in
+    summarise_all(funs(first)) %>%
+    group_by(LAD11CD, LAD11NM) %>%
+    mutate(LSOACounts = n()) %>%
+    filter(LSOACounts>5)  %>% #remove any odd bits that have mixed up LAD code and name
+    ungroup %>%
+    select(-LSOACounts)
+
+
+
+
+

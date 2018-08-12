@@ -13,7 +13,7 @@ DistribCompareBootstrapper <- function(df, seed, samples=100, type = NULL, Prope
     summarise_all(funs(first)) %>% 
     group_by(LAD11CD) %>% #Remove LAD data that is not from this lad. Occaisonly a few lsoa from other LADs get in and cause problems
     mutate(LADCount = n()) %>% ungroup %>%
-    filter(!is.na(Admin_ward_code), LADCount == max(LADCount)) %>% #filter out any stray areas that are classed as a different authority
+    filter(!is.na(LAD11CD), LADCount == max(LADCount)) %>% #filter out any stray areas that are classed as a different authority
     select(-LADCount)  
   
   
@@ -23,13 +23,20 @@ DistribCompareBootstrapper <- function(df, seed, samples=100, type = NULL, Prope
 
   #Not much difference in them poss around 17% (not tested a lot), which isn't the 10x speed up I'd hoped for
   if(sum(dfWard$Homes, na.rm = T)>Limit){
-    print("Low Mem Mode")
-    StrappedData <- StrappedLowMem(dfPrice, dfWard, samples, Grouping = GroupVars) 
+    print("Low Mem Mode, this is slower")
+    StrappedData <- 1:samples %>% map_df(~{
+      print(paste("Calculating bootstrap",.x, "of", samples, "for", unique(dfWard$LAD11NM)))
+      Strapped(dfPrice, dfWard, 1, Grouping = GroupVars) %>%
+        mutate(ID = .x)
+      
+    })
+      
+
     
   }  else {
     print("High memory usage Mode. can use lots of ram")
     
-    StrappedData <- StrappedHighMem(dfPrice, dfWard, samples, Grouping = GroupVars)
+    StrappedData <- Strapped(dfPrice, dfWard, samples, Grouping = GroupVars)
     
   }
 

@@ -36,7 +36,11 @@ PstCdLSOA.raw <- readRDS(file.path(DataFolder,"PstCdLSOA.rds"))
   saveRDS(PstCdLSOA.raw, "PstCdLSOA.rds")
 }
 
-
+#This and PstCdLSOA.raw should probably be merged at some point but it is only to make things cleaner
+#Homes Could also be added in here
+CorePstCd <- PstCdLSOA.raw %>%
+  left_join(EW2, by = c("lsoa11cd" = "ECODE")) %>%
+  select(Postcode,LSOA11CD= lsoa11cd, LAD11CD, LAD11NM, MSOA11CD, Pop)
 
 #Bind the ward names and LAD names to the lsoa data
 #

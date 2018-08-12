@@ -18,12 +18,13 @@ MeanModelData <- function(ModelData, target){
            Tourism = Guest +Hotel,
            HomesMedianRank = percent_rank(HomesMedian),
            LowUseMedianRank = percent_rank(LowUseMedian),
-           MedianDiff = HomesMedian - LowUseMedian,
+           MedianDiff = LowUseMedian-HomesMedian,
+           MedianDiffRatio = (LowUseMedian-HomesMedian)/HomesMedian,
            MedianDiffRank = percent_rank(MedianDiff),
            AffordRank = percent_rank(AffordRatio),
            TourismDensity = percent_rank((Guest+Hotel)/Homes),
-           HighVal = HomesMedian < LowUseMedian, #Reference Variable
-           HighLUP = median(LowUsePerc) < LowUsePerc) #Reference Variable
+           HighVal = as.factor(HomesMedian < LowUseMedian), #Reference Variable
+           HighLUP = as.factor(median(LowUsePerc) < LowUsePerc)) #Reference Variable
   
   
 }
