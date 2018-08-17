@@ -62,7 +62,7 @@ This chunk calculates how much data cover I have using several metrics
 
 ```{r}
 DataCover <-DATAdf  %>%
-                #filter(!is.na(LAD11NM)) %>%
+                #filter(is.na(MSOA11CD)) %>%
   summarise(
            'LADs' = length(unique(DATAdf$LAD11CD)), 
            '% of all LADs' = length(unique(DATAdf$LAD11CD))/length(unique(EW2$LAD11CD))*100,
@@ -83,6 +83,45 @@ xtable(DataCover, caption="Summary of collected data coverage",
   print(., type="latex", file=file.path(TexTables,"DataCover.tex"))
 
 rm(DataCover)
+
+#lost LUPS
+
+LostLowUse <- DATAdf %>%
+  filter(is.na(MSOA11CD)) %>%
+  group_by(LAD11CD) %>%
+  summarise(Lost = sum(LowUse)) %>%
+  arrange(-Lost) %>%
+  mutate(cumsum = cumsum(Lost),
+         cumperc = cumsum/sum(Lost))
+
+sum(LostLowUse$Lost)
+
+ONSPD <- read_csv(file.path("/home/jonno/Dropbox/SSE/Empty Homes/ONSPD",
+                            "ONS_Postcode_Directory_Latest_Centroids.csv"))
+
+
+
+LADconv <- read_csv(file.path(AddGeog, 
+                              "Local_Authority_Districts_December_2016_Names_and_Codes_in_the_United_Kingdom.csv")) %>%
+  select(LAD11CD=LAD16CD, LAD11NM = LAD16NM)
+
+
+test <- ONSPD %>%
+  select(Postcode = pcd, LSOA11CD = lsoa11, MSOA11CD = msoa11, LAD11CD = oslaua, OA11CD = oa11,Country_code = ctry, Region =  rgn) %>%
+  filter(grepl("(E92000001)|(W92000004)", Country_code)) %>%
+  left_join(LADconv) %>%
+  filter(!is.na(LSOA11CD))
+
+
+test2 <- test  %>%
+  filter(is.na(LSOA11CD))
+  
+
+map_dbl(.x = 1:ncol(test), ~{
+  
+  test %>% pull(.x) %>% is.na %>% sum
+  
+})
 
 ```
 
@@ -792,11 +831,12 @@ if(file.exists("LADBootVoteModelBig.rds")){
  
  test2 <- test %>%
    select(LAD11CD, Predres, counts) %>%
-   spread(key = Predres, value = counts, fill = 0)%>%
+   spread(key = Predres, value = counts, fill = 0) %>%
    mutate(FractCorrect = `TRUE`/200) %>%
    left_join(LADRefAverages %>% select(-Afford, -Affordsd, -HighLUP)) %>%
    left_join(select(LADMean,LAD11CD, HomesMedian, MedianDiff, Ego1TourismDens )) %>%
-   mutate(PercDiff = (MedianDiff-HomesMedian)/HomesMedian)
+   mutate(PercDiff = (MedianDiff-HomesMedian)/HomesMedian) %>%
+   left_join(LostLowUse)
  
  test2 %>% ggplot(aes(y = FractCorrect, x = HighVal)) + geom_jitter()
 

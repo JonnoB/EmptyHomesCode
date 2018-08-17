@@ -45,7 +45,7 @@ PstCdLSOA.raw <- readRDS(file.path(DataFolder,"PstCdLSOA.rds"))
 #
 #
 
-#It turned out  that the LAD11CD is out of date and so some of the LAD's aren't matching. I am garmonizing the LAD11CD with
+#It turned out  that the LAD11CD is out of date and so some of the LAD's aren't matching. I am harmonizing the LAD11CD with
 #the main version, it is a bit of a hack but it will mean that areas like 
 #St Albarns and Northumberland are not missed out.
 LSOAfix <- PstCdLSOA.raw %>% 
@@ -60,7 +60,7 @@ PstCdLSOA <- OAandPstCd %>%
   select(-LAD11CD) %>%
   rename(LAD11CD = Admin_district_code)
 
-rural <- OAandPstCd %>%
+rural <- test %>% #OAandPstCd %>%
   group_by(OA11CD) %>%
   summarise(MSOA11CD = first(MSOA11CD),
             LAD11CD = first(LAD11CD)) %>%
@@ -73,10 +73,7 @@ lsoa <- PstCdLSOA %>%
 setwd(AddGeog)
 wardnames <- read_csv("Ward_to_Local_Authority_District_to_County_to_Region_to_Country_December_2016_Lookup_in_United_Kingdom_V2.csv") %>% setNames(c("Admin_ward_code", names(.)[-1]))
 
-#uses the dataframe from the CreateExceltemplates to get the ward names and the lsoa together
-#wardlsoa <- PstCdLSOA.raw %>% distinct(lsoa11cd, .keep_all = TRUE) %>% 
-#select(lsoa11cd, Admin_ward_code)
-
+#This should be replaced by a better way of getting the regions and remove all references to ward
 wardlsoa <- PstCdLSOA.raw %>%
   distinct(lsoa11cd, .keep_all = TRUE) %>%
   select(lsoa11cd, LAD11CD=Admin_district_code, Admin_ward_code)
@@ -90,21 +87,26 @@ EW2 <- inner_join(EW, lsoa, by = c("ECODE" = "LSOA11CD") ) %>% #inner join gets 
   ungroup 
 
 
-#This and PstCdLSOA.raw should probably be merged at some point but it is only to make things cleaner
-CorePstCd <- PstCdLSOA.raw %>%
-  select(LSOA11CD = lsoa11cd, Postcode, Country_code) %>%
-  #left_join(LSOAfix) %>%
-  left_join(EW2, by = c("LSOA11CD" = "ECODE")) %>%
+#Merges the OA data and the other postcode data so ass to collect as many past and present postcodes as possible. this reduces the amount
+#Of NA's at various stages of th analysis. especially in the case when an LAD gave me postocode data
+
+LSOANM <- read_csv(file.path(PostcodeLookups,"PCD11_OA11_LSOA11_MSOA11_LAD11_EW_LU_aligned_v2.csv")) %>%
+  select(LSOA11CD, LSOA11NM) %>%
+  distinct(LSOA11CD, .keep_all = TRUE)
+
+CorePstCd <- test %>%
+  left_join(LSOANM, by = "LSOA11CD") %>%
+  left_join(EW, by = c("LSOA11CD" = "ECODE")) %>%
   select(Postcode,LSOA11CD, LAD11CD, LAD11NM, MSOA11CD, Pop, Homes, Country_code, LSOA11NM)
+  
 
-test <- OAandPstCd %>%
-  select(Postcode = PCD7, LSOA11CD) 
-
-test2 <- bind_rows(PstCdLSOA.raw %>%
+CorePstCd <- bind_rows(PstCdLSOA.raw %>%
                      select(LSOA11CD = lsoa11cd, Postcode, Country_code),
                    OAandPstCd %>%
                      select(Postcode = PCD7, LSOA11CD)  ) %>%
-  distinct(., Postcode, .keep_all = TRUE)
+  distinct(., Postcode, .keep_all = TRUE)  %>%
+  left_join(EW2, by = c("LSOA11CD" = "ECODE")) %>%
+  select(Postcode,LSOA11CD, LAD11CD, LAD11NM, MSOA11CD, Pop, Homes, Country_code, LSOA11NM)
 
 #Convert shape file to dataframe and join in the LSOA data
 #

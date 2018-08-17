@@ -73,19 +73,12 @@ WalsallDATA <- read_excel("WalsallDiscountsLSOA.XLSX" )[1:4] %>%
   StructureData(c(4:5,7:8))
 
 BirminghamDATA <-  read_excel("Birmingham CT EMPTIES.xlsx" )%>%
-  mutate(Postcode = gsub(" ", "", `Post Code`)) %>%
+  mutate(Postcode = sub(" ", "", `Post Code`)) %>%
   left_join(.,CorePstCd,  by=c("Postcode") ) %>%
   rename(Exemption.type=`Current Discount Type Description`, LSOA_CODE = LSOA11CD) %>%
   select(Exemption.type, LSOA_CODE, Country_code, Admin_district_code=LAD11CD) %>%
   StructureData(c(2,4:9))
 
-
-BirminghamDATA <-  read_excel("Birmingham CT EMPTIES.xlsx" )%>%
-  mutate(Postcode = `Post Code`) %>%
-  left_join(.,OAandPstCd,  by=c("Postcode"="PCD7") ) %>% #Birmingham needs to use these postcodes.
-  rename(Exemption.type=`Current Discount Type Description`, LSOA_CODE = LSOA11CD) %>%
-  select(Exemption.type, LSOA_CODE, LSOA11NM, LAD11CD) %>%
-  StructureData(c(2,4:9))
 
 DudleyDATA <- read_excel("Completed DudleyDiscountsLSOA.xlsx"  )[1:4] %>%  
   StructureData()
@@ -199,8 +192,6 @@ IpswichDATA <- read_xlsx("IpswichDiscountsLSOA.xlsx")[1:4] %>%
   StructureData(c(2:4,6:11,13:15))
 
 #Mid Suffolk and Babergh
-#These have been combined and are just the postcodes so need to be fixed
-#Missing loads of postcodes
 MidSuffolkDATA <- read_excel("MidSuffolk FOI MF379 1718 Discount.xlsx") %>%
   mutate(Postcode = gsub(" ", "", `Post Code`)) %>%
   left_join(.,CorePstCd,  by=c("Postcode") ) %>%
@@ -210,7 +201,7 @@ MidSuffolkDATA <- read_excel("MidSuffolk FOI MF379 1718 Discount.xlsx") %>%
 
 
 BaberghDATA <- read_excel("Babergh FOI BF378 1718 Discount.xlsx")%>%
-  mutate(Postcode = gsub(" ", "", `Post Code`)) %>%
+ mutate(Postcode = gsub(" ", "", `Post Code`)) %>%
   left_join(.,CorePstCd,  by=c("Postcode") ) %>%
   rename(Exemption.type=`Discount Type Description`, LSOA_CODE = LSOA11CD) %>%
   select(Exemption.type, LSOA_CODE, Country_code, Admin_district_code=LAD11CD) %>%
@@ -471,22 +462,32 @@ source(file.path(CommonCode, "LondonFullProcesss.R"))
 DATAdf <- ls(pattern = "DATA$") %>%
   map_df(~{
     get(.x) %>%
-      select(LSOA11CD, LowUse:PercTurnover)
-  })
+      select(LSOA11CD, LowUse:PercTurnover) %>%
+      group_by(LAD11CD) %>%
+      mutate(LAD11CDCounts = n()) %>%
+      arrange(-LAD11CDCounts) %>%
+      ungroup %>%
+      mutate(LAD11CD = first(LAD11CD),
+             LAD11NM = first(LAD11NM)) #This allows me to keep tabs on the missing empty homes. this was caused by postcode problems
+  
+      }) %>%
+  select(-LAD11CDCounts)
 
 rm(list = ls(pattern = "DATA$"))
 
-print("Scrubbing loose ends")
+#print("Scrubbing loose ends")
 
 
-DATAdf <-DATAdf %>% 
-    group_by(LSOA11CD) %>%  #Remove double LSOA that may have sneaked in
-    summarise_all(funs(first)) %>%
-    group_by(LAD11CD, LAD11NM) %>%
-    mutate(LSOACounts = n()) %>%
-    filter(LSOACounts>5)  %>% #remove any odd bits that have mixed up LAD code and name
-    ungroup %>%
-    select(-LSOACounts)
+#This is no longer necessary, keeping it here just in case
+# DATAdf <-DATAdf %>% 
+#     group_by(LSOA11CD) %>%  #Remove double LSOA that may have sneaked in
+#     summarise_all(funs(first)) %>%
+#     group_by(LAD11CD) %>%
+#     mutate(LSOACounts = n()) %>%
+#     filter(LSOACounts>5)  %>% #remove any odd bits that have mixed up LAD code and name
+#     ungroup %>%
+#     select(-LSOACounts)
+
 
 
 
