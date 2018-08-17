@@ -1,24 +1,26 @@
 ResampledModelPerf <- function(Modeldf, TestResample, ModelFormula){
-  #Cretes a dataframe with the Classification performance of many resampled models.
+  #Creates a dataframe with the Classification performance of many resampled models.
   #This allows the same resample set to be used across multiple model builds
   
   #The Outcome variable HAS TO BE CALLED REFERENCE!
   
   #Modeldf: the dataframe that will be used as the data set of the model
-  #TestResample, a list of esample_partition objects based on Modeldf
+  #TestResample, an vfold_cv object
   #ModelFormula the formula used for the model. created using as.formula()
   
-  ResOut <- 1:length(TestResample) %>% map_df(~{
+  TestResample <- rsample2caret(TestResample)
+  
+  ResOut <- 1:length(TestResample$index) %>% map_df(~{
     
     #The vector of rows used in this model
-    trainrows <- as.integer(TestResample[[.x]]$train)
-    testrows <- as.integer(TestResample[[.x]]$test)  
+    trainrows <- TestResample$index[[.x]]
+    testrows <- TestResample$indexOut[[.x]]  
     
     Mod2 <- Modeldf  %>%
       slice(trainrows) %>%
       glm(formula = ModelFormula, data = ., family=binomial(link='logit'))
-
-    preds2<- Modeldf  %>%
+    
+    preds2 <- Modeldf  %>%
       slice(testrows) %>%
       predict(Mod2, newdata = ., type = "response" ) 
     
@@ -28,7 +30,7 @@ ResampledModelPerf <- function(Modeldf, TestResample, ModelFormula){
     
     ConfOut <-Refs %>%
       confusionMatrix( data =factor(preds2>0.5, levels = c("FALSE", "TRUE")), reference = .)
-
+    
     ConfOut$overall %>% t %>% data.frame() %>% as.tibble %>%
       mutate(sample = .x)
     

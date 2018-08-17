@@ -18,9 +18,9 @@ SLakelandCUMBRIADATA <- read_excel("South LakelandExemptionsLSOA.XLSX", sheet=1)
 #only inlcudes postcodes so the mergeing needs to be done manually
 CopelandCUMBRIADATA <- read_excel("CopelandFOI 5778 data 100517 CBC.XLSX", sheet=1) %>% 
   mutate(Postcode = sub(" ", "", Postcode)) %>%
-  left_join(., PstCdLSOA.raw,  by=c("Postcode") ) %>%
-  rename(Exemption.type=`Disc Type Ind`, LSOA_CODE = lsoa11cd) %>%
-  select(Exemption.type, LSOA_CODE, Postcode, Country_code) %>%
+  left_join(.,CorePstCd,  by=c("Postcode") ) %>%
+  rename(Exemption.type=`Disc Type Ind`, LSOA_CODE = LSOA11CD) %>%
+  select(Exemption.type, LSOA_CODE, Country_code, Admin_district_code=LAD11CD) %>%
   StructureData()
 
 
@@ -74,9 +74,17 @@ WalsallDATA <- read_excel("WalsallDiscountsLSOA.XLSX" )[1:4] %>%
 
 BirminghamDATA <-  read_excel("Birmingham CT EMPTIES.xlsx" )%>%
   mutate(Postcode = gsub(" ", "", `Post Code`)) %>%
-  left_join(.,PstCdLSOA.raw,  by=c("Postcode") ) %>%
-  rename(Exemption.type=`Current Discount Type Description`, LSOA_CODE = lsoa11cd) %>%
-  select(Exemption.type, LSOA_CODE, Country_code, Admin_district_code) %>%
+  left_join(.,CorePstCd,  by=c("Postcode") ) %>%
+  rename(Exemption.type=`Current Discount Type Description`, LSOA_CODE = LSOA11CD) %>%
+  select(Exemption.type, LSOA_CODE, Country_code, Admin_district_code=LAD11CD) %>%
+  StructureData(c(2,4:9))
+
+
+BirminghamDATA <-  read_excel("Birmingham CT EMPTIES.xlsx" )%>%
+  mutate(Postcode = `Post Code`) %>%
+  left_join(.,OAandPstCd,  by=c("Postcode"="PCD7") ) %>% #Birmingham needs to use these postcodes.
+  rename(Exemption.type=`Current Discount Type Description`, LSOA_CODE = LSOA11CD) %>%
+  select(Exemption.type, LSOA_CODE, LSOA11NM, LAD11CD) %>%
   StructureData(c(2,4:9))
 
 DudleyDATA <- read_excel("Completed DudleyDiscountsLSOA.xlsx"  )[1:4] %>%  
@@ -195,17 +203,17 @@ IpswichDATA <- read_xlsx("IpswichDiscountsLSOA.xlsx")[1:4] %>%
 #Missing loads of postcodes
 MidSuffolkDATA <- read_excel("MidSuffolk FOI MF379 1718 Discount.xlsx") %>%
   mutate(Postcode = gsub(" ", "", `Post Code`)) %>%
-  left_join(.,PstCdLSOA.raw,  by=c("Postcode") ) %>%
-  rename(Exemption.type=`Discount Type Description`, LSOA_CODE = lsoa11cd) %>%
-  select(Exemption.type, LSOA_CODE, Country_code, Admin_district_code) %>%
+  left_join(.,CorePstCd,  by=c("Postcode") ) %>%
+  rename(Exemption.type=`Discount Type Description`, LSOA_CODE = LSOA11CD) %>%
+  select(Exemption.type, LSOA_CODE, Country_code, Admin_district_code=LAD11CD) %>%
   StructureData(c(2:12,14:15))
 
 
 BaberghDATA <- read_excel("Babergh FOI BF378 1718 Discount.xlsx")%>%
   mutate(Postcode = gsub(" ", "", `Post Code`)) %>%
-  left_join(.,PstCdLSOA.raw,  by=c("Postcode") ) %>%
-  rename(Exemption.type=`Discount Type Description`, LSOA_CODE = lsoa11cd) %>%
-  select(Exemption.type, LSOA_CODE, Country_code, Admin_district_code) %>%
+  left_join(.,CorePstCd,  by=c("Postcode") ) %>%
+  rename(Exemption.type=`Discount Type Description`, LSOA_CODE = LSOA11CD) %>%
+  select(Exemption.type, LSOA_CODE, Country_code, Admin_district_code=LAD11CD) %>%
   StructureData(c(2:6,8:11,13:15))
 
 
@@ -313,8 +321,8 @@ CravenDATA <- read_excel("Craven Discounts.xlsx" ) %>%
   setNames(make.names(names(.))) %>%
   mutate(Postcode = str_split(Full.Property.Address, "(,)(?!.*,)", simplify = T)[,2] %>% 
            gsub(" ", "", .)) %>%
-  left_join(., PstCdLSOA.raw,  by=c("Postcode") ) %>%
-  rename(Exemption.type=Discount.Type.Description, LSOA_CODE = lsoa11cd) %>%
+  left_join(., CorePstCd,  by=c("Postcode") ) %>%
+  rename(Exemption.type=Discount.Type.Description, LSOA_CODE = LSOA11CD) %>%
   select(Exemption.type, LSOA_CODE, Postcode, Country_code) %>%
   StructureData(c(2:5,7))
 
@@ -334,9 +342,8 @@ BradfordDATA <- read_excel("Copy of BradfordDiscountsLSOA.xlsx")[1:4] %>%
 RichmondshireDATA <- read_excel("Richmondshire FOI 4960.xls", col_names = FALSE)[1:2] %>%
   setNames(c("Exemption.type", "Postcode")) %>%
   mutate(Postcode = sub(" ", "", Postcode)) %>%
-  left_join(., PstCdLSOA.raw,  by=c("Postcode") ) %>%
-  rename(LSOA_CODE = lsoa11cd) %>%
-  select(Exemption.type, LSOA_CODE, Postcode, Country_code) %>%
+  left_join(., CorePstCd,  by=c("Postcode") ) %>%
+  select(Exemption.type, LSOA_CODE= LSOA11CD, Postcode, Country_code) %>%
   StructureData(lowuse = c(2:7))
 
 
@@ -421,8 +428,8 @@ CarmarthenDATA <- read_excel("CarmarthenshireDiscountsLSOA.XLSX" , sheet=1)%>% .
 ConwyDATA <- read_excel("Conwy FOI 0260-17.xlsx" , sheet=1) %>%
   rename(Postcode = geo_postcode) %>%
   mutate(Postcode = sub(" ", "", Postcode)) %>%
-  left_join(., PstCdLSOA.raw,  by=c("Postcode") ) %>%
-  rename(Exemption.type=disc_type_desc, LSOA_CODE = lsoa11cd) %>%
+  left_join(., CorePstCd,  by=c("Postcode") ) %>%
+  rename(Exemption.type=disc_type_desc, LSOA_CODE = LSOA11CD) %>%
   select(Exemption.type, LSOA_CODE, Postcode, Country_code) %>%
   StructureData(lowuse = c(2,4))
 

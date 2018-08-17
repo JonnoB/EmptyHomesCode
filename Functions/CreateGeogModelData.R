@@ -31,6 +31,7 @@ CreateGeogModelData <- function(target, path){
                 LowUse = sum(LowUse),
                 Homes = sum(Homes), #sum(Yearly.income*Homes)/sum(Homes),
                 HomesMedian = first(HomesMedian),
+                HomesMean = first(HomesMean),
                 LowUseMedian = first(LowUseMedian)) 
   } else {
     Afford3 <- Afford2
@@ -39,17 +40,20 @@ CreateGeogModelData <- function(target, path){
   Afford3 <- Afford3 %>%
     mutate(LowUsePerc = LowUse/Homes,
            AffordRatio = HomesMedian/Yearly.income,
-           AfforRatioScale = scale(AffordRatio),
-           AffordRationScale2 = AfforRatioScale^2,
-           AffordRank = percent_rank(AffordRatio),
-           HighVal = HomesMedian < LowUseMedian, #Reference Variable
-           HighLUP = median(LowUsePerc) < LowUsePerc)  #Reference Variable
+           AffordRatioScale = scale(AffordRatio),
+           AffordRationScale2 = AffordRatioScale^2,
+           AffordRationScale3 = AffordRatioScale^3,
+           AffordRank = percent_rank(AffordRatio))  
   
-  LADModelData <- left_join(Afford3, 
+  Out <- left_join(Afford3, 
                             Tourism %>% #Add in the tourism designed for MSOA
                               group_by_(target2)  %>%
                               summarise(Guest = sum(Guest),
-                                        Hotel = sum(Hotel)), 
+                                        Hotel = sum(Hotel),
+                                        Ego1TourismDens = sum(Ego1TourismDens),
+                                        Ego2TourismDens = sum(Ego2TourismDens),
+                                        Region = first(Region)
+                                        ), 
                             by = target2) %>%
     mutate(Guest = ifelse(is.na(Guest), 0, Guest),
            Hotel = ifelse(is.na(Hotel), 0, Hotel),
@@ -57,7 +61,15 @@ CreateGeogModelData <- function(target, path){
            TourismDensity = Tourism/Homes,
            GuestDensity = Guest/Homes,
            HotelDensity = Hotel/Homes,
-           TourismDensityRank = rank(TourismDensity, ties.method = "max"))
+           TourismDensityRank = rank(TourismDensity, ties.method = "max"),
+           MeanMedianRatio = HomesMean/HomesMedian,  #Hindicates the skew of the area large skew could indicate LUP presence
+           HighVal = as.factor(HomesMedian < LowUseMedian) #Reference Variable
+           ) %>%
+  group_by(ID) %>%
+    mutate(HighLUP = as.factor(median(LowUsePerc) < LowUsePerc),
+           HighLUP2 = as.factor(quantile(LowUsePerc, 0.75)< LowUsePerc)) %>% #Reference Variable
+  ungroup
   
+  return(Out)
   
 }

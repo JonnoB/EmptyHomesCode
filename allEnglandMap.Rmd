@@ -31,21 +31,6 @@ saveRDS(LADShape, file.path(DataFolder,"LADShape.rds"))
 
 
 ```{r}
-
-LADShape <- LADShape %>%
-  filter(grepl("E",lad14cd))
-
-LADShape2 <- LADShape %>% left_join(EnglandComp, by = c("lad14cd" = "LAD11CD"))
-
-
-
-
-```
-
-
-
-
-```{r}
   #These two functions are necessary for Points to polygons
   get.grpPoly <- function(group,ID,df) {
     Polygon(coordinates(df[df$id==ID & df$group==group,]))

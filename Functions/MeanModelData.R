@@ -9,22 +9,34 @@ MeanModelData <- function(ModelData, target){
               LowUse = mean(LowUse),
               Guest = mean(Guest),
               Hotel = mean(Hotel),
+              Ego1TourismDens = mean(Ego1TourismDens),
+              Ego2TourismDens = mean(Ego2TourismDens),
               HomesMedian = mean(HomesMedian),
+              HomesMean = mean(HomesMean),
               LowUseMedian = mean(LowUseMedian),
-              Yearly.income = mean(Yearly.income)) %>%
+              Yearly.income = mean(Yearly.income),
+              Region = first(Region),
+              HighValCount =  sum(ifelse(HighVal==TRUE,1,0))) %>%
     mutate(AffordRatio = HomesMedian/Yearly.income,
+           AffordRatioScale2 = (scale(AffordRatio)^2),
+           AffordRatioScale3 = (scale(AffordRatio)^3),
+           AffordRatioScale = ((AffordRatio)),
+           Ego1TourismDens2 = (scale(Ego1TourismDens)^2),
+           Ego2TourismDens2 = (scale(Ego2TourismDens)^2),
            LowUsePerc = LowUse/Homes,
            LowUseRank = percent_rank(LowUsePerc),
            Tourism = Guest +Hotel,
+           MeanMedianRatio = HomesMean/HomesMedian,
            HomesMedianRank = percent_rank(HomesMedian),
            LowUseMedianRank = percent_rank(LowUseMedian),
            MedianDiff = LowUseMedian-HomesMedian,
            MedianDiffRatio = (LowUseMedian-HomesMedian)/HomesMedian,
            MedianDiffRank = percent_rank(MedianDiff),
            AffordRank = percent_rank(AffordRatio),
-           TourismDensity = percent_rank((Guest+Hotel)/Homes),
+           TourismDensity = (Guest+Hotel)/Homes,
            HighVal = as.factor(HomesMedian < LowUseMedian), #Reference Variable
-           HighLUP = as.factor(median(LowUsePerc) < LowUsePerc)) #Reference Variable
+           HighLUP = as.factor(median(LowUsePerc) < LowUsePerc),
+           HighLUP2 = as.factor(quantile(LowUsePerc, 0.75)< LowUsePerc)) #Reference Variable
   
   
 }

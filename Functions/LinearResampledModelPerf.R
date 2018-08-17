@@ -5,14 +5,16 @@ LinearResampledModelPerf <- function(Modeldf, TestResample, ModelFormula){
   #The Outcome variable HAS TO BE CALLED REFERENCE!
   
   #Modeldf: the dataframe that will be used as the data set of the model
-  #TestResample, a list of esample_partition objects based on Modeldf
+  #TestResample, a vfold_cv oject
   #ModelFormula the formula used for the model. created using as.formula()
   
-  ResOut <- 1:length(TestResample) %>% map_df(~{
+  TestResample <- rsample2caret(TestResample)
+  
+  ResOut <- 1:length(TestResample$index) %>% map_df(~{
     
     #The vector of rows used in this model
-    trainrows <- as.integer(TestResample[[.x]]$train)
-    testrows <- as.integer(TestResample[[.x]]$test)  
+    trainrows <- TestResample$index[[.x]]
+    testrows <- TestResample$indexOut[[.x]]  
     
     Mod2 <- Modeldf  %>%
       slice(trainrows) %>%

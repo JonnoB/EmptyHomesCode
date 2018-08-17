@@ -101,9 +101,9 @@ RedbridgeLONDATA <- read_excel("RedbridgeDiscountsLSOA.XLSX" )[1:4]  %>%
 BrentLONDATA <- read_excel("FOI  6900196 Brent empty domestic properties.xlsx", col_names = TRUE)[,c(1,5)] %>%
   setNames(c("X__1", "Postcode")) %>%
   mutate(Postcode = gsub(" ", "", Postcode)) %>%
-  left_join(., PstCdLSOA.raw,  by="Postcode" ) %>%
-  rename(Exemption.type=X__1, LSOA_CODE = lsoa11cd) %>%
-  select(Exemption.type, LSOA_CODE, Admin_ward_code, Country_code) %>%
+  left_join(., CorePstCd,  by="Postcode" ) %>%
+  rename(Exemption.type=X__1, LSOA_CODE = LSOA11CD) %>%
+  select(Exemption.type, LSOA_CODE, LAD11CD, Country_code) %>%
   StructureData(c(2,15:19))
 
 #Hammersmith and fulham
@@ -119,11 +119,11 @@ WalthamforestLONDATA <- read_excel("J Bourne Waltham ForestDiscountsLSOA 8.8.17.
 #Westminster
 #Holy SHIT!
 
-#They sent it in the wrong format becuase they are annoying
-LSOA2LSOA <- PstCdLSOA.raw %>% group_by(lsoa11cd) %>%
-  summarise(LSOA = first(lsoa11nm)) %>%
+#They sent it in the wrong format becuase they are annoying.
+LSOA2LSOA <- CorePstCd %>% group_by(LSOA11CD) %>%
+  summarise(LSOA = first(LSOA11NM)) %>%
   ungroup %>%
-  rename(LSOA_CODE = lsoa11cd)
+  rename(LSOA_CODE = LSOA11CD)
 
 #They have missed something out
 WestminsterLONDATA <- read_excel("Westminster 3123133  data Aug 2017.xlsx")[2:5] %>%
@@ -159,9 +159,9 @@ EnfieldLONDATA <- read_excel("EnfieldDiscountsLSOA.xlsx")[c(1,4:6)] %>%
  HounslowLONDATA <- read_excel("Hounslow - Bourne Info -210817.xls", sheet = 2)[c(1,4:5)] %>%
    setNames(c("Postcode","X__1","X__2")) %>%
    mutate(Postcode = gsub(" ", "", Postcode)) %>%
-   left_join(., PstCdLSOA.raw,  by="Postcode" ) %>%
-   rename(Exemption.type=X__2, LSOA_CODE = lsoa11cd) %>%
-   select(Exemption.type, LSOA_CODE, Admin_ward_code, Country_code) %>%
+   left_join(., CorePstCd,  by="Postcode" ) %>%
+   rename(Exemption.type=X__2, LSOA_CODE = LSOA11CD) %>%
+   select(Exemption.type, LSOA_CODE, LAD11CD, Country_code) %>%
    StructureData(c(2:4,6))
 
  

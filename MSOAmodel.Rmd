@@ -389,12 +389,6 @@ EgoSize <- tibble(ego_size = ego_size(MSOAgraph, 2), MSOA11CD = get.vertex.attri
 ##Ego size of jump two has a mean almost identical to the mean number of MSOA in a LAD. However the Ego size is less skewed.
 mean(EgoSize$ego_size)
 
-MSOAtoLAD %>%
-  group_by(LAD11CD) %>%
-  summarise(counts = n(),
-            LAD11NM = first(LAD11NM)) %>%
-  pull(counts) %>% mean
-
 test <-  tibble(MSOA11CD = ego(MSOAgraph, 1, nodes = "E02000001")[[1]] %>% names) %>%
   left_join(MSOAtoLAD)
 
@@ -415,6 +409,34 @@ names(MSOAEgoList) <- get.vertex.attribute(MSOAgraph, "name")
       filter(MSOA11CD %in% .x) %>%
       pull(LSOA11CD)
  })
+
+
+MSOAEgoList1 <- ego(MSOAgraph, 1) %>%map(~names(.x))
+names(MSOAEgoList1) <- get.vertex.attribute(MSOAgraph, "name")
+
+MSOAEgoList2 <- ego(MSOAgraph, 2) %>%map(~names(.x))
+names(MSOAEgoList2) <- get.vertex.attribute(MSOAgraph, "name")
+
+
+ TourismMSOAEgo2 <- MSOAEgoList %>% map_dbl(~{
+   print(.x)
+    Tourism %>%
+      filter(MSOA11CD %in% .x) %>%
+      pull(Tourism) %>% sum
+ }) %>%
+   tibble(Ego2Tourism = .,
+          MSOA = names(MSOAEgoList))
+ 
+  TourismMSOAEgo1 <- MSOAEgoList1 %>% map_dbl(~{
+   print(.x)
+    Tourism %>%
+      filter(MSOA11CD %in% .x) %>%
+      pull(Tourism) %>% sum
+ }) %>%
+   tibble(Ego1Tourism = .,
+          MSOA = names(MSOAEgoList1))
+
+  
 
  ##name the elements of the list
  names(LSOAinMSOAEgo) <- names(MSOAEgoList)
@@ -477,32 +499,26 @@ LocalAfford <-NeighbourhoodQuartiles %>%
 #Complex models
 
 These models work at MSOA level only and include data from the LAD level
-Tehy are rubbish so aren't included in the main work. Just kept here so I don't forget I have already checked.
+They don't really add anything extra so aren't included in the main work. Just kept here so I don't forget I have already checked.
 
 ```{r}
-
-DATAdf %>%
-  arrange(LAD11NM) %>% pull(LAD11NM) %>% unique
-
 MSOAMean2 <-MSOAMean %>%
   mutate(RelativeAfford = AffordRatio/LADAffordRatio,
          RelativeTourismDens = TourismDensity/LADTourismDensity,
-         RelativeTourismDens = ifelse(is.finite(RelativeTourismDens), RelativeTourismDens, 100)) %>%
+         RelativeTourismDens = ifelse(is.finite(RelativeTourismDens), RelativeTourismDens, 100),
+         HighFinance = factor("TRUE"==LADHighVal & "TRUE"==HighLUP, levels = c("TRUE", "FALSE"))) %>%
   filter(!is.na(HighVal)) #Temporary  until I work out how to get rid of those weird MSOA
 
 KitchenSink <- as.formula(Reference ~ TourismDensity+ AffordRatio+ AffordRatio2+ RelativeAfford +RelativeTourismDens+
-                            LADTourismDensity+ LADAffordRatio+ LADAffordRatio2)
+                            LADTourismDensity+ LADAffordRatio+ LADAffordRatio2+ LADMeanMedianRatio)
 
-KitchenSink2 <- as.formula(Reference ~RelativeAfford +RelativeTourismDens+
-                            LADTourismDensity+ LADAffordRatio)
+KitchenSink2 <- as.formula(Reference ~RelativeAfford + RelativeTourismDens +
+                            LADTourismDensity + AffordRatioScale + AffordRatioScale2 + LADMeanMedianRatio)
+
 Formulas2 <- c(as.formula(Reference ~ TourismDensity+ AffordRatio+ AffordRatio2),
                KitchenSink)
 
-
-set.seed(1983)
-TestResample <- 1:100 %>% map(~  resample_partition(MSOAMean2 , c(test = 0.2, train = 0.8)))
-
-
+####Needs updating
 MSOAModels2 <-LinearClassifierCombiner(MSOAMean2,  Outcomes, Formulas2, TestResample) %>%
   mutate(IncAfford2 = grepl("2", Formula),
            LAD = grepl("LAD", Formula)
@@ -519,32 +535,24 @@ MSOAModels2 %>%
   ungroup %>%
    mutate(Dependent = ifelse(Dependent=="HighLUP", "High LUP %", "High LUP value")) 
 
-library(ranger)
 
-#Just under 78% better than all other models
+#Just under 76%. Better than all other models...but is it?
+#The more LAD variables that are included the better the model gets... Until you find out that this is becuase the model uses the lad data to predict the results of other MSOA in the same lad.
 ResOut <- MSOAMean2 %>%
   mutate(Reference = HighLUP) %>% 
-  TreeResampledModelPerf(., TestResample, KitchenSink)
+  TreeResampledModelPerf(., MSOAHighLUPResample, KitchenSink2)
+
+
+#Data contains LAD information I account for that here
 
 ResOut2 <- MSOAMean2 %>%
   mutate(Reference = HighLUP) %>%
-  TreeResampledModelPerf(., TestResample, KitchenSink2)
+  TreeResampledModelPerf(., LADHighLUPResample, KitchenSink2, LADData = LADMean )
 
 
-ResOut %>%
-  summarise('Beats NULL' = sum(Accuracy>AccuracyNull)/n(), #How many times did the models beat NULL
-            Accuracy = mean(Accuracy), #What was the mean accuracy
-            'NULL Model' = mean(AccuracyNull),
-           'Null Difference' = mean(Accuracy-AccuracyNull) #Mean difference relative to NULL
-            )
-
-
-ResOut2 %>%
-  summarise('Beats NULL' = sum(Accuracy>AccuracyNull)/n(), #How many times did the models beat NULL
-            Accuracy = mean(Accuracy), #What was the mean accuracy
-            'NULL Model' = mean(AccuracyNull),
-           'Null Difference' = mean(Accuracy-AccuracyNull) #Mean difference relative to NULL
-            )
+#The model was getting information from the shared LAD data so making it appear much better than it really is
+ResOut %>% SummariseModels()
+ResOut2 %>% SummariseModels()
 
 
 ```
@@ -554,16 +562,21 @@ ResOut2 %>%
 ```{r}
 #This model uses information from the over all LUP as a result I need to subset the data by lups then train on the MSOA
 set.seed(1983)
-TestResample <- 1:100 %>% map(~  resample_partition(LADMean , c(test = 0.2, train = 0.8)))
+TestResample <- vfold_cv(LADMean, v = 5, repeats = 20)
 
 ComplexModels <- c("BothHighLUP", "BothHighVal", "MSOALUPLADVal", "LADHighLUP", "HighLUP", "LADHighVal") %>%
   map_df(~{
     print(.x)
     ResOut2 <- MSOAMean2 %>%
       rename_(Reference = .x) %>%
-      TreeResampledModelPerf(., TestResample, KitchenSink, CombineData = TRUE) %>%
+      TreeResampledModelPerf(., TestResample, KitchenSink2, LADData = LADMean) %>%
       mutate(Dependent = .x)
 })
+
+#the data from the Lup is increasing the accuracy of the model
+ResOut2 <- MSOAMean2 %>%
+  mutate(Reference = HighLUP) %>%
+  TreeResampledModelPerf(., TestResample, KitchenSink2, LADData = LADMean)
 
 
 ComplexModels %>%
@@ -585,9 +598,10 @@ ComplexModels2 <- c("BothHighLUP", "BothHighVal", "MSOALUPLADVal", "LADHighLUP",
     print(.x)
     ResOut2 <- MSOAMean2 %>%
       rename_(Reference = .x) %>%
-      TreeResampledModelPerf(., TestResample, KitchenSink2, CombineData = TRUE) %>%
+      TreeResampledModelPerf(., TestResample, KitchenSink2, LADData = LADMean) %>%
       mutate(Dependent = .x)
 })
+
 
 ComplexModels2 %>%
   group_by(Dependent) %>%
@@ -597,25 +611,46 @@ ComplexModels2 %>%
            'Null Difference' = mean(Accuracy-AccuracyNull) #Mean difference relative to NULL
             )
 
-Modeldf <-MSOAMean2 %>%
-      rename_(Reference = "LADHighLUP")
+```
 
+
+Highly financialized
+
+```{r}
+KitchenSink2 <- as.formula(Reference ~RelativeAfford + RelativeTourismDens +
+                            LADTourismDensity + AffordRatioScale + AffordRatioScale2 + LADMeanMedianRatio, Ego2TourismDens2+Ego2TourismDens)
+
+test <- MSOAMean2 %>%
+  select(HighFinance, LADHighVal, HighLUP)
+
+ComplexModels2 <- c("HighFinance", "HighLUP", "LADHighVal") %>%
+  map_df(~{
+    print(.x)
+    ResOut2 <- MSOAMean2 %>%
+      rename_(Reference = .x) %>%
+      TreeResampledModelPerf(., TestResample, KitchenSink2, LADData = LADMean) %>%
+      mutate(Dependent = .x)
+})
+
+
+ComplexModels2 %>%
+  group_by(Dependent) %>%
+  summarise('Beats NULL' = sum(Accuracy>AccuracyNull)/n(), #How many times did the models beat NULL
+            Accuracy = mean(Accuracy), #What was the mean accuracy
+            'NULL Model' = mean(AccuracyNull),
+           'Null Difference' = mean(Accuracy-AccuracyNull) #Mean difference relative to NULL
+            )
 ```
 
 
 #Collaspy tree voting
 ```{r}
 
-test <- MSOAMean2 %>%
+test <- MSOAMean2 %>% left_join(MSOAtoLAD) %>%
       rename_(Reference = "LADHighLUP") %>%
-MSOATreeVoting(., TestResample, KitchenSink )
+MSOATreeVoting(., TestResample, KitchenSink2 )
 
-test %>%
-  summarise('Beats NULL' = sum(Accuracy>AccuracyNull)/n(), #How many times did the models beat NULL
-            Accuracy = mean(Accuracy), #What was the mean accuracy
-            'NULL Model' = mean(AccuracyNull),
-           'Null Difference' = mean(Accuracy-AccuracyNull) #Mean difference relative to NULL
-            )
+test %>% SummariseModels()
 
 ```
 
