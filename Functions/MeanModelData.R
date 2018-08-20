@@ -14,6 +14,7 @@ MeanModelData <- function(ModelData, target){
               HomesMedian = mean(HomesMedian),
               HomesMean = mean(HomesMean),
               LowUseMedian = mean(LowUseMedian),
+              LowUseMean = mean(LowUseMean),
               Yearly.income = mean(Yearly.income),
               Region = first(Region),
               HomesMedianOld = mean(HomesMedianOld),

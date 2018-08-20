@@ -36,6 +36,7 @@ CreateGeogModelData <- function(target, path){
                 HomesMedian = first(HomesMedian),
                 HomesMean = first(HomesMean),
                 LowUseMedian = first(LowUseMedian),
+                LowUseMean = first(LowUseMean),
                 HomesMedianOld = first(HomesMedianOld),
                 HomesMeanOld = first(HomesMeanOld)) 
   } else {

@@ -462,7 +462,7 @@ source(file.path(CommonCode, "LondonFullProcesss.R"))
 DATAdf <- ls(pattern = "DATA$") %>%
   map_df(~{
     get(.x) %>%
-      select(LSOA11CD, LowUse:PercTurnover) %>%
+      select(LSOA11CD, LowUse:LowuseClass) %>%
       group_by(LAD11CD) %>%
       mutate(LAD11CDCounts = n()) %>%
       arrange(-LAD11CDCounts) %>%
