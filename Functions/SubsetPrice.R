@@ -30,7 +30,7 @@ SubsetPrice <- function(df, type = NULL, PropertyTypes = NULL){
   #The  model used to take multiple councils if there was overlap, but this caused some strange
   #Problems So I removed it. The current version only takes a single LAD
   pricesTemp %>%
-    select( LSOA11CD, Price =X2, X15, PropType = X5, CountryClass, MSOA11CD) %>%
+    select( LSOA11CD, Price =X2, X15, PropType = X5, CountryClass, MSOA11CD, Affordability, CountryAffordClass) %>%
     mutate(Price = as.numeric(Price)) #there was some number overflow thing changing to numeric solves this
   
 }

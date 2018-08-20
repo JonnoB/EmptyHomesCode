@@ -10,7 +10,7 @@ PlotClassDiff <-function(df, Var= "LowUseRatio1"){
   
   df %>% 
     rename_(Ratio = Var) %>%
-      ggplot(., aes(x= Class, y = Ratio, fill = Class)) + 
+      ggplot(., aes(x= Quartile, y = Ratio, fill = Quartile)) + 
      geom_boxplot() + 
      labs(y = "% difference from expected", x= "Price Quartile") +
     scale_fill_manual(values = colourTypes) +

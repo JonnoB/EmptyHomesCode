@@ -5,7 +5,7 @@ CalcLowUse<- function(df){
   #LSOA codes that overlap between LAD's due to postcode matching.
   
   df %>%
-    left_join(., EW2, by = c("LSOA_CODE" = "ECODE")) %>% 
+    left_join(., EW2, by = c("LSOA_CODE" = "LSOA11CD")) %>% 
     rename(LSOA11CD = LSOA_CODE) %>%
     group_by(MSOA11CD)  %>%
     mutate(MSOAHomes = sum(Homes),

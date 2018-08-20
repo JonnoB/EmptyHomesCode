@@ -11,6 +11,8 @@ SummariseModels <- function(df,...){
               'Mean Accuracy' = mean(Accuracy), #What was the mean accuracy
               'Median Accuracy' = median(Accuracy),
               'sd Accuracy' = sd(Accuracy),
+              "PosPred" = mean(Pos.Pred.Value),
+              "NegPred" = mean(Neg.Pred.Value),
               'NULL Model' = mean(AccuracyNull),
               'Null Difference' = mean(Accuracy-AccuracyNull) #Mean difference relative to NULL
     ) %>% ungroup

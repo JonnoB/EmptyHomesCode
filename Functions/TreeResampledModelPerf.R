@@ -42,9 +42,10 @@ TreeResampledModelPerf <- function(Modeldf, TestResample, ModelFormula, LADData 
       slice(testrows) %>%
       pull(Reference)
     
-    ConfOut <-confusionMatrix( data =preds2, reference = Refs)
+    ConfOut <-confusionMatrix( data =preds2, reference = Refs, positive = "TRUE")
     
-    ConfOut$overall %>% t %>% data.frame() %>% as.tibble %>%
+    ConfOut$overall %>% t %>% data.frame() %>% as.tibble %>% 
+      bind_cols(ConfOut$byClass %>% t %>% data.frame() %>% as.tibble) %>%
       mutate(sample = .x)
     
     

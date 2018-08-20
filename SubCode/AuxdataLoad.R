@@ -3,110 +3,62 @@
 #Council tax bands from VOA
 #https://www.gov.uk/government/statistics/council-tax-stock-of-properties-2016
 
-setwd(DataFolder)
-
-CTtaxstock<- read_csv("Table_CTSOP1.1_2016.csv")
-
-pop <- read_csv("SAPE2.csv")
-
-EW <- inner_join(select(CTtaxstock, ECODE, ALL_PROPERTIES),select(pop, `Area Codes`, `All Ages`),
-                 by=c("ECODE" = "Area Codes")) %>% setNames(c("ECODE", "Homes", "Pop"))
-
-
 #Load the LSOA shape data for EW 
 
 
 
 # Load Post code data
 
-#This chunk checks the exiatane of the postcode to lsoa lookup if it doesn't find it, the second part of the code is run that creates the lookup. Creating the lookup takes quite a lot of time so it is good to only have to do it once.
-
-
-if(file.exists(file.path(DataFolder,"PstCdLSOA.rds"))){
-PstCdLSOA.raw <- readRDS(file.path(DataFolder,"PstCdLSOA.rds"))
+#needed for the LAD names
+if(file.exists(file.path(DataFolder, "CorePstCd.rds"))){
+  
+  CorePstCd <- readRDS(file.path(DataFolder, "CorePstCd.rds"))
+  
 } else {
-  #shape file used in the Match2Postocde function
-  setwd(LSOAshapedata)
-  shape <- readOGR(dsn = list.files(pattern = "shp"))
-  
-  #this takes a while
-  PstCdLSOA.raw  <- MatchPostCode2LSOA(file.path(basewd, "ONS postcodes May17", "Data", "CSV"),
-                        file.path(basewd, "ONS postcodes May17", "Doc") )
   
   
+  print("Loading Postcode data")
+  LADconv <- read_csv(file.path(AddGeog, 
+                                "Local_Authority_Districts_December_2016_Names_and_Codes_in_the_United_Kingdom.csv")) %>%
+    select(LAD11CD=LAD16CD, LAD11NM = LAD16NM)
   
-  setwd(DataFolder)
-  saveRDS(PstCdLSOA.raw, "PstCdLSOA.rds")
-  rm(shape)
+  #This is used purely for westminster
+  LSOANM <- read_csv(file.path(PostcodeLookups,"PCD11_OA11_LSOA11_MSOA11_LAD11_EW_LU_aligned_v2.csv")) %>%
+    select(LSOA11CD, LSOA11NM) %>%
+    distinct(LSOA11CD, .keep_all = TRUE)
+  
+  #uses the ONSPD dataset, this contains all postocodes including terminated ones and links them to the LSOA system.
+  CorePstCd  <- read_csv(file.path(ONSpostcodes, 
+                              "ONS_Postcode_Directory_Latest_Centroids.csv")) %>%
+    select(Postcode = pcd, LSOA11CD = lsoa11, MSOA11CD = msoa11, LAD11CD = oslaua, OA11CD = oa11,Country_code = ctry, Region =  rgn) 
+  
+  CorePstCd <- CorePstCd %>%
+    filter(grepl("(E92000001)|(W92000004)", Country_code)) %>%
+    left_join(LADconv) %>%
+    left_join(LSOANM) %>%
+    filter(!is.na(LSOA11CD)) %>% 
+    mutate(Postcode = gsub(" ", "", Postcode)) %>%
+    select(Postcode,LSOA11CD, LAD11CD, LAD11NM, MSOA11CD, Country_code, LSOA11NM, Region)
+    
+  
+  saveRDS(CorePstCd, file.path(DataFolder, "CorePstCd.rds"))
+  
+  rm(EW); rm(LSOANM);rm(LADconv)
 }
 
-#Bind the ward names and LAD names to the lsoa data
-#
-#
-#
 
-#It turned out  that the LAD11CD is out of date and so some of the LAD's aren't matching. I am harmonizing the LAD11CD with
-#the main version, it is a bit of a hack but it will mean that areas like 
-#St Albarns and Northumberland are not missed out.
-LSOAfix <- PstCdLSOA.raw %>% 
-  select(Admin_district_code, LSOA11CD = lsoa11cd) %>%
-  distinct(LSOA11CD, .keep_all = TRUE)
+setwd(DataFolder)
+EW <- inner_join(read_csv("Table_CTSOP1.1_2016.csv") %>%
+                   select( ECODE, ALL_PROPERTIES),
+                 read_csv("SAPE2.csv") %>% select( `Area Codes`, `All Ages`),
+                 by=c("ECODE" = "Area Codes")) %>% setNames(c("LSOA11CD", "Homes", "Pop"))
 
-OAandPstCd <- read_csv(file.path(PostcodeLookups,"PCD11_OA11_LSOA11_MSOA11_LAD11_EW_LU_aligned_v2.csv")) 
+EW2 <- CorePstCd %>% 
+  select(-Postcode) %>%
+  distinct(LSOA11CD, .keep_all = TRUE) %>%
+  left_join(EW, by= "LSOA11CD") 
 
-PstCdLSOA <- OAandPstCd %>%
-  select(LSOA11CD:LAD11NMW) %>% distinct(., LSOA11CD, .keep_all = TRUE) %>% 
-  left_join(LSOAfix) %>%
-  select(-LAD11CD) %>%
-  rename(LAD11CD = Admin_district_code)
-
-rural <- test %>% #OAandPstCd %>%
-  group_by(OA11CD) %>%
-  summarise(MSOA11CD = first(MSOA11CD),
-            LAD11CD = first(LAD11CD)) %>%
-  left_join(read_csv(file.path(DataFolder, "RUC11_OA11_EW.csv")),.) %>%
-  mutate(Urban = ifelse(grepl("Urban", RUC11), "Urban", "Rural"))
-
-lsoa <- PstCdLSOA %>%
-  select(LSOA11CD:LAD11NMW) %>% distinct(., LSOA11CD, .keep_all = TRUE) 
-
-setwd(AddGeog)
-wardnames <- read_csv("Ward_to_Local_Authority_District_to_County_to_Region_to_Country_December_2016_Lookup_in_United_Kingdom_V2.csv") %>% setNames(c("Admin_ward_code", names(.)[-1]))
-
-#This should be replaced by a better way of getting the regions and remove all references to ward
-wardlsoa <- PstCdLSOA.raw %>%
-  distinct(lsoa11cd, .keep_all = TRUE) %>%
-  select(lsoa11cd, LAD11CD=Admin_district_code, Admin_ward_code)
-  
-
-EW2 <- inner_join(EW, lsoa, by = c("ECODE" = "LSOA11CD") ) %>% #inner join gets rid of all non-LSOA from EW
-  left_join(., wardlsoa, by = c("ECODE"="lsoa11cd") ) %>% 
-  left_join(., select(wardnames, Admin_ward_code, WD16NM, Region = GOR10NM), by = "Admin_ward_code") %>%
-  group_by(Admin_ward_code) %>%
-  mutate(WardHomes = sum(Homes),  WardPop = sum(Pop)) %>% 
-  ungroup 
-
-
-#Merges the OA data and the other postcode data so ass to collect as many past and present postcodes as possible. this reduces the amount
-#Of NA's at various stages of th analysis. especially in the case when an LAD gave me postocode data
-
-LSOANM <- read_csv(file.path(PostcodeLookups,"PCD11_OA11_LSOA11_MSOA11_LAD11_EW_LU_aligned_v2.csv")) %>%
-  select(LSOA11CD, LSOA11NM) %>%
-  distinct(LSOA11CD, .keep_all = TRUE)
-
-CorePstCd <- test %>%
-  left_join(LSOANM, by = "LSOA11CD") %>%
-  left_join(EW, by = c("LSOA11CD" = "ECODE")) %>%
-  select(Postcode,LSOA11CD, LAD11CD, LAD11NM, MSOA11CD, Pop, Homes, Country_code, LSOA11NM)
-  
-
-CorePstCd <- bind_rows(PstCdLSOA.raw %>%
-                     select(LSOA11CD = lsoa11cd, Postcode, Country_code),
-                   OAandPstCd %>%
-                     select(Postcode = PCD7, LSOA11CD)  ) %>%
-  distinct(., Postcode, .keep_all = TRUE)  %>%
-  left_join(EW2, by = c("LSOA11CD" = "ECODE")) %>%
-  select(Postcode,LSOA11CD, LAD11CD, LAD11NM, MSOA11CD, Pop, Homes, Country_code, LSOA11NM)
+rm(EW)
 
 #Convert shape file to dataframe and join in the LSOA data
 #
@@ -138,8 +90,6 @@ setwd(DataFolder)
 
 #Need to replace the prices file with the new larger prices file
 
-
-
 if(file.exists("prices.rds")){
   
   prices <- readRDS("prices.rds")
@@ -150,21 +100,36 @@ if(file.exists("prices.rds")){
   prices <- prices %>%
     filter(X5 %in% c("D", "S", "T", "F")) %>% #The property types, filtering hear greatly reduces the size of the vector
     filter(year(X3)>2012,year(X3)<2018) %>%
-    mutate(X4 = gsub(" ", "", X4)) %>%
-    left_join(., PstCdLSOA.raw %>% mutate(Postcode = gsub(" ", "", Postcode)),
+    mutate(X4 = gsub(" ", "", X4)) 
+  
+  prices <- prices %>%
+    left_join(., CorePstCd,
               by = c("X4"="Postcode")) %>%
-    filter(!is.na(lsoa11cd)) %>%
-    left_join(select(EW2, ECODE, MSOA11CD, LAD11CD), by =c("lsoa11cd"="ECODE")) %>% #Add in the MSOA code
-    #filter(Country_code == "E92000001") %>% keep in wales
-    select(X2, X5, X3, X15, X16,lsoa11cd, MSOA11CD, LAD11CD) %>%
-    rename(LSOA11CD = lsoa11cd)
-    
+    filter(!is.na(LSOA11CD)) %>%
+    select(X2, X5, X3, X15, X16, LSOA11CD, MSOA11CD, LAD11CD) 
 
   saveRDS(prices, "prices.rds")
   
 }
 
-
+if(!file.exists("pricesOld.rds")){
+  
+  pricesOld <- read_csv("pp-complete.csv", col_names = FALSE )
+  
+  pricesOld <- pricesOld %>%
+    filter(X5 %in% c("D", "S", "T", "F")) %>% #The property types, filtering hear greatly reduces the size of the vector
+    filter(year(X3)>2002,year(X3)<2008) %>%
+    mutate(X4 = gsub(" ", "", X4)) 
+  
+  pricesOld <- pricesOld %>%
+    left_join(., CorePstCd,
+              by = c("X4"="Postcode")) %>%
+    filter(!is.na(LSOA11CD)) %>%
+    select(X2, X5, X3, X15, X16, LSOA11CD, MSOA11CD, LAD11CD) 
+  
+  saveRDS(pricesOld, "pricesOld.rds")
+  rm(pricesOld)
+} 
 
 #Was previously ward until I increased the number of years to allow the use of LSOA
 
@@ -175,14 +140,11 @@ if(file.exists("MeanWardPrice.rds")){
 } else {
   #if you don't have enough ram this might crash your computer.
   MeanWardPrice <- prices %>%
-    filter(X5 %in% c("D", "S", "T", "F")) %>%
     group_by(LSOA11CD) %>%
     summarise( MeanPrice = mean(X2),
                MedianPrice = median(X2),
                counts =n())
-  
-  
-  
+
   saveRDS(MeanWardPrice, "MeanWardPrice.rds")
   
 }
@@ -209,15 +171,7 @@ gsub("\\.(?=\\.*$)", "", ., perl=TRUE)) %>% #removes trailing full stop
   mutate(Yearly.income= 52 * Total.weekly.income)
 
 #Remoe stuff which isn't used again.
-rm(pop)
-rm(CTtaxstock)
-rm(EW)
-rm(wardlsoa)
-rm(wardnames)
-rm(lsoa)
-rm(LSOAfix)
-rm(PstCdLSOA)
-rm(PstCdLSOA.raw)
+
 
 # IncomeEst <- prices %>% 
 #   filter(X5 %in% c("D", "S", "T", "F")) %>%

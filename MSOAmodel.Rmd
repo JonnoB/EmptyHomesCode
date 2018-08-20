@@ -608,7 +608,9 @@ ComplexModels2 %>%
   summarise('Beats NULL' = sum(Accuracy>AccuracyNull)/n(), #How many times did the models beat NULL
             Accuracy = mean(Accuracy), #What was the mean accuracy
             'NULL Model' = mean(AccuracyNull),
-           'Null Difference' = mean(Accuracy-AccuracyNull) #Mean difference relative to NULL
+           'Null Difference' = mean(Accuracy-AccuracyNull),
+                                    Sens = mean(Sensitivity),
+           spec = mean(Specificity)#Mean difference relative to NULL
             )
 
 ```
@@ -618,7 +620,12 @@ Highly financialized
 
 ```{r}
 KitchenSink2 <- as.formula(Reference ~RelativeAfford + RelativeTourismDens +
-                            LADTourismDensity + AffordRatioScale + AffordRatioScale2 + LADMeanMedianRatio, Ego2TourismDens2+Ego2TourismDens)
+                            LADTourismDensity + AffordRatioScale + AffordRatioScale2 + LADMeanMedianRatio, Ego2TourismDens2+Ego2TourismDens + AffordRatioScale2*TourismDensity)
+
+Formulatest <-  as.formula(Reference ~ TourismDensity+ AffordRatio + AffordRatioScale2)
+
+set.seed(1983)
+TestResample <- vfold_cv(LADMean, v = 5, repeats = 20, strata = "HighFinance")
 
 test <- MSOAMean2 %>%
   select(HighFinance, LADHighVal, HighLUP)
@@ -633,13 +640,57 @@ ComplexModels2 <- c("HighFinance", "HighLUP", "LADHighVal") %>%
 })
 
 
+ComplexModels2 <- c("HighFinance", "HighLUP", "LADHighVal") %>%
+  map_df(~{
+    print(.x)
+    ResOut2 <- MSOAMean2 %>%
+      rename_(Reference = .x) %>%
+      ResampledModelPerf(., TestResample, Formulatest, LADData = LADMean) %>%
+      mutate(Dependent = .x)
+})
+
+
 ComplexModels2 %>%
-  group_by(Dependent) %>%
+  group_by(Dependent)%>%
   summarise('Beats NULL' = sum(Accuracy>AccuracyNull)/n(), #How many times did the models beat NULL
             Accuracy = mean(Accuracy), #What was the mean accuracy
             'NULL Model' = mean(AccuracyNull),
-           'Null Difference' = mean(Accuracy-AccuracyNull) #Mean difference relative to NULL
+           'Null Difference' = mean(Accuracy-AccuracyNull),
+                                    Sens = mean(Sensitivity),
+           spec = mean(Specificity)#Mean difference relative to NULL
             )
+
+
+AnalyzePreds <- c("HighFinance", "HighLUP", "LADHighVal") %>%
+  map_df(~{
+    print(.x)
+    ResOut2 <- MSOAMean2 %>%
+      rename_(Reference = .x) %>%
+      ResampledModelPerfPreds(., TestResample, Formulatest, LADData = LADMean) %>%
+      mutate(Dependent = .x,
+             row = 1:n())
+})
+
+
+test <- AnalyzePreds %>%
+  mutate(Predictions = Predictions>0.5) %>%
+  select(Predictions, Dependent, sample, row) %>%
+  spread(key = Dependent, value = Predictions)
+
+
+test2 <- AnalyzePreds %>%
+  mutate(Predictions = Predictions>0.5) %>%
+  select(Reference, Dependent, sample, row) %>%
+  spread(key = Dependent, value = Reference)
+
+confusionMatrix(data = test$HighLUP & test$LADHighVal, test2$HighFinance)
+
+confusionMatrix(test$HighFinance, test2$HighFinance)
+
+confusionMatrix(test$HighLUP, test2$HighLUP)
+
+confusionMatrix(test$LADHighVal, test2$LADHighVal)
+
 ```
 
 

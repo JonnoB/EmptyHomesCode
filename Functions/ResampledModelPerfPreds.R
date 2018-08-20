@@ -1,4 +1,4 @@
-ResampledModelPerf <- function(Modeldf, TestResample, ModelFormula, LADData = NULL){
+ResampledModelPerfPreds <- function(Modeldf, TestResample, ModelFormula, LADData = NULL){
   #Creates a dataframe with the Classification performance of many resampled models.
   #This allows the same resample set to be used across multiple model builds
   
@@ -38,12 +38,7 @@ ResampledModelPerf <- function(Modeldf, TestResample, ModelFormula, LADData = NU
       slice(testrows) %>%
       pull(Reference)
     
-    ConfOut <-Refs %>%
-      confusionMatrix( data =factor(preds2>0.5), reference = ., positive = "TRUE")
-    
-    ConfOut$overall %>% t %>% data.frame() %>% as.tibble %>% 
-      bind_cols(ConfOut$byClass %>% t %>% data.frame() %>% as.tibble) %>%
-      mutate(sample = .x)
+    tibble(Predictions = preds2, Reference = Refs, sample = .x) 
     
     
   })

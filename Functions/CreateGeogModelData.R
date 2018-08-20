@@ -6,7 +6,10 @@ CreateGeogModelData <- function(target, path){
   print("Load files")
   Afford <- list.files(path, full.names = TRUE) %>%
     map_df(~readRDS(.x)) %>%
-    left_join(select(IncomeEst, Yearly.income, MSOA11CD), by = "MSOA11CD") 
+    left_join(select(IncomeEst, Yearly.income, MSOA11CD), by = "MSOA11CD") %>%
+    left_join(., list.files(file.path(basewd, "BootstrapMSOAOldPrices"), full.names = TRUE) %>% # load the old prices
+                map_df(~readRDS(.x)) %>% select(MSOA11CD, ID, MSOAHomesMedian:LADHomesMean) %>% 
+                set_names(c(names(.)[1:3], paste0(names(.)[-c(1:3)], "Old"))), by = c("MSOA11CD", "ID"))
   
   #reverse the selection safely
   if(target=="LAD"){
@@ -32,14 +35,16 @@ CreateGeogModelData <- function(target, path){
                 Homes = sum(Homes), #sum(Yearly.income*Homes)/sum(Homes),
                 HomesMedian = first(HomesMedian),
                 HomesMean = first(HomesMean),
-                LowUseMedian = first(LowUseMedian)) 
+                LowUseMedian = first(LowUseMedian),
+                HomesMedianOld = first(HomesMedianOld),
+                HomesMeanOld = first(HomesMeanOld)) 
   } else {
     Afford3 <- Afford2
   }
   
   Afford3 <- Afford3 %>%
     mutate(LowUsePerc = LowUse/Homes,
-           AffordRatio = HomesMedian/Yearly.income,
+           AffordRatio = HomesMean/Yearly.income,
            AffordRatioScale = scale(AffordRatio),
            AffordRationScale2 = AffordRatioScale^2,
            AffordRationScale3 = AffordRatioScale^3,
@@ -63,6 +68,7 @@ CreateGeogModelData <- function(target, path){
            HotelDensity = Hotel/Homes,
            TourismDensityRank = rank(TourismDensity, ties.method = "max"),
            MeanMedianRatio = HomesMean/HomesMedian,  #Hindicates the skew of the area large skew could indicate LUP presence
+           PercChange = (HomesMean-HomesMeanOld)/HomesMeanOld,
            HighVal = as.factor(HomesMedian < LowUseMedian) #Reference Variable
            ) %>%
   group_by(ID) %>%

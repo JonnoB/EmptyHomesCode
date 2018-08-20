@@ -16,14 +16,31 @@ Strapped <- function(dfPrice, dfWard, samples, Grouping){
   LowUseTemp <- WeightedLSOASample(dfWard, dfPrice, "LowUse", samples) %>% mutate(IsLowUse = TRUE)
   
   #Join and get the quartiles
-  print("Calculating Quartiles")
-  HomesTemp <- bind_rows(HomesTemp, LowUseTemp) %>%
-    group_by(ID) %>%
-    mutate(Class = cut(Price, 
-                       Price %>% quantile(.) %>%
+  HomesTemp <- bind_rows(HomesTemp, LowUseTemp)
+  
+  if("Class" %in% Grouping){
+    print("Calculating Price Quartiles")
+    HomesTemp <- HomesTemp %>%
+      group_by(ID) %>%
+      mutate(Class = cut(Price, 
+                         Price %>% quantile(.) %>%
                          .[2:4] %>% c(0,., Inf), 
-                       labels =     c("Lower", "Lower-Mid", "Upper-Mid", "Upper"), 
-                       right = F) %>% fct_relevel(., "Upper", after = 3))
+                         labels =     c("Lower", "Lower-Mid", "Upper-Mid", "Upper"), 
+                         right = F) %>% fct_relevel(., "Upper", after = 3))
+    }
+  
+
+  
+  if("AffordClass" %in% Grouping){
+    print("Calculating Affordability Quartiles")
+    HomesTemp <- HomesTemp %>%
+      group_by(ID) %>%
+      mutate( AffordClass = cut(Affordability,   
+                                Affordability %>% quantile(.) %>% .[2:4] %>% c(0,., Inf), 
+                               labels =     c("Lower", "Lower-Mid", "Upper-Mid", "Upper"), 
+                               right = F) %>% fct_relevel(., "Upper", after = 3))
+    
+  }
   
   #seperate back into individual groups
   LowUseTemp <-HomesTemp %>% filter(IsLowUse ==TRUE) %>% select(-IsLowUse)

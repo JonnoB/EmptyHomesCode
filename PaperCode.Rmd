@@ -6,8 +6,9 @@ output: html_document
 editor_options: 
   chunk_output_type: console
 ---
-Mang en natt har jeg sittet opp og skrevet dype romaner paa dette skrivebordet. Det er pent brukt, men har gitt meg graa haar. Det er som min Moby Dick, jeg har aldri helt klart aa temme det, boken er halvskrevet, hodet fult, hjertet tomt. Derfor maa det bort, kona orker ikke at jeg sitter oppe og stirrer paa uskrevne linjer i min moleskinen mer.
 
+
+schedule 2 part 5 section 
 
 
 ```{r}
@@ -31,7 +32,8 @@ It also cleans all postcodes that are in other LADs out... should it just combin
 ```{r}
 #creates a data frame called DATAdf
 suppressMessages(source(file.path(SubCode, "LOADandProcessLADData.R")))
-rm(OAandPstCd)
+
+
 ```
 
 #MSOA to LAD
@@ -95,34 +97,6 @@ LostLowUse <- DATAdf %>%
          cumperc = cumsum/sum(Lost))
 
 sum(LostLowUse$Lost)
-
-ONSPD <- read_csv(file.path("/home/jonno/Dropbox/SSE/Empty Homes/ONSPD",
-                            "ONS_Postcode_Directory_Latest_Centroids.csv"))
-
-
-
-LADconv <- read_csv(file.path(AddGeog, 
-                              "Local_Authority_Districts_December_2016_Names_and_Codes_in_the_United_Kingdom.csv")) %>%
-  select(LAD11CD=LAD16CD, LAD11NM = LAD16NM)
-
-
-test <- ONSPD %>%
-  select(Postcode = pcd, LSOA11CD = lsoa11, MSOA11CD = msoa11, LAD11CD = oslaua, OA11CD = oa11,Country_code = ctry, Region =  rgn) %>%
-  filter(grepl("(E92000001)|(W92000004)", Country_code)) %>%
-  left_join(LADconv) %>%
-  filter(!is.na(LSOA11CD))
-
-
-test2 <- test  %>%
-  filter(is.na(LSOA11CD))
-  
-
-map_dbl(.x = 1:ncol(test), ~{
-  
-  test %>% pull(.x) %>% is.na %>% sum
-  
-})
-
 ```
 
 
@@ -142,15 +116,16 @@ PriceCounts <-prices %>%
   arrange(counts)
 ##The subsampling is 1/10 of the number of homes in each LSOA, this stops crashes
 PriceCounts<- EW2 %>%
-  select(LSOA11CD = ECODE, Homes, Pop, LAD11CD, MSOA11CD) %>%
+  select(LSOA11CD, Homes, Pop, LAD11CD, MSOA11CD) %>%
   left_join(.,PriceCounts, by = "LSOA11CD") %>%
   mutate(counts = ifelse(is.na(counts), 0, counts),
          Homes2 = Homes/10) %>%
-  filter(counts!=0)
+  filter(counts!=0) %>%
+  left_join(IncomeEst %>% select(MSOA11CD, Yearly.income))
 
 #Create a list of price vectors by LSOA
 #This process can take a while
-setwd(basewd)
+setwd(DataFolder)
 if(file.exists("LSOAPriceList2.rds")){
   
   LSOAPriceList <- readRDS("LSOAPriceList2.rds")
@@ -169,7 +144,9 @@ if(file.exists("LSOAPriceList2.rds")){
 
 }
 
-if(file.exists("AllDataQuartiles.rds")){
+
+ #Price Quartiles
+ if(file.exists("AllDataQuartiles.rds")){
   
   AllDataQuartiles <- readRDS("AllDataQuartiles.rds")
   
@@ -182,7 +159,7 @@ if(file.exists("AllDataQuartiles.rds")){
   AllDataQuartiles <- StratifiedBoot(LSOAPriceList2, 
                                      PriceCounts2$LSOA11CD, 
                                      PriceCounts2$Homes2, 
-                                     samples = 501) #change to 1 for a quicker solution has no effect on outcome
+                                     samples = 100) #change to 1 for a quicker solution has no effect on outcome
   
   saveRDS(AllDataQuartiles, "AllDataQuartiles.rds")
   
@@ -204,7 +181,62 @@ prices <- prices %>%
                               labels =     c("Lower", "Lower-Mid", "Upper-Mid", "Upper"), 
                               right = F) %>% fct_relevel(., "Upper", after = 3)) 
 
-rm(BasicQuartiles);rm(AllDataQuartiles);rm(AllDataQuartilesSummary);rm(LSOAPriceList)
+#Affordability Quartiles
+
+if(file.exists("LSOAAffordList.rds")){
+  
+  LSOAAffordList <- readRDS("LSOAAffordList.rds")
+  
+}else{
+   
+  LSOAAffordList<- 1:nrow(PriceCounts) %>%
+  map(~{
+    print(.x)
+    LSOAPriceList[[.x]]/PriceCounts$Yearly.income[.x]
+        
+  })
+ names(LSOAAffordList) <- PriceCounts$LSOA11CD
+  saveRDS(LSOAAffordList, "LSOAAffordList.rds")
+
+}
+
+
+ #Price Quartiles
+ if(file.exists("AllDataAffordQuartiles.rds")){
+  
+  AllDataAffordQuartiles <- readRDS("AllDataAffordQuartiles.rds")
+  
+}else{
+  #Subset list to only the LADs used in analyis
+  LSOAAffordList2 <- LSOAAffordList[names(LSOAAffordList) %in% unique(DATAdf$LSOA11CD)]
+  PriceCounts2 <- PriceCounts %>%
+    filter(LSOA11CD %in% unique(DATAdf$LSOA11CD))
+  
+   AllDataAffordQuartiles <- StratifiedBoot(LSOAAffordList2, 
+                                     PriceCounts2$LSOA11CD, 
+                                     PriceCounts2$Homes2, 
+                                     samples = 100) #change to 1 for a quicker solution has no effect on outcome
+  
+  saveRDS(AllDataAffordQuartiles, "AllDataAffordQuartiles.rds")
+  
+  rm(list = c("LSOAAffordList2", "PriceCounts2"))
+
+}
+
+AllDataAffordQuartilesSummary <-  AllDataAffordQuartiles %>%
+  summarise_all(funs(mean, sd))
+
+
+#Add the balanced quartiles on to the prices.
+prices <- prices %>%
+  left_join(select(PriceCounts, LSOA11CD, Yearly.income)) %>%
+  mutate(Affordability = X2/Yearly.income) %>%
+  select(-Yearly.income ) %>%
+  mutate(CountryAffordClass = cut(Affordability, AllDataAffordQuartilesSummary[2:4] %>% c(0,., Inf), 
+                              labels =     c("Lower", "Lower-Mid", "Upper-Mid", "Upper"), 
+                              right = F) %>% fct_relevel(., "Upper", after = 3)) 
+
+rm(BasicQuartiles);rm(AllDataQuartiles);rm(AllDataQuartilesSummary);rm(LSOAPriceList);rm(AllDataAffordQuartiles);rm(AllDataAffordQuartilesSummary);rm(LSOAAffordList)
    
 ```
 
@@ -226,6 +258,18 @@ BootStrapQuartiles <- LoadBootstrapData()
 
 ```
 
+Affordability Bootstrap
+```{r}
+setwd(file.path(basewd, "BootstrapAffordQuartiles"))
+BootstrapAllData(DATAdf, LimitValue = 1.4e5, Reps = 501, GroupingVars = c("AffordClass", "CountryAffordClass"))
+#BootStrapAffordQuartiles <- LoadBootstrapData()
+#BootStrapQuartiles2 <- BootStrapQuartiles
+
+BootStrapQuartiles<- BootStrapAffordQuartiles
+```
+
+
+
 ##MSOA Bootstrap
 Used for most of the analysis, doesn't need to be loaded as it is loaded by other functions
 ```{r}
@@ -238,7 +282,7 @@ BootstrapAllData(DATAdf, LimitValue = 1.4e5, Reps = 501, GroupingVars = "MSOA11C
 This bootstrapping is done to get the data needed to predict across the whole of Wngland and Wales
 ```{r}
 #Filter out all the LADs for the data we have, ake dataframe that can be sampled
-AllOtherLADsdf <- EW2 %>% rename(LSOA11CD = ECODE) %>%
+AllOtherLADsdf <- EW2 %>%
   filter(!(LAD11CD %in% DATAdf$LAD11CD)) %>%
   select(LSOA11CD:Pop, MSOA11CD, LAD11CD, LAD11NM)%>%
   mutate(LowUse = 0) 
@@ -251,6 +295,23 @@ rm(AllOtherLADsdf)
 
 ```
 
+##Old prices Bootstrap
+
+This is to calculate % change
+```{r}
+
+if(length(list.files(file.path(basewd, "BootstrapMSOAOldPrices")))==0){
+prices <- prices2
+DATAdf2 <- DATAdf %>% mutate(LowUse = 0)
+prices <- readRDS(file.path(DataFolder,"pricesOld.rds")) %>% mutate(CountryClass = 1, Affordability = 1, CountryAffordClass = 1)
+setwd(file.path(basewd, "BootstrapMSOAOldPrices"))
+BootstrapAllData(DATAdf2, LimitValue = 1.4e5, Reps = 501, GroupingVars = "MSOA11CD")
+rm(DATAdf2)
+prices<- prices2
+rm(prices2)
+}
+
+```
 
 
 #Low Use quartile plot
@@ -261,8 +322,7 @@ This chunk plots which of the LADs affordability quartiles the LUPs fall into.
 #Plot for all data
 All_data_class <- BootStrapQuartiles %>% 
   bind_rows %>%
-  select(CountryClass, ID, LowUse, Homes) %>%
-  rename(Class = CountryClass)
+  select(CountryClass = CountryAffordClass, ID, LowUse, Homes)
 
 #All data summary
 All_data_class %>% 
@@ -274,12 +334,12 @@ All_data_class %>%
   
 #Create multi panel plot for two areas and all data
 bind_rows(
-CleanForPlotClassDiff(BootStrapQuartiles$E09000020) %>% mutate(Area = "Kensington and Chelsea"),
-CleanForPlotClassDiff(BootStrapQuartiles$E08000032) %>% mutate(Area = "Bradford"),
-CleanForPlotClassDiff(All_data_class) %>% mutate(Area = "All Data")
+CleanForPlotClassDiff(BootStrapQuartiles$E09000020, AffordClass) %>% mutate(Area = "Kensington and Chelsea"),
+CleanForPlotClassDiff(BootStrapQuartiles$E08000032, AffordClass) %>% mutate(Area = "Bradford"),
+CleanForPlotClassDiff(All_data_class, CountryClass) %>% mutate(Area = "All Data")
 ) %>%
   mutate(Area = factor(Area, levels = c("Bradford", "All Data", "Kensington and Chelsea"))) %>%
-  PlotClassDiff(Var = "LowUseRatio2") +
+  PlotClassDiff(Var = "LowUseRatio1") +
     facet_wrap(.~Area) +
   ggtitle("Difference in Low-Use Property distribution by Price Quartile")
 SaveFig("ClassdiffAllData.pdf")
@@ -292,77 +352,66 @@ This section Loads and processes tourism Data
 
 
 ```{r}
+if(file.exists(file.path(DataFolder, "Tourism.rds"))){
+  
+  Tourism <- readRDS(file.path(DataFolder, "Tourism.rds"))
+}else{
+  
+  suppressMessages(source(file.path(SubCode, "LoadProcessTourism.R")))
 
-setwd(file.path(basewd, "VOA data"))
-
-#Creates Tourism dataframe at LSOA level
-Tourism <- read_delim("uk-englandwales-ndr-2017-listentries-compiled-epoch-0002-baseline-csv.csv", 
-                          delim = "*", col_names = F) %>%
-  mutate(X15 = gsub(" ", "", X15)) %>%
-  left_join(., CorePstCd, by = c("X15" = "Postcode")) %>%
-  #filter(!is.na(LAD11CD)) %>%
-  filter(grepl("(SELF CATER)|(HOLIDAY)|(HOTEL)|(HOSTEL)|(GUEST)",X6))  %>%
-  mutate(Guest = grepl("(SELF CATER)|(HOLIDAY)|(GUEST)",X6),
-         Hotel = grepl("(HOTEL)|(HOSTEL)",X6)) %>%
-   group_by(MSOA11CD) %>% #Have X6 as a grouping variable to 
-  summarise(Tourism = n(),
-            Guest = sum(Guest),
-            Hotel = sum(Hotel))  %>%
-  left_join(., MSOAtoLAD, by="MSOA11CD")
-
- MSOAAdjacency <- readShapeSpatial(file.path(basewd,"/ShapeFiles/Middle_Layer_Super_Output_Areas_December_2011_Super_Generalised_Clipped_Boundaries_in_England_and_Wales",
-                                             "Middle_Layer_Super_Output_Areas_December_2011_Super_Generalised_Clipped_Boundaries_in_England_and_Wales.shp"))
-
- test <- poly2nb(MSOAAdjacency)
- 
- MSOAAdjMat = nb2mat(test, style="B",zero.policy=T)
- 
-#Add MSOA codes so that they are added as the vertex names
-colnames(MSOAAdjMat) <- MSOAAdjacency$msoa11cd
-
-MSOAgraph <- graph.adjacency(MSOAAdjMat, mode = "undirected")
-
-MSOAEgoList1 <- ego(MSOAgraph, 1) %>%map(~names(.x))
-names(MSOAEgoList1) <- get.vertex.attribute(MSOAgraph, "name")
-
-MSOAEgoList2 <- ego(MSOAgraph, 2) %>%map(~names(.x))
-names(MSOAEgoList2) <- get.vertex.attribute(MSOAgraph, "name")
+}
+```
 
 
- TourismMSOAEgo2 <- MSOAEgoList2 %>% map_df(~{
-    Tourism %>%
-      filter(MSOA11CD %in% .x) %>%
-      summarise(Ego2Tourism = sum(Tourism),
-                Ego2Guest = sum(Guest),
-                Ego2Hotel = sum(Hotel),
-                Ego2Homes = sum(Homes))
- }) %>% mutate(Ego2TourismDens = Ego2Tourism/Ego2Homes,
-               Ego2GuestDens = Ego2Guest/Ego2Homes,
-               Ego2HotelDens = Ego2Hotel/Ego2Homes,
-               MSOA11CD = names(MSOAEgoList1))
- 
+```{r}
+test <- list.files(file.path(basewd, "BootstrapMSOAOldPrices"), full.names = TRUE) %>%
+    map_df(~readRDS(.x)) %>% select(MSOA11CD,LAD11CD, ID, MSOAHomesMedian:LADHomesMean) %>% 
+  set_names(c(names(.)[1:3], paste0(names(.)[-c(1:3)], "Old")))
+  
+  group_by(LAD11CD) %>%
+      summarise(HomesMedian = first(LADHomesMedian),
+                HomesMean = first(LADHomesMean)) %>% 
+  rename(LADHomesMedianOld = HomesMedian,
+         LADHomesMeanOld = HomesMean)
 
- 
- TourismMSOAEgo1 <- MSOAEgoList1 %>% map_df(~{
-    Tourism %>%
-      filter(MSOA11CD %in% .x) %>%
-      summarise(Ego1Tourism = sum(Tourism),
-                Ego1Guest = sum(Guest),
-                Ego1Hotel = sum(Hotel),
-                Ego1Homes = sum(Homes))
- }) %>% mutate(Ego1TourismDens = Ego1Tourism/Ego1Homes,
-               Ego1GuestDens = Ego1Guest/Ego1Homes,
-               Ego1HotelDens = Ego1Hotel/Ego1Homes,
-               MSOA11CD = names(MSOAEgoList1))
+test2 <- left_join(LADMean, test) %>%
+  mutate(PercChange = (HomesMedian-LADHomesMedianOld)/LADHomesMedianOld,
+         PercChange = (HomesMean-HomesMeanOld)/HomesMeanOld)
 
-Tourism <- Tourism %>%
-  left_join(TourismMSOAEgo1, ., by = "MSOA11CD") %>%
-  left_join(., TourismMSOAEgo2, by = "MSOA11CD") %>%
-  mutate(Tourism = ifelse(is.na(Tourism), 0, Tourism),
-         Hotel = ifelse(is.na(Hotel), 0, Hotel),
-         Guest = ifelse(is.na(Guest), 0, Guest))
+t.test(test2$LADHomesMedianOld, test2$HomesMedian, alternative = "less")
 
-rm(MSOAAdjacency);rm(test);rm(MSOAAdjMat); rm(MSOAgraph); rm(MSOAEgoList1);rm(MSOAEgoList2); rm(TourismMSOAEgo1);rm(TourismMSOAEgo2)
+
+test2 %>%
+  ggplot(aes(x = HomesMedian, y = LADHomesMedianOld))
+
+test2 %>%
+  ggplot(aes(x = PercChange)) + geom_density()
+
+test2%>%
+  ggplot(aes(x = PercChange, y = AffordRatio)) + geom_point()
+  
+cor(test2$AffordRatio, test2$PercChangeMean)
+
+
+MSOAtest <- list.files(file.path(basewd, "BootstrapMSOAOldPrices"), full.names = TRUE) %>%
+    map_df(~readRDS(.x)) %>% select(MSOA11CD,LAD11CD, ID, MSOAHomesMedian:LADHomesMean) %>% 
+   group_by(MSOA11CD) %>%
+      summarise(HomesMedianOld = first(MSOAHomesMedian),
+                HomesMeanOld = first(MSOAHomesMean)) %>% 
+  left_join(MSOAMean, .) %>%
+  mutate(PercChange = (HomesMedian-HomesMedianOld)/HomesMedianOld,
+         PercChangeMean = (HomesMean-HomesMeanOld)/HomesMeanOld)
+
+cor(MSOAtest$AffordRatio, MSOAtest$PercChangeMean)
+
+
+MSOAtest %>%
+  ggplot(aes(x = PercChange)) + geom_density()
+
+
+MSOAtest%>%
+  ggplot(aes(x = log(TourismDensity+1), y = percent_rank(PercChange), colour = HighLUP)) + geom_point()
+
 
 ```
 
@@ -377,6 +426,7 @@ This chunk creates useful data frames for the rest of the analysis
 LADModelData <-CreateGeogModelData("LAD", file.path(basewd, "BootstrapMSOA"))
 LADMean <- MeanModelData(LADModelData, "LAD") %>%
   mutate(TourismDensityRank = rank(TourismDensity, ties.method = "max"),
+         TourismDensity = TourismDensity*1000, #Makes the coefficients easier
          LowUseType =case_when(
     "TRUE"==HighLUP & "TRUE" ==HighVal ~ 1, # All high
     "TRUE" == HighLUP & "FALSE" ==HighVal ~ 2, #High LUP in MSOA but not in LAD
@@ -388,20 +438,12 @@ LADMean <- MeanModelData(LADModelData, "LAD") %>%
     "TRUE" == HighLUP & AffordRank<0.5 ~ 2, #High LUP in MSOA but not in LAD
     "FALSE"==HighLUP & AffordRank>=0.5 ~ 3, #High LUP in LAD but not MSOA
     "FALSE"==HighLUP & AffordRank<0.5 ~ 4 #LOW LUP in both LAD and MSOA
-  ) %>% as.factor)  %>%
+  ) %>% as.factor,
+    HighFinance = factor("TRUE"==HighVal & "TRUE"==HighLUP, levels = c("FALSE", "TRUE"))   )  %>%
   left_join(MSOAtoLAD %>%
               group_by(LAD11CD) %>%
               summarise(LAD11NM = first(LAD11NM)), by = "LAD11CD")
 
-#Amount of variance in the bootstrap samples 
-#HighVal varies whilst HighLUP is fixed. However, in both of them the variables change as the affordability ratio varies. Not sure if it varies enough to change much though!
-LADRefAverages <- LADModelData %>%
-  group_by(LAD11CD) %>%
-  summarise(HighVal = mean(ifelse(HighVal==TRUE,1,0)),
-            HighLUP = mean(ifelse(HighLUP==TRUE,1,0)),
-            Afford = mean(AffordRatio),
-            Affordsd = sd(AffordRatio)) %>%
-  left_join(., MSOAtoLAD %>% select(LAD11CD, LAD11NM)%>% distinct)
 
 #example Affordatio bootstrap data for Chelsea. Variaince is very low
 LADModelData %>% filter(LAD11CD=="E09000020") %>% ggplot(aes(x = AffordRatio)) + geom_density()
@@ -414,6 +456,12 @@ LADModelData %>% filter(LAD11CD=="E09000020") %>% ggplot(aes(x = AffordRatio)) +
   SaveFig("LowUseAffordcolour.pdf")
  
  
+  #Relationship between Price change and affordability
+#From this we can see that areas with the most growth are the most unaffordable
+      cor(LADMean$PercChange, LADMean$AffordRatio)
+#However this only really tells us that the most expensive areas previously continue to be the most expensive  
+      cor(LADMean$HomesMeanOld, LADMean$HomesMean)
+
 ```
 
 
@@ -426,7 +474,8 @@ MSOAMean <- MeanModelData(MSOAModelData, "MSOA") %>%
   left_join(select(MSOAtoLAD, MSOA11CD, LAD11CD)) %>%
   mutate(AffordRank2 = scale(AffordRank)^2,
          AffordRatio2 = scale(AffordRatio)^2,
-         TourismDensityRank = rank(TourismDensity, ties.method = "max")) %>%
+         TourismDensityRank = rank(TourismDensity, ties.method = "max"),
+         TourismDensity = TourismDensity*1000) %>% #Makes the coefficients easier
   left_join(select(LADMean, LAD11CD, LADHighLUP = HighLUP, LADHighVal = HighVal, #Add in Saucy LAD variables
                    LADAffordRatio = AffordRatio, LADAffordRatio2 = AffordRatioScale2,
                    LADTourismDensity = TourismDensity, LADMedianDiff = MedianDiff, LADMeanMedianRatio = MeanMedianRatio,
@@ -448,13 +497,21 @@ MSOAMean <- MeanModelData(MSOAModelData, "MSOA") %>%
    "TRUE" == HighLUP & "FALSE"==LADHighVal ~ 2, #High LUP in MSOA but not in LAD
     "FALSE"==HighLUP & "TRUE" ==LADHighVal ~ 3, #High LUP in LAD but not MSOA
     "FALSE"==HighLUP & "FALSE"==LADHighVal ~ 4 #LOW LUP in both LAD and MSOA
-  ) %>% as.factor
-           )
+  ) %>% as.factor,
+       HighFinance = factor("TRUE"==LADHighVal & "TRUE"==HighLUP, levels = c("FALSE", "TRUE"))     )
  
+
+  #Relationship between Price change and affordability
+#From this we can see that areas with the most growth are the most unaffordable
+      cor(MSOAMean$PercChange, MSOAMean$AffordRatio)
+#However this only really tells us that the most expensive areas previously continue to be the most expensive  
+      cor(MSOAMean$HomesMeanOld, MSOAMean$HomesMean)
+
 ```
  
  
 Plots that help explain the data seperation
+
 ```{r}
 bind_rows(MSOAMean %>% mutate(type = "MSOA"), LADMean %>% mutate(type = "LAD"))  %>%group_by(type)%>% mutate(Eg2 = percent_rank(Ego2TourismDens)) %>% ungroup %>%
   ggplot(aes(x= AffordRank, y = log(TourismDensity), colour = HighLUP)) + geom_point() +
@@ -464,7 +521,7 @@ bind_rows(MSOAMean %>% mutate(type = "MSOA"), LADMean %>% mutate(type = "LAD")) 
 SaveFig("HighLUP.pdf")
 
 bind_rows(MSOAMean %>% mutate(type = "MSOA"), LADMean %>% mutate(type = "LAD")) %>%
-  ggplot(aes(x= AffordRank, y = TourismDensity, colour = HighVal)) + geom_point() +
+  ggplot(aes(x= AffordRank, y = log(TourismDensity), colour = HighVal)) + geom_point() +
   facet_wrap(~type) + 
   labs(title = "Is the median LUP price higher than the Median price of all properties", x = "Affordability Rank", y = "Tourism Density") +
   guides(fill=guide_legend(title="Above Median"))
@@ -616,11 +673,14 @@ set.seed(1235)
 LADHighValResample <- vfold_cv(LADMean, v = 5, repeats = 20, strata = "HighVal")
 set.seed(1235)
 LADHighLUPResample <- vfold_cv(LADMean, v = 5, repeats = 20, strata = "HighLUP")
+set.seed(1235)
+LADHighFinanceResample <- vfold_cv(LADMean, v = 5, repeats = 20, strata = "HighFinance")
 
 
 #Create a load of classifiers
 LADModels <- bind_rows(LinearClassifierCombiner(LADMean,  "HighVal", Formulas, LADHighValResample),
-                       LinearClassifierCombiner(LADMean,  "HighLUP", Formulas, LADHighLUPResample)) %>%
+                       LinearClassifierCombiner(LADMean,  "HighLUP", Formulas, LADHighLUPResample),
+                       LinearClassifierCombiner(LADMean,  "HighFinance", Formulas, LADHighFinanceResample)) %>%
 MarkModels
 
 #Create a load of linear models
@@ -629,8 +689,8 @@ LADModelsLin <- bind_rows(LinearClassifierCombiner(LADMean,  "LowUsePerc", Formu
 MarkModels()
 
 LADModels %>% SummariseModels(Dependent, IncAfford2,  IncTourism) %>%
-  mutate(Dependent = ifelse(Dependent=="HighLUP", "High LUP %", "High LUP value")) %>%
-  mutate(ModelID = rep(1:4,2))
+ # mutate(Dependent = ifelse(Dependent=="HighLUP", "High LUP %", "High LUP value")) %>%
+  mutate(ModelID = rep(1:4,3))
 
 #Linear models are rubbish
 LADModelsLin %>%
@@ -649,8 +709,8 @@ LADMODOut2 <- ExtractClassCoeffs(LADMean, "HighLUP", LADHighLUPResample, Formula
 LADMODOut2 %>%  ggplot( aes(x = term, y = estimate)) + geom_boxplot() #Model Coefficients
 LADMODOut2 %>%  ggplot( aes(x = term, y = p.value)) + geom_boxplot() #Model p.values
 
-LADMODOut %>%  select(-statistic, -std.error) %>% group_by(term) %>% summarise_all(funs(mean, median))
-LADMODOut2 %>%  select(-statistic, -std.error) %>% group_by(term) %>% summarise_all(funs(mean, median))
+LADMODOut %>%  select(-statistic, -std.error) %>% group_by(term) %>% summarise_all(funs(mean, median, sd))
+LADMODOut2 %>%  select(-statistic, -std.error) %>% group_by(term) %>% summarise_all(funs(mean, median, sd))
 
 ```
 
@@ -679,19 +739,20 @@ MSOAModels %>% SummariseModels(Dependent, IncAfford2,  IncTourism) %>%
 
 
 #Formula two provides the most accurate model without over fitting. Being a good model for identifying which LADs will have hhigh value LUPs
-MSOAMODOut2 <- ExtractClassCoeffs(MSOAMean, "HighVal", HighValResample, Formulas[[4]])  %>% filter(term !="(Intercept)")
+MSOAMODOut2 <- ExtractClassCoeffs(MSOAMean, "HighVal", MSOAHighValResample, Formulas[[2]])  %>% filter(term !="(Intercept)")
 MSOAMODOut2 %>% ggplot( aes(x = term, y = estimate)) + geom_boxplot() #Model Coefficients
 MSOAMODOut2 %>% ggplot( aes(x = term, y = p.value)) + geom_boxplot() #Model p.values
 
 #Including both tourism and the quadratic affordability term produces the best model. Which makes sense given the plot earlier
-MSOAMODOut <- ExtractClassCoeffs(MSOAMean, "HighLUP", MSOAHighLUPResample, Formulas[[2]]) %>% filter(term !="(Intercept)")
+MSOAMODOut <- ExtractClassCoeffs(MSOAMean, "HighLUP", MSOAHighLUPResample, Formulas[[4]]) %>% filter(term !="(Intercept)")
 MSOAMODOut %>% ggplot( aes(x = term, y = estimate)) + geom_boxplot() #Model Coefficients
 MSOAMODOut %>% ggplot( aes(x = term, y = p.value)) + geom_boxplot() #Model p.values
 
 MSOAMODOut %>%
   select(-statistic, -std.error) %>%
   group_by(term) %>%
-  summarise_all(funs(mean, median))
+  summarise_all(funs(mean, median)) %>%
+  mutate(estimate = exp(estimate_mean))
 
 #Rubbish
 MSOAModelsLin %>%
@@ -707,77 +768,16 @@ Take away message is that the LAD model cannot predict LUP% whilst the MSOA mode
 #Model Bootstrap results
 
 using the most sucessful model formula I then use the Bootstrap data to create 501 models then majority vote the response variable.
-This creates a model with an overall lower accuracy but also a smaller standard deviation
+
+The Bootstrap model doesn't provide any more information. despite the pertubations it tends to always predict certain LADs incorrectly and others correctly. This means that the bootstrap predictions are not sufficiently independent to make the proocess worthwhile.
 
 ```{r}
+#Creates a boots model which can be analysed
 
 set.seed(1235)
 LADHighValResample200 <- vfold_cv(LADMean, v = 5, repeats = 200, strata = "HighVal")
-test <- LADMean %>% mutate(Reference = HighVal) %>%
-  ResampledModelPerf(., LADHighValResample200, Formulas[[2]])
-
-set.seed(1235)
-
-TestResample <- vfold_cv(LADMean, v = 5, repeats = 20, strata = "HighVal")
-
-TestResample <- vfold_cv(LADMean, v = 5, repeats = 100, strata = "HighVal")
-LADModelData2 <- LADModelData %>%
-  filter(ID<102)
-
 
 setwd(basewd)
-if(file.exists("LADBootVoteModel.rds")){
-
-  LADBootVoteModel <- readRDS("LADBootVoteModel.rds")
-  
-  }else{
-    LADBootVoteModel <- 1:100 %>% map_df(~{ 
-       print(.x)
-        trainrows <- rsample2caret(TestResample)$index[[.x]]
-        testrows <-  rsample2caret(TestResample)$indexOut[[.x]]
-        
-        test <- LADModelData %>% 
-          mutate(Reference = as.factor(HomesMedian < LowUseMedian)) %>% 
-          BootstrapResampledModelPerf(., trainrows, 
-                                      testrows, 
-                                      as.formula(Reference ~ TourismDensity + AffordRatio)) # creates a dataframe out predictions
-    
-      ConfOut <- LADMean %>% mutate(Reference = factor(HomesMedian < LowUseMedian, levels = c("FALSE", "TRUE")))  %>% 
-        slice(testrows) %>% pull(Reference) %>%
-        confusionMatrix( data =factor( rowMeans(test) >0.5, levels = c("FALSE", "TRUE")), reference = .)
-      
-    
-          ConfOut$overall %>% t %>% data.frame() %>% as.tibble %>%
-          mutate(sample = .x)
-    
-    })
-
-}
-
-#has a lower mean but a much small standard deviation
-LADBootVoteModel %>% SummariseModels() 
-
-bind_rows(LADModels %>% 
-            filter(IncAfford2 == FALSE,  IncTourism == TRUE, Dependent=="HighVal") %>% 
-            select(Accuracy) %>% mutate(type = "Basic"),
-          #select(test, Accuracy) %>% mutate(type = "big repeats"),
-          select(LADBootVoteModel, Accuracy) %>% mutate(type = "Boot")) %>%
-  ggplot(aes(x = Accuracy, colour = type)) + geom_density() +
-  ggtitle("Distribution of model results. Bootstrap has much tighter distribution")
-
-LADModels %>% 
-            filter(IncAfford2 == FALSE, IncTourism == TRUE) %>% 
-            select(Accuracy) %>% mutate(type = "Basic") %>% pull(Accuracy) %>%
-quantile(.,  probs = c(5, 50, 95)/100)
-quantile(LADBootVoteModel$Accuracy,  probs = c(5, 50, 95)/100)
-
-
-#Creates a boots model which can be analysed more
-
-set.seed(1235)
-LADHighValResample200 <- vfold_cv(LADMean, v = 5, repeats = 200, strata = "HighVal")
-
-
 if(file.exists("LADBootVoteModelBig.rds")){
   
     LADBootVoteModelBig <- readRDS("LADBootVoteModelBig.rds")
@@ -823,6 +823,24 @@ if(file.exists("LADBootVoteModelBig.rds")){
  LADBootVoteModelBig %>% ggplot(aes(x = PredProbs, y = HighVal, colour= Predres)) + geom_point()
  
  
+BootRes <- (1:nrow(LADHighValResample200)) %>%
+  map_df(~{
+    
+    test <- LADBootVoteModelBig %>%
+      filter(ID==.x)
+  
+      ConfOut <-  confusionMatrix( data =test$PredProbs>0.5, reference = test$Reference, positive = "TRUE")
+     #metrics(data = ., truth = Reference, estimate = factor(PredProbs>0.5, levels = "TRUTH", "FALSE")) 
+      
+       ConfOut$overall %>% t %>% data.frame() %>% as.tibble %>% 
+      bind_cols(ConfOut$byClass %>% t %>% data.frame() %>% as.tibble) %>%
+      mutate(sample = .x)
+    
+  })
+
+
+BootRes %>% SummariseModels()
+ 
  test <- LADBootVoteModelBig %>%
    group_by(LAD11CD, Predres) %>%
    mutate(counts = n()) %>%
@@ -833,20 +851,20 @@ if(file.exists("LADBootVoteModelBig.rds")){
    select(LAD11CD, Predres, counts) %>%
    spread(key = Predres, value = counts, fill = 0) %>%
    mutate(FractCorrect = `TRUE`/200) %>%
-   left_join(LADRefAverages %>% select(-Afford, -Affordsd, -HighLUP)) %>%
+   left_join(LADMean %>% select(LAD11CD, HighValCount, LAD11NM, AffordRank, LowUseRank, LowUseAfford, TourismDensity)) %>%
    left_join(select(LADMean,LAD11CD, HomesMedian, MedianDiff, Ego1TourismDens )) %>%
    mutate(PercDiff = (MedianDiff-HomesMedian)/HomesMedian) %>%
    left_join(LostLowUse)
  
- test2 %>% ggplot(aes(y = FractCorrect, x = HighVal)) + geom_jitter()
-
-  test2 %>% ggplot(aes(y = FractCorrect, x = PercDiff, colour = is.na(Ego1TourismDens))) + geom_jitter()
-
- 
- table(test2$FractCorrect>0.5)
- 
- is.na(test2$Ego1TourismDens) %>% table
+   test2 %>%
+  ggplot(aes(x= AffordRank, y = LowUseRank, colour = FractCorrect>.1)) + geom_point() +
+    geom_vline(xintercept  = 0.5)+
+    geom_hline(yintercept = 0.5) +
+    labs(title = "Seperating Low-Use type  by affordability", x = "Affordability percentage rank", y = "Low-Use percentile rank")
   
+  test2 %>%
+  ggplot(aes(x= AffordRank, y = log(TourismDensity), colour = FractCorrect>.1)) + geom_point() 
+   
 ```
 
 Boot MSOA

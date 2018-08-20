@@ -5,8 +5,8 @@ BootstrapAllData <- function(DATAdf, GroupingVars = c("Class", "CountryClass"), 
     group_by(LAD11CD) %>%
     summarise(LAD11NM = first(LAD11NM),
               LSOA = n(),
-              Homes = sum(Homes),
-              LowUse = sum(LowUse)) %>%
+              Homes = sum(Homes, na.rm = TRUE),
+              LowUse = sum(LowUse, na.rm = TRUE)) %>%
     arrange(Homes)
   
   #Find what needs to be bootstrapped
@@ -19,7 +19,7 @@ BootstrapAllData <- function(DATAdf, GroupingVars = c("Class", "CountryClass"), 
     1:length(newLADsnames)  %>% walk(~{
       print(paste0("Bootstrapping ", LADBootInfo$LAD11NM[LADBootInfo$LAD11CD==newLADsnames[.x]],". LADs remaining ", length(newLADsnames)-.x))
       DATAdf %>% 
-        filter(LAD11CD == newLADsnames[.x]) %>%
+        filter(LAD11CD == newLADsnames[.x], !is.na(Homes)) %>% #removes errors caused by the unassigned empty homes
         DistribCompareBootstrapper(., RandomSeed, Reps, type=NULL, PropertyTypes, Limit = LimitValue, GroupVars = GroupingVars ) %>%
         saveRDS(., file = paste0( newLADsnames[.x], ".rds"))
       gc()
