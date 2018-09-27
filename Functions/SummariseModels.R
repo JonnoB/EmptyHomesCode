@@ -14,7 +14,8 @@ SummariseModels <- function(df,...){
               "PosPred" = mean(Pos.Pred.Value),
               "NegPred" = mean(Neg.Pred.Value),
               'NULL Model' = mean(AccuracyNull),
-              'Null Difference' = mean(Accuracy-AccuracyNull) #Mean difference relative to NULL
+              'Null Difference' = mean(Accuracy-AccuracyNull),#Mean difference relative to NULL
+              Lift = mean(Accuracy/AccuracyNull)
     ) %>% ungroup
   
   

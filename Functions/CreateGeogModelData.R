@@ -9,7 +9,7 @@ CreateGeogModelData <- function(target, path){
     left_join(select(IncomeEst, Yearly.income, MSOA11CD), by = "MSOA11CD") %>%
     left_join(., list.files(file.path(basewd, "BootstrapMSOAOldPrices"), full.names = TRUE) %>% # load the old prices
                 map_df(~readRDS(.x)) %>% select(MSOA11CD, ID, MSOAHomesMedian:LADHomesMean) %>% 
-                set_names(c(names(.)[1:3], paste0(names(.)[-c(1:3)], "Old"))), by = c("MSOA11CD", "ID"))
+                set_names(c(names(.)[1:2], paste0(names(.)[-c(1:2)], "Old"))), by = c("MSOA11CD", "ID"))
   
   #reverse the selection safely
   if(target=="LAD"){

@@ -7,9 +7,44 @@ editor_options:
   chunk_output_type: console
 ---
 
+install.packages("breakDown") provides a plot of the glm!
 
 schedule 2 part 5 section 
 
+
+Palgrave nature inter-discplinary journel
+https://www.nature.com/palcomms/for-authors#edboard
+
+poss editors
+Dr Lei Wang, manchester Urban
+Tim Hall, university winchester
+
+maybe
+Trifon I Missov, Max planck demographics
+
+reviewr
+Glen Bramley at herriot watt
+
+ian caswell ucl mega journel
+Kathrine sharp
+
+Reviewers on plos
+
+search term: data mining
+César A Hidalgo
+Massachusetts Institute of tech
+
+search term: demography
+Celine Rozenblat
+University of Lausanne
+SWITZERLAND 
+
+Heidi Harriman Ewen
+University of Georgia
+UNITED STATES 
+
+
+The information provided in response to your request is copyright Gateshead Council unless otherwise endorsed. Granting access to this information under the Freedom of Information Act does not permit you to re-use the information provided for commercial purposes, for photocopying or reproduction in any form. If you wish to re-use the information you need to apply for a Licence. You can do this by writing to Tanya Rossington, Information Rights Officer, Corporate Services and Governance, 1st Floor, Civic Centre, Regent Street, Gateshead, NE8 1HH. You may be required to pay a fee or comply with conditions for permitted re-use. 
 
 ```{r}
 SubCode <- "~/Dropbox/SSE/Empty Homes/EmptyHomesCode/SubCode"
@@ -32,7 +67,6 @@ It also cleans all postcodes that are in other LADs out... should it just combin
 ```{r}
 #creates a data frame called DATAdf
 suppressMessages(source(file.path(SubCode, "LOADandProcessLADData.R")))
-
 
 ```
 
@@ -63,28 +97,51 @@ MSOAtoLAD <- EW2 %>%
 This chunk calculates how much data cover I have using several metrics
 
 ```{r}
-DataCover <-DATAdf  %>%
-                #filter(is.na(MSOA11CD)) %>%
-  summarise(
-           'LADs' = length(unique(DATAdf$LAD11CD)), 
-           '% of all LADs' = length(unique(DATAdf$LAD11CD))/length(unique(EW2$LAD11CD))*100,
-           LUPs = sum(LowUse, na.rm = T),
-           Homes = sum(Homes, na.rm = T),
-           '% of all Homes' = Homes/sum(EW2$Homes)*100,
-           Population = sum(Pop, na.rm= T),
-           '% of total population' = Population/sum(EW2$Pop)*100) %>%
-  mutate_if(.<1, funs(signif(.,3))) %>%
-  mutate_if(.>1, as.integer) %>%
-  mutate_all(as.character) %>% 
-  gather 
+#Gives Region Data
+#Need to put in region names
+DataCover <-
+ DATAdf %>% 
+   filter(!is.na(MSOA11CD)) %>%
+  group_by(LAD11CD) %>%
+  summarise(Pop = sum(Pop),
+            Homes = sum(Homes),
+            LUPs = sum(LowUse),
+            LSOA = length(unique(LSOA11CD)),
+            MSOA = length(unique(MSOA11CD)),
+            Region = first(Region),
+            LAD = 1) %>%
+  select(-LAD11CD) %>%
+  group_by(Region) %>%
+  summarise_all(funs(sum)) %>%
+  left_join(.,
+            MSOAtoLAD %>%
+  select(LAD11CD, Region, LAD11NM) %>%
+  distinct(LAD11CD, .keep_all = T) %>%
+  group_by(Region) %>%
+  summarise(LADPerc = n())
+) %>% 
+  mutate(LADPerc = LAD/LADPerc,
+         Region2 = c("North East", "North West", "York and Humber", "West Midlands", "East England", "London", "South East", "South West", "Wales")) %>% 
+  arrange(Region)
+  
+Total <- DataCover %>% summarise_if(is.numeric, sum) %>%
+  mutate(
+    Region = "Total",
+    LADPerc = LAD/348)
+
+DataCover <-bind_rows(DataCover, Total) %>%
+  mutate(LADPerc = round(LADPerc*100)) %>%
+  rename(`% of LADs` = LADPerc) %>%
+  mutate_if(is.numeric, as.integer)
 
 DataCover 
+DataCover %>% mutate(Perc = LUPs/Homes)
 
-xtable(DataCover, caption="Summary of collected data coverage",
+xtable(DataCover, caption="Summary of collected dataset",
        label = "tab:DataCover") %>% 
-  print(., type="latex", file=file.path(TexTables,"DataCover.tex"))
+  print(., type="latex", file=file.path(TexTables,"DataCover.tex"), include.rownames=FALSE)
 
-rm(DataCover)
+rm(DataCover);rm(Total)
 
 #lost LUPS
 
@@ -97,6 +154,23 @@ LostLowUse <- DATAdf %>%
          cumperc = cumsum/sum(Lost))
 
 sum(LostLowUse$Lost)
+
+
+  DATAdf  %>%
+                filter(!is.na(MSOA11CD)) %>%
+  summarise(
+           'LADs' = length(unique(DATAdf$LAD11CD)), 
+           '% of all LADs' = length(unique(DATAdf$LAD11CD))/length(unique(EW2$LAD11CD))*100,
+           LUPs = sum(LowUse, na.rm = T),
+           Homes = sum(Homes, na.rm = T),
+           '% of all Homes' = Homes/sum(EW2$Homes)*100,
+           Population = sum(Pop, na.rm= T),
+           '% of total population' = Population/sum(EW2$Pop)*100) %>%
+  mutate_if(.<1, funs(signif(.,3))) %>%
+  mutate_if(.>1, as.integer) %>%
+  mutate_all(as.character) %>% 
+  gather 
+  
 ```
 
 
@@ -345,7 +419,7 @@ CleanForPlotClassDiff(All_data_class, CountryClass) %>% mutate(Area = "All Data"
   mutate(Area = factor(Area, levels = c("Bradford", "All Data", "Kensington and Chelsea"))) %>%
   PlotClassDiff(Var = "LowUseRatio1") +
     facet_wrap(.~Area) +
-  ggtitle("Difference in Low-Use Property distribution by Price Quartile")
+  ggtitle("Low-Use Property distribution by affordability Quartile")
 SaveFig("ClassdiffAllData.pdf")
 
 rm(BootStrapQuartiles);rm(All_data_class)
@@ -466,6 +540,28 @@ LADModelData %>% filter(LAD11CD=="E09000020") %>% ggplot(aes(x = AffordRatio)) +
 #However this only really tells us that the most expensive areas previously continue to be the most expensive  
       cor(LADMean$HomesMeanOld, LADMean$HomesMean)
 
+      
+#Compare the Long term vacants data with the collected data
+
+    test <-file.path(DataFolder, "LT_615.xls") %>%
+      read_xls(., sheet = 2, skip = 5) %>%
+      set_names(make.names(names(.))) %>%
+      select(LAD11CD = New.ONS.code, X2017) %>%
+      left_join(select(LADMean, LAD11CD, LowUse),.) %>%
+      filter(complete.cases(.))
+    
+    cor(test$LowUse, test$X2017)
+    
+    
+    test <-file.path(DataFolder, "LT_615.xls") %>%
+      read_xls(., sheet = 3, skip = 5) %>%
+      set_names(make.names(names(.))) %>%
+      select(LAD11CD = New.ONS.code, X2017) %>%
+      left_join(select(LADMean, LAD11CD, LowUse),.) %>%
+      filter(complete.cases(.))
+    
+     cor(test$LowUse, test$X2017)  
+     
 ```
 
 
@@ -519,22 +615,24 @@ Plots that help explain the data seperation
 bind_rows(MSOAMean %>% mutate(type = "MSOA"), LADMean %>% mutate(type = "LAD"))  %>%group_by(type)%>% mutate(Eg2 = percent_rank(Ego2TourismDens)) %>% ungroup %>%
   ggplot(aes(x= AffordRank, y = log(TourismDensity), colour = HighLUP)) + geom_point() +
   facet_wrap(~type) + 
-  labs(title = "Does the geography have above the median LUPs", x = "Affordability Rank", y = "Tourism Rank") +
-  guides(fill=guide_legend(title="Above Median"))
+  labs(title = "Does the geography have above the median percent of LUPs", x = "Affordability Rank", y = "log Tourism Rank") +
+  guides(colour=guide_legend(title="Above Median"))+
+  theme(  legend.position="bottom")
 SaveFig("HighLUP.pdf")
 
 bind_rows(MSOAMean %>% mutate(type = "MSOA"), LADMean %>% mutate(type = "LAD")) %>%
   ggplot(aes(x= AffordRank, y = log(TourismDensity), colour = HighVal)) + geom_point() +
   facet_wrap(~type) + 
-  labs(title = "Is the median LUP price higher than the Median price of all properties", x = "Affordability Rank", y = "Tourism Density") +
-  guides(fill=guide_legend(title="Above Median"))
+  labs(title = "Are LUPs more expensive than homes?", x = "Affordability Rank", y = "log Tourism Density") +
+  guides(colour=guide_legend(title="More expensive"))+
+  theme(  legend.position="bottom")
 SaveFig("HighVal.pdf")
 
 quantile(MSOAMean$LowUsePerc)
 
 ```
 
-#Empty Homes tax
+# Tax on Empty Homes
 
 Calculates the vancouver tax
 
@@ -567,6 +665,7 @@ EmptyTax <- LADMean %>%
               group_by(LAD11CD) %>%
               summarise(Pop = sum(Pop))) %>%
   mutate(EmptyTax = LowUse*LowUseMean*.01,
+         AllPropVal = Homes*HomesMean,
          EmptyOfCouncil = EmptyTax/CouncilTax,
          TaxPop = EmptyTax/Pop) 
 
@@ -576,6 +675,12 @@ median(EmptyTax$EmptyOfCouncil)
 
 mean(EmptyTax$EmptyTax)
 median(EmptyTax$EmptyTax)
+
+sum(EmptyTax$EmptyTax*100)/sum(EmptyTax$LowUse)
+
+sum(EmptyTax$AllPropVal)/sum(EmptyTax$Homes)
+
+363/306
 
 sum(EmptyTax$EmptyTax)/sum(EmptyTax$CouncilTax)
 
@@ -598,56 +703,17 @@ rm(WelshTax);rm(QRC2017)
 ```
 
 
-#Rural Analysis
-
-The rural areas seem to be much less likely to had a negative mean difference,  but there is not enough data for the data to be used for moddelling
-```{r}
-LADrural <- rural %>% group_by(LAD11CD, Urban) %>%
-  summarise(count = n()) %>%
-  spread(key = Urban, value = count, fill = 0) %>%
-  mutate(UrbanPerc = Urban/(Urban+Rural),
-         Class = ifelse(UrbanPerc>0.5, "Urban", "Rural")) %>%
-  left_join(LADMean,.)
-
-
-MSOArural <- rural %>% group_by(MSOA11CD, Urban) %>%
-  summarise(count = n()) %>%
-  spread(key = Urban, value = count, fill = 0) %>%
-  mutate(UrbanPerc = Urban/(Urban+Rural),
-         Class = ifelse(UrbanPerc>0.5, "Urban", "Rural")) %>%
-  left_join(MSOAMean,.)
-
-#Almost no rural areas are classified as having a negative median difference
-table(LADrural$Class,LADrural$MedianDiff>0.5)
-table(LADrural$Class,LADrural$LowUseType)
-2/26
-42/86
-
-table(ifelse(percent_rank(LADrural$TourismDensity)>0.5, "HighTour", "LowTour"),LADrural$HighLUP,LADrural$Class)
-
-LADrural  %>%
-  ggplot(aes(x = log(LowUsePerc), y =  log(TourismDensity), colour = Class)) + geom_point()
-
-
-rm(LADrural);rm(MSOArural);rm(rural)
-```
-
-
 #Affordability
 
 This chunk includes affordability and plots the theoretical and observed curves.
 Uses the Bootstrapped values to calculate the affordability
 
 ```{r}
-MSOAAffordRatio <- MSOAMean %>%
-  left_join(select(MSOAtoLAD, MSOA11CD, Region), by ="MSOA11CD")
+MSOAAffordRatio <- MSOAMean 
 
-cor(MSOAMea)
-
-  
-MSOAAffordRatio  <- bind_rows(MSOAAffordRatio %>% filter(Region != "London") %>% mutate(type = "Excluding London"), 
+MSOAAffordRatio  <- bind_rows(MSOAAffordRatio %>% filter(Region != "E12000007") %>% mutate(type = "Excluding London"), 
                     MSOAAffordRatio %>% mutate( type = "Including London"),
-                    MSOAAffordRatio %>% filter(Region == "London") %>% mutate( type = "Only London")) %>%
+                    MSOAAffordRatio %>% filter(Region == "E12000007") %>% mutate( type = "Only London")) %>%
     group_by(type) %>%
     mutate(
       decile = ntile(AffordRatio, 100)) %>%
@@ -675,14 +741,14 @@ SaveFig("LowUsePercVSratio.pdf")
 
 #The plot of the theoretical curves
 data_frame(Index = 1:100) %>%
-  mutate(Primary = exp(-0.05*(Index))+0.05, 
-         Auxilary = (exp(Index/100)-1),
-    Total = Primary + Auxilary) %>%
+  mutate(`Low Value` = exp(-0.05*(Index))+0.05, 
+         `High Value` = (exp(Index/100)-1),
+    Total = `Low Value` + `High Value`) %>%
   gather(key = "Type", value = "value", -Index) %>%
   ggplot(aes(x= Index, y = value, colour = Type )) +
   geom_line() +
-  labs(title = "LUP percentage as a function of primary and Auxilary demand",
-       x = "Demand",
+  labs(title = "LUP percentage VS affordability ratio",
+       x = "Affordability ratio",
        y = "LUP percentage") +
   theme(
   axis.text.x = element_blank(),
@@ -756,14 +822,20 @@ LADModelsLin <- bind_rows(LinearClassifierCombiner(LADMean,  "LowUsePerc", Formu
 MarkModels()
 
 LADModTab <-LADModels %>% SummariseModels(Dependent, IncAfford2,  IncTourism) %>%
- # mutate(Dependent = ifelse(Dependent=="HighLUP", "High LUP %", "High LUP value")) %>%
-  mutate(ModelID = rep(1:4,3))
+  mutate(Dependent = case_when(
+    Dependent=="HighVal"~ "High-Value",
+    Dependent == "HighLUP"~ "High-LUP %",
+    TRUE ~ "HVHL"
+  ) %>% as.factor) %>%
+  mutate(ModelID = rep(1:4,3)) %>%
+  arrange(Dependent)
 
-LADModTab %>% select(ID = ModelID, Dependent, `Beats NULL`, `Mean Accuracy`, PosPred, NegPred, `Null Difference`) %>%
-  slice(c(2,8,10)) %>%
-  xtable(., caption="Summary of viable Local authority models",
+LADModTab %>% select(ID = ModelID, Dependent, `Beats Null`=`Beats NULL`, Accuracy=`Mean Accuracy`, PosPred, NegPred, Lift) %>%
+  slice(c(2,8,10)) %>% 
+  mutate(ID = ifelse(ID == 2, 3, ID))%>%
+  xtable(., caption="Summary of viable Local Authority models",
        label = "tab:LADmodels") %>% 
-  print(., type="latex", file=file.path(TexTables,"LADmodels.tex"))
+  print(., type="latex", file=file.path(TexTables,"LADmodels.tex"), include.rownames=FALSE)
 
 #Linear models are rubbish
 LADModelsLin %>%
@@ -811,14 +883,14 @@ LADModelsLin <- bind_rows(LinearClassifierCombiner(MSOAMean,  "LowUsePerc", Form
 
 
 MSOAModTab <- MSOAModels %>% SummariseModels(Dependent, IncAfford2,  IncTourism) %>%
-  mutate(Dependent = ifelse(Dependent=="HighLUP", "High LUP %", "High LUP value")) %>%
+  mutate(Dependent = ifelse(Dependent=="HighLUP", "High-LUP %", "High-Value")) %>%
   mutate(ModelID = rep(1:4,2))
 
-MSOAModTab %>% select(ID = ModelID, Dependent, `Beats NULL`, `Mean Accuracy`, PosPred, NegPred, `Null Difference`) %>%
+MSOAModTab %>% select(ID = ModelID, Dependent, `Beats Null`=`Beats NULL`, Accuracy=`Mean Accuracy`, PosPred, NegPred, Lift) %>%
   slice(c(4)) %>%
   xtable(., caption="Summary of viable MSOA authority models",
        label = "tab:MSOAmodels") %>% 
-  print(., type="latex", file=file.path(TexTables,"MSOAmodels.tex"))
+  print(., type="latex", file=file.path(TexTables,"MSOAmodels.tex"), include.rownames=FALSE)
 
 
 #Formula two provides the most accurate model without over fitting. Being a good model for identifying which LADs will have hhigh value LUPs
@@ -844,10 +916,10 @@ MSOAModelsLin %>%
   summarise_if(is.numeric, mean, na.rm = T)
 
 
-bind_rows(LADMODOut %>% mutate(type = "Financialised LAD"),
-          LADMODOut3 %>% mutate(type = "Highly Financialised LAD"),
-          LADMODOut2 %>% mutate(type = "High LUP % LAD"),
-          MSOAMODOut %>% mutate(type = "High LUP % MSOA")
+bind_rows(LADMODOut %>% mutate(type = "High-Value (LAD Level)"),
+          LADMODOut3 %>% mutate(type = "HVHL (LAD Level)"),
+          LADMODOut2 %>% mutate(type = "High-LUP % (LAD Level)"),
+          MSOAMODOut %>% mutate(type = "High-LUP % (MSOA Level)")
 ) %>%
   ggplot( aes(x = term, y = estimate, fill = term)) + geom_boxplot()+
   facet_wrap(~type)+
@@ -1016,21 +1088,23 @@ PredictData <-CreateGeogModelData("LAD", file.path(basewd, "BootstrapAllLADs") )
   MeanModelData(., "LAD")
 
 
-FormulaBootLAD<-as.formula(Reference ~ TourismDensity + AffordRatio + AffordRatioScale2)
+FormulaBootLAD<-c(as.formula(Reference ~ TourismDensity + AffordRatio),
+  as.formula(Reference ~ TourismDensity + AffordRatio + AffordRatioScale2),
+                  as.formula(Reference ~ TourismDensity + AffordRatio))
 
 
-ModPreds <- c("HighVal", "HighLUP", "HighFinance") %>%
+ModPreds <- 1:3 %>%
   map(~{
 
 EWMod <- LADMean %>% 
-  rename_(Reference = .x )  %>% 
+  rename_(Reference = c("HighVal", "HighLUP", "HighFinance")[.x] )  %>% 
   mutate(Reference = as.factor(Reference)) %>%
-      glm(formula = FormulaBootLAD, data = ., family=binomial(link='logit'))
+      glm(formula = FormulaBootLAD[[.x]], data = ., family=binomial(link='logit'))
 
     
     PredictData  %>%
       predict(EWMod, newdata = ., type = "response" ) %>%
-      as.tibble(.) %>% setNames(.x)
+      as.tibble(.) %>% setNames(c("HighVal", "HighLUP", "HighFinance")[.x])
 
 }) %>% bind_cols()
     
@@ -1060,7 +1134,7 @@ PopAffected <- tibble(HighValPop =  ((PopAffected <WholeCountry$HighVal)*WholeCo
 PopAffected %>% 
   select(PopPerc, FinancePopPerc) %>%
   gather(key, value) %>%
-  mutate(key = ifelse(key == "PopPerc", "Financialised", "Highly Financialised")) %>%
+  mutate(key = ifelse(key == "PopPerc", "High-Value", "High-Value High-LUP%")) %>%
   ggplot(aes(x = value)) + geom_density() +
   facet_wrap(~key, scales = "free_x") +
   labs(title ="Estimate percentage of the Population living in areas with high LUP values",
@@ -1090,10 +1164,10 @@ LADShape2 <- WholeCountry %>%
   select(LAD11CD:HighFinance) %>%
   gather(key = Type, value = Status, -LAD11CD) %>%
   mutate(Type = case_when(
-    Type =="HighFinance" ~ "Highly Financialized",
-    Type == "HighLUP" ~"Large LUP percentage",
-    Type == "HighVal" ~"Some Financialization"
-  ) %>% as.factor(.) %>% fct_relevel("Highly Financialized", after = 2),
+    Type =="HighFinance" ~ "High-Value High-LUP",
+    Type == "HighLUP" ~"High LUP percentage",
+    Type == "HighVal" ~"High-Value LUPs"
+  ) %>% as.factor(.) %>% fct_relevel("High-Value High-LUP", after = 2),
   Status = as.factor(Status) %>% fct_relevel(TRUE, after = 0)) %>%
   left_join(LADShape,., by = c("lad14cd" = "LAD11CD")
             ) %>% # Status = as.factor(Status) %>% fct_relevel(TRUE, after = 0)
@@ -1103,13 +1177,14 @@ LADShape2 <- WholeCountry %>%
 ggplot(LADShape2) +
   geom_sf(aes(fill = Status)) + 
   facet_wrap(~Type)+
-  labs(title = "LUP and financialization status in England and Wales") +
+  labs(title = "Predicting LUP status across England and Wales") +
    theme(axis.title.x=element_blank(),
           axis.text.x=element_blank(),
           axis.ticks.x=element_blank(),
           axis.title.y=element_blank(),
           axis.text.y=element_blank(),
-          axis.ticks.y=element_blank())
+          axis.ticks.y=element_blank(),
+         legend.position="bottom")
 SaveFig("EWHighValMap.pdf")
 
 ```
@@ -1185,6 +1260,41 @@ Not Neccesary
 #   geom_sf(aes(fill = HighLUP, colour = HighLUP)) + 
 #   labs(title = "Local Authorities classified as having above the median percentage of LUPs")
 # SaveFig("EWHighLUPMap.pdf")
+
+```
+
+#Miscellaneous
+
+```{r}
+
+#Gets the info on how conentrated the empty homes are
+test <- DATAdf %>%
+  arrange(-LowUsePerc) %>%
+  filter(!is.na(MSOA11CD)) %>%
+  mutate(CumsumLowUse = cumsum(LowUse),
+         CumsumHomes = cumsum(Homes),
+         CumsumLowUsePerc = CumsumLowUse/sum(LowUse),
+         CumsumHomesPerc = CumsumHomes/sum(Homes),
+         CumPerc = 1:nrow(.)/nrow(.) )
+
+median(test$LowUsePerc)
+mean(test$LowUsePerc)
+max(test$LowUsePerc)
+
+test[(c(0.5,2,5)/10) %>% map_dbl(~Position(function(fi) fi <= .x, test$CumPerc, right = TRUE)),] %>%
+  select(CumsumLowUsePerc, CumsumHomesPerc, CumPerc)
+
+#Dumps a CSV of all the LADs is not necessary for script and so is commented out, The csv can then be used to add the file names and FOI references
+# 
+# DATAdf %>%
+#   select(LAD11CD, LAD11NM, RGNCD = Region) %>%
+#   distinct(LAD11CD, .keep_all = TRUE) %>%
+#   left_join(data_frame(RGNCD = c("E12000001", "E12000002", "E12000003", 
+# "E12000005", "E12000006", "E12000007", "E12000008", "E12000009", 
+# "W99999999"), Region = c("North East", "North West", "York and Humber", 
+# "West Midlands", "East England", "London", "South East", "South West", 
+# "Wales"))) %>%
+#   write_csv(file.path(basewd,"LADsDataRaw.csv"))
 
 ```
 
