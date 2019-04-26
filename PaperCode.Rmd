@@ -7,44 +7,12 @@ editor_options:
   chunk_output_type: console
 ---
 
+
 install.packages("breakDown") provides a plot of the glm!
 
-schedule 2 part 5 section 
 
 
-Palgrave nature inter-discplinary journel
-https://www.nature.com/palcomms/for-authors#edboard
 
-poss editors
-Dr Lei Wang, manchester Urban
-Tim Hall, university winchester
-
-maybe
-Trifon I Missov, Max planck demographics
-
-reviewr
-Glen Bramley at herriot watt
-
-ian caswell ucl mega journel
-Kathrine sharp
-
-Reviewers on plos
-
-search term: data mining
-César A Hidalgo
-Massachusetts Institute of tech
-
-search term: demography
-Celine Rozenblat
-University of Lausanne
-SWITZERLAND 
-
-Heidi Harriman Ewen
-University of Georgia
-UNITED STATES 
-
-
-The information provided in response to your request is copyright Gateshead Council unless otherwise endorsed. Granting access to this information under the Freedom of Information Act does not permit you to re-use the information provided for commercial purposes, for photocopying or reproduction in any form. If you wish to re-use the information you need to apply for a Licence. You can do this by writing to Tanya Rossington, Information Rights Officer, Corporate Services and Governance, 1st Floor, Civic Centre, Regent Street, Gateshead, NE8 1HH. You may be required to pay a fee or comply with conditions for permitted re-use. 
 
 ```{r}
 SubCode <- "~/Dropbox/SSE/Empty Homes/EmptyHomesCode/SubCode"
@@ -99,8 +67,7 @@ This chunk calculates how much data cover I have using several metrics
 ```{r}
 #Gives Region Data
 #Need to put in region names
-DataCover <-
- DATAdf %>% 
+DataCover <- DATAdf %>% 
    filter(!is.na(MSOA11CD)) %>%
   group_by(LAD11CD) %>%
   summarise(Pop = sum(Pop),
@@ -353,7 +320,7 @@ BootstrapAllData(DATAdf, LimitValue = 1.4e5, Reps = 501, GroupingVars = "MSOA11C
 ```
 
 ##Non-Dataset LADs
-This bootstrapping is done to get the data needed to predict across the whole of Wngland and Wales
+This bootstrapping is done to get the data needed to predict across the whole of England and Wales
 ```{r}
 #Filter out all the LADs for the data we have, ake dataframe that can be sampled
 AllOtherLADsdf <- EW2 %>%
@@ -438,6 +405,7 @@ if(file.exists(file.path(DataFolder, "Tourism.rds"))){
   suppressMessages(source(file.path(SubCode, "LoadProcessTourism.R")))
 
 }
+
 ```
 
 
@@ -564,6 +532,49 @@ LADModelData %>% filter(LAD11CD=="E09000020") %>% ggplot(aes(x = AffordRatio)) +
      
 ```
 
+#2nd homes and Tourism
+```{r}
+
+TourismLAD <- Tourism %>%
+  group_by(LAD11CD) %>%
+  summarise_if(is.numeric, sum, na.rm = T) %>%
+  bind_cols(Tourism %>% group_by(LAD11CD) %>% summarise(LAD11NM =first(LAD11NM)),.) %>%
+  ungroup
+
+ScndhomesCensus <- read_xlsx(path = file.path(DataFolder, "Census2011secondHomes.xlsx"), sheet = 3, skip = 13)[,1:7] %>%
+  mutate(LAD11NM = ifelse(is.na(X__1), X__2, X__1)) %>%
+  select(LAD11CD = K04000001, LAD11NM, ScndHomes = X__5) %>% # Pop = X__4,
+  filter(!is.na(ScndHomes)) %>%
+  #Replace changed codes
+  mutate(LAD11CD = case_when(LAD11NM == "St Albans"~"E07000240",
+                             LAD11NM =="Welwyn Hatfield"~"E07000241",
+                             LAD11NM =="Northumberland UA 6"~"E06000057",
+                             LAD11NM =="East Hertfordshire"~"E07000242",
+                             LAD11NM =="Stevenage"~"E07000243",
+                             LAD11NM =="Gateshead"~"E08000037",
+                             TRUE~ LAD11CD)) %>%
+  select(-LAD11NM) %>%
+  left_join(TourismLAD, ., by = "LAD11CD") %>%
+  mutate(TourismDens = (Guest + Hotel)/Homes,
+         ScndHomesDens = ScndHomes/Homes) %>%
+  filter(!is.na(LAD11CD)) %>%
+  mutate(Perc2ndHomes = ScndHomes/sum(ScndHomes))
+
+#not a lot of corellation
+cor(ScndhomesCensus$TourismDens, ScndhomesCensus$ScndHomesDens)
+
+#no real pattern
+ScndhomesCensus %>%
+  filter(TourismDens<0.1) %>%
+ggplot(aes(x = TourismDens, ScndHomesDens)) + geom_point()
+
+test <- left_join(LADMean, ScndhomesCensus, by = "LAD11CD")
+
+sum(test$Perc2ndHomes)
+
+rm(TourismLAD);
+```
+
 
 ##MSOA Data
 
@@ -643,7 +654,10 @@ https://statswales.gov.wales/Catalogue/Local-Government/Finance/Council-Tax/Leve
 
 ```{r}
 setwd(DataFolder)
-WelshTax <- read_csv("WelshCTax.csv", skip = 6, n_max = 23) %>%
+
+WelshTax <- read_csv("WelshCTax.csv")
+
+WelshTax <- read_csv("WelshCTax.csv", skip = 4, n_max = 23) %>%
   select(-X1) %>%
   mutate(CouncilTax = rowSums(.[-1])*1000) %>%
   rename(LAD11NM = X2) %>%
@@ -668,6 +682,13 @@ EmptyTax <- LADMean %>%
          AllPropVal = Homes*HomesMean,
          EmptyOfCouncil = EmptyTax/CouncilTax,
          TaxPop = EmptyTax/Pop) 
+
+
+#For press office
+
+test <- EmptyTax %>%
+  select(LAD11CD, LAD11NM, Homes, LowUse, HomesMedian, LowUseMedian, LowUsePerc, MedianDiff, MedianDiffRatio, EmptyTax, EmptyOfCouncil, TaxPop)
+write_csv(test, file.path(basewd, "Key Figures by Council.csv"))
 
 sum(EmptyTax$EmptyTax)/1e6
 mean(EmptyTax$EmptyOfCouncil)
@@ -1295,6 +1316,101 @@ test[(c(0.5,2,5)/10) %>% map_dbl(~Position(function(fi) fi <= .x, test$CumPerc, 
 # "West Midlands", "East England", "London", "South East", "South West", 
 # "Wales"))) %>%
 #   write_csv(file.path(basewd,"LADsDataRaw.csv"))
+
+```
+
+
+#Key figures
+```{r}
+
+#The top 3 LSOA for each LAD in terms of perc low use
+TopLSOA <- DATAdf %>% 
+  ungroup %>%
+  arrange(-LowUsePerc) %>%
+  group_by(LAD11CD) %>%
+  slice(1:3)
+  #top_n(., 3, LowUsePerc)
+
+#The value of the low use property
+TotalValueProperty <- DATAdf %>%
+  group_by(LAD11CD) %>%
+  summarise(LAD11NM = first(LAD11NM),
+            LUPSValue = sum(LowUse*MeanPrice, na.rm = T),
+            HomesValue = sum(Homes*MeanPrice, na.rm = T)) %>%
+  mutate(LUPofTotMarket = LUPSValue/HomesValue)
+
+Key_Areas <- read.csv(file.path("/home/jonno/Downloads", "LAs for Jonathan.csv")) %>% select(LAD11CD, news_area) 
+
+TopLSOA <- Key_Areas %>%
+  left_join(TopLSOA, .) %>%
+  filter(!is.na(news_area))
+
+TotalValueProperty <- Key_Areas %>%
+  left_join(.,TotalValueProperty)
+
+test <-LADMean %>%
+ #filter(LAD11NM == "Barnet")
+  filter(Region == "E12000007") %>%
+  select(LAD11NM, LowUse, LowUseMean, HomesMean, AffordRatio, MedianDiff, MedianDiffRatio) %>%
+  mutate_if(is.numeric, signif, digits = 3)
+
+write.csv(test, file.path("/home/jonno", "LondonMSOA.csv"))
+  
+test <- DATAdf %>%
+filter(LAD11CD == "E06000052") %>%
+  write.csv(file.path("/home/jonno/Downloads", "Brighton.csv"))
+
+write.csv(TopLSOA, file.path("/home/jonno/Downloads", "TopLSOA.csv"))
+write.csv(TotalValueProperty, file.path("/home/jonno/Downloads", "TotalValueProperty.csv"))
+
+
+LSOAshape <- st_read(LSOAshapedata) %>%
+  left_join(DATAdf, by = c("lsoa11cd"="LSOA11CD")) %>% filter(grepl("Bradford",LAD11NM)) #filter(grepl("E09000003",LAD11CD))
+
+colourTypes <- c( "0-10" = "#F8766D", 
+                    "11-20" = "#A3A500", 
+                   "21-30" ="#00BF7D", 
+                   "30+" = "#00B0F6")
+
+LowUseColours <- gg_color_hue(4)
+names(LowUseColours) <- c( "0-10", "11-20","21-30","30+")
+
+gg_color_hue <- function(n) {
+  hues = seq(15, 375, length = n + 1)
+  hcl(h = hues, l = 65, c = 100)[1:n]
+}
+
+
+LSOAshape %>%
+ggplot(.)+  geom_sf(aes(fill = LowUsePerc))  +
+   theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank(),
+          axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank())+
+  ggtitle("Low use Percentage by lsoa in Trafford")+
+  scale_fill_viridis_c()
+
+
+test <- TotalValueProperty  %>%
+  filter(grepl("(Allerdale)|(Copeland)|(Carlisle)|(South Lake)|(Barrow)|(Eden)", LAD11NM))
+
+
+test <- MSOAMean %>%
+filter(LAD11CD == "E06000052")
+
+```
+
+
+
+
+```{r}
+CorePstCd %>%
+ filter(Region == "E12000007") %>%
+  distinct(LAD11CD, .keep_all = T) %>%
+  select(LAD11CD, LAD11NM) %>%
+  filter(!(LAD11CD %in% (LADMean %>%  filter(Region == "E12000007") %>% pull(LAD11CD))))
 
 ```
 
