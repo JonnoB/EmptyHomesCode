@@ -1,0 +1,707 @@
+---
+title: "Untitled"
+author: "Jonathan Bourne"
+date: "31 July 2018"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+
+Use the MSOA to make a model it has many examples and maps perfectly to the income estimates
+
+
+
+Number of MSOA per LAD
+```{r}
+
+testMSOA <- EW2 %>%
+  group_by(LAD11CD, MSOA11CD) %>%
+  summarise(counts = n()) %>%
+  group_by(LAD11CD) %>%
+  summarise(counts = n())
+
+testWard <- EW2 %>%
+  group_by(LAD11CD, Admin_ward_code) %>%
+  summarise(counts = n()) %>%
+  group_by(LAD11CD) %>%
+  summarise(counts = n())
+
+```
+
+#LAD quartiles are wrong
+
+```{r}
+
+setwd("/home/jonno/Dropbox/SSE/Empty Homes/BootStrapAuthorities2")
+test <- DistribCompareBootstrapper(ChelseaLONDATA, 1983, 501, type = NULL, PropertyTypes, GroupVars = "class"  )
+
+ChelTest1 <- DistribCompareBootstrapper(ChelseaLONDATA, 1983, 501, type = NULL, PropertyTypes, GroupVars = "MSOA11CD" )
+
+test2 <- DistribCompareBootstrapper(ChelseaLONDATA, 1983, 501, type = NULL, PropertyTypes, GroupVars = c("MSOA11CD", "class"))
+
+MSOAList <- unique(test2$MSOA11CD) %>%
+  map(~{
+test2 %>%
+  filter(MSOA11CD == .x)
+})
+
+test3 <- MSOAList[[21]] %>%
+  CleanForPlotClassDiff
+
+MSOAList[[21]] %>%
+CleanForPlotClassDiff()  %>%
+PlotClassDiff(., "Kensington and Chelsea by MSOA")
+
+test %>%
+  mutate(LowUse = Homes) %>%
+  CleanForPlotClassDiff()  %>%
+  PlotClassDiff(., "Kensington and Chelsea full borough")
+
+test %>%
+#  mutate(LowUse = Homes) %>%
+  CleanForPlotClassDiff2()  %>%
+  PlotClassDiff(., "Kensington and Chelsea full borough")
+  
+
+CleanForPlotClassDiff2 <- function(df){ #relative to the homes distrib
+  df %>% 
+  group_by(ID, class) %>%
+  summarise(Homes = sum(Homes), LowUse = sum(LowUse)) %>%
+  group_by(ID)%>%
+  mutate(RatioExvsAct = LowUse/sum(LowUse),
+         HomesRatio = Homes/sum(Homes),
+         RatioExvsAct = (RatioExvsAct/HomesRatio)-1)
+}
+
+```
+
+
+```{r}
+
+PropertyTypes <- c("D", "S", "T", "F")
+setwd("/home/jonno/Dropbox/SSE/Empty Homes/BootstrapMSOA")
+  
+#Find what needs to be bootstrapped
+BootStrapFiles <- list.files(getwd()) %>% gsub("DATA.rds", "",.)
+  newLADsnames <- sub("DATA", "", ls(pattern = "DATA", envir = globalenv())) %>% 
+    .[!(. %in% BootStrapFiles)] 
+  newLADs <- paste0(newLADsnames, "DATA") 
+
+  test <- ls(pattern = "DATA") %>% map_df(~
+ data.frame(LAD = .x, LSOA = get(.x) %>% nrow(),Homes = sum(get(.x)$Homes, na.rm = T))) %>%
+    arrange(Homes)
+  
+  newLADs <- newLADs[match(test$LAD, newLADs)] %>% .[!is.na(.)]
+  
+  #only bootstrap if there is something to add.
+  #Save each boostrap as you go along to avoid losing it all in a crash
+  if(length(newLADsnames)>0){
+    newLADs  %>% walk(~{print(.x)
+      DistribCompareBootstrapper(get(.x), 1652, 501, type=NULL, PropertyTypes, GroupVars = "MSOA11CD", Limit =1.3e5  )%>%
+      saveRDS(., file = paste0(.x, ".rds"))
+      gc()
+      }) 
+  }
+  
+
+#once all Bootratps complete load them all into a list
+ BootStrapRES <- list.files(getwd()) %>%
+   map(~readRDS(.x))
+ 
+ #name the list
+ names(BootStrapRES) <- list.files(getwd()) %>% gsub(".rds", "",.)
+ 
+
+ 
+```
+
+
+```{r}
+
+library(Rtsne)
+
+# dfmat <- BootDeetsMean %>%
+#   select(AffordDiff, Decile, AffordRatio, AffordRatio2, DecileDiff) %>%
+#   as.matrix()
+
+dfmat <- ModelMSOAdf %>%
+  select( Tourism, AffordRatio, AffordRatio2) %>%
+  as.matrix()
+
+set.seed(12358)
+TsnecorOut1 <-dfmat  %>%
+  Rtsne(verbose = TRUE, eta = 1, max_iter = 5000, perplexity = 50, check_duplicates = FALSE)
+
+# tsne_corplot <- data.frame(x1 = TsnecorOut1$Y[,1],
+#                         y1 = TsnecorOut1$Y[,2]) %>%
+#   bind_cols(BootDeetsMean) %>%
+#   mutate(MedianCheck = MSOAHomesMedian<MSOALowUseMedian)
+
+
+tsne_corplot <- data.frame(x1 = TsnecorOut1$Y[,1],
+                        y1 = TsnecorOut1$Y[,2]) %>%
+  bind_cols(ModelMSOAdf)
+
+
+
+
+tsne_corplot %>%
+    ggplot() +
+  geom_point(aes(x=x1, y=y1, color= TourDepCat==1|TourDepCat==2))
+
+
+BootDeetsMean %>%
+  ggplot(aes(x = LowUseConc, y = AffordDiff, colour = Reference)) + geom_point()
+
+
+BootDeetsMean %>%
+  filter(sales <1) %>%
+  ggplot(aes(x = sales, y = LowUse, colour = Reference)) + geom_point() 
+
+
+```
+
+#Sample quantiles
+
+```{r}
+
+#Create a data frame of LSO
+PriceCounts <-prices %>%
+  filter(X5 %in% c("D", "S", "T", "F")) %>%
+  group_by(LSOA11CD) %>%
+  summarise(counts = n()) %>%
+  arrange(counts)
+##The subsampling is 1/10 of the number of homes in each LSOA, this stops crashes
+PriceCounts<- EW2 %>%
+  select(LSOA11CD = ECODE, Homes, Pop, LAD11CD, MSOA11CD) %>%
+  left_join(.,PriceCounts, by = "LSOA11CD") %>%
+  mutate(counts = ifelse(is.na(counts), 0, counts),
+         Homes2 = Homes/10) %>%
+  filter(counts!=0)
+
+
+
+#Create a list of price vectors by LSOA
+#This process can take a while
+setwd(basewd)
+if(file.exists("LSOAPriceList2.rds")){
+  
+  LSOAPriceList <- readRDS("LSOAPriceList2.rds")
+  
+}else{
+   
+  LSOAPriceList <- 1:nrow(PriceCounts) %>% map(~{
+   print(.x)
+    prices %>%
+      filter(LSOA11CD==PriceCounts$LSOA11CD[.x], 
+             X5 %in% c("D", "S", "T", "F")) %>%
+      pull(X2)
+    })
+  names(LSOAPriceList) <- PriceCounts$LSOA11CD
+  saveRDS(LSOAPriceList, "LSOAPriceList2.rds")
+
+}
+
+if(file.exists("AllDataQuartiles.rds")){
+  
+  AllDataQuartiles <- readRDS("AllDataQuartiles.rds")
+  
+}else{
+  #Subset list to only the LADs used in analyis
+  LSOAPriceList2 <- LSOAPriceList[names(LSOAPriceList) %in% unique(DATAdf$LSOA11CD)]
+  PriceCounts2 <- PriceCounts %>%
+    filter(LSOA11CD %in% unique(DATAdf$LSOA11CD))
+  
+  AllDataQuartiles <- StratifiedBoot(LSOAPriceList2, PriceCounts2$LSOA11CD, PriceCounts2$Homes2, samples = 501)
+  
+  saveRDS(AllDataQuartiles, "AllDataQuartiles.rds")
+  
+  rm(list = c("LSOAPriceList2", "PriceCounts2"))
+
+}
+
+rm(LSOAPriceList)
+
+AllDataQuartilesSummary <- AllDataQuartiles %>%
+  summarise_all(funs(mean, sd))
+
+BasicQuartiles <- prices$X2 %>% .[prices$LAD11CD %in% unique(DATAdf$LAD11CD)] %>% quantile(.)
+
+#difference between the two up to 8% this has knock on effects later in the analysis if the quartiles are not calculated correctly
+AllDataQuartilesSummary[2:4]/BasicQuartiles[2:4]
+
+prices <- prices %>%
+  mutate(CountryClass = cut(X2, AllDataQuartilesSummary[2:4] %>% c(0,., Inf), 
+                              labels =     c("Lower", "Lower-Mid", "Upper-Mid", "Upper"), 
+                              right = F) %>% fct_relevel(., "Upper", after = 3)) 
+
+rm(BasicQuartiles);rm(AllDataQuartiles);rm(AllDataQuartilesSummary)
+
+
+```
+
+#Calc Real Quantiles for all data
+
+This takes ages and gives an almost identical number to simple running quantiles on the whole dataset
+
+```{r Real Quantile Chunk}
+
+test <-  AllDataQuartiles %>%
+   select(-X0.,-X100.) %>%
+   summarise_all(funs(mean, sd)) %>%
+   mutate(X25Perc = X25._sd/X25._mean,
+          X50Perc = X50._sd/X50._mean,
+          X75Perc = X75._sd/X75._mean) 
+
+prices %>%
+   filter(X5 %in% c("D", "S", "T", "F")) %>%
+  pull(X2) %>% quantile()
+
+
+
+
+
+```
+
+#MSOA Quartiles
+
+I'm not sure this is useful
+
+```{r}
+#Create a list of vectors where each element of the list is an MSOA and the vector elements are its LSOA
+ LSOAinMSOA <- unique(PriceCounts$MSOA11CD) %>% map(~{
+   print(.x)
+    PriceCounts %>%
+      filter(MSOA11CD==.x) %>%
+      pull(LSOA11CD)
+ })
+ #name the elements of the list
+ names(LSOAinMSOA) <- unique(PriceCounts$MSOA11CD)
+
+ #Create a bootstrap for each of the MSOA
+ 
+ MSOABootQuartiles <- unique(PriceCounts$MSOA11CD) %>% map_df(~{
+   print(.x)
+   PriceCounts2 <- PriceCounts %>%
+     filter(MSOA11CD == .x)
+   
+   LSOAPriceList2 <- LSOAPriceList[names(LSOAPriceList) %in% PriceCounts2$LSOA11CD]
+   
+   StratifiedBoot(LSOAPriceList2, PriceCounts2$LSOA11CD, PriceCounts2$Homes2, samples = 100) %>%
+     mutate(MSOA11CD=.x)
+   
+ })
+ 
+ saveRDS(MSOABootQuartiles, "MSOABootQuartiles.rds")
+
+ MSOABootQuartiles2 <- MSOABootQuartiles %>%
+   select(-X0.,-X100.) %>%
+   group_by(MSOA11CD) %>%
+   summarise_all(funs(mean, sd)) %>%
+   mutate(X25Perc = X25._sd/X25._mean,
+          X50Perc = X50._sd/X50._mean,
+          X75Perc = X75._sd/X75._mean)  %>%
+   left_join(., EW2%>%
+               select(MSOA11CD, LAD11CD, LAD11NM) %>% distinct()) %>%
+   left_join(., IncomeEst) %>%
+   select(MedianPrice=X50._mean, Yearly.income, MSOA11CD, LAD11CD, LAD11NM) %>%
+   mutate(AffordRatio = MedianPrice/Yearly.income,
+          AffordRank = percent_rank(AffordRatio))
+```
+
+
+#Local value
+
+Here I create a graph of the MSOA. 
+I calculate the avereage distance by LAD.
+I then use that distance to find all the MSOA within that jump distance.
+I then calculate the mean and quartiles of the local area for each MSOA
+From there I can calculate the local area affordability and thus the relative local area affordability
+
+```{r}
+ 
+ MSOAAdjacency <- readShapeSpatial(file.path("/home/jonno/Dropbox/SSE/Empty Homes/ShapeFiles/Middle_Layer_Super_Output_Areas_December_2011_Super_Generalised_Clipped_Boundaries_in_England_and_Wales",
+                                             "Middle_Layer_Super_Output_Areas_December_2011_Super_Generalised_Clipped_Boundaries_in_England_and_Wales.shp"))
+
+ test <- poly2nb(MSOAAdjacency)
+ 
+ MSOAAdjMat = nb2mat(test, style="B",zero.policy=T)
+ 
+#Add MSOA codes so that they are added as the vertex names
+colnames(MSOAAdjMat) <- MSOAAdjacency$msoa11cd
+
+MSOAgraph <- graph.adjacency(MSOAAdjMat, mode = "undirected")
+
+#Add in Lad
+
+
+MSOAgraph <- set_vertex_attr(MSOAgraph, 
+                name = "LAD11CD", 
+                value = MSOAtoLAD$LAD11CD[match(get.vertex.attribute(MSOAgraph, "name"),
+                                          MSOAtoLAD$MSOA11CD)]
+                )
+
+
+#Subset by LAD into a list of graphs
+
+Subgraph <- function(g, KeepNodes){
+  
+  VertexNames <-get.vertex.attribute(g, "name")
+  VertexNames<- VertexNames[!(VertexNames %in% KeepNodes)]
+  
+g2 <- delete_vertices(g, VertexNames)
+  
+g2
+}
+
+
+AllLADsGraph <- unique(MSOAtoLAD$LAD11CD) %>% map(~{
+  KeepNodes <-MSOAtoLAD %>%
+  filter(LAD11CD ==.x)
+KeepNodes2 <- KeepNodes$MSOA11CD
+  
+  Subgraph(MSOAgraph, KeepNodes2)
+})
+
+#name the elements by the LAD represented
+names(AllLADsGraph) <- unique(MSOAtoLAD$LAD11CD)
+
+#calculate mean distance and diameter of each lad
+MSOAconnections <- AllLADsGraph %>% map_df(~{
+  
+  tibble(distance = mean_distance(.x), diameter = diameter(.x), MSOA = vcount(.x))
+  
+}) %>%
+  mutate(LAD11CD = names(AllLADsGraph)) %>%
+  filter(MSOA !=1) #removes city of london which only has a single MSOA and so can't be included in the calc
+
+MSOAconnections %>%
+  ggplot(aes(x=diameter )) + geom_density()
+
+#Using mean distance is best
+summary(MSOAconnections$distance)
+summary(MSOAconnections$diameter)
+
+# find names of local MSOA using an x jump distance
+EgoSize <- tibble(ego_size = ego_size(MSOAgraph, 2), MSOA11CD = get.vertex.attribute(MSOAgraph, "name")) %>%
+  left_join(MSOAtoLAD)
+##Ego size of jump two has a mean almost identical to the mean number of MSOA in a LAD. However the Ego size is less skewed.
+mean(EgoSize$ego_size)
+
+test <-  tibble(MSOA11CD = ego(MSOAgraph, 1, nodes = "E02000001")[[1]] %>% names) %>%
+  left_join(MSOAtoLAD)
+
+##names of the MSOA in each area.
+MSOAEgoList <- ego(MSOAgraph, 2) %>%map(~names(.x))
+names(MSOAEgoList) <- get.vertex.attribute(MSOAgraph, "name")
+
+
+```
+
+
+
+```{r}
+#Create a list of vectors where each element of the list is an MSOA and the vector elements are its LSOA
+ LSOAinMSOAEgo <- MSOAEgoList %>% map(~{
+   #print(.x)
+    PriceCounts %>%
+      filter(MSOA11CD %in% .x) %>%
+      pull(LSOA11CD)
+ })
+
+
+MSOAEgoList1 <- ego(MSOAgraph, 1) %>%map(~names(.x))
+names(MSOAEgoList1) <- get.vertex.attribute(MSOAgraph, "name")
+
+MSOAEgoList2 <- ego(MSOAgraph, 2) %>%map(~names(.x))
+names(MSOAEgoList2) <- get.vertex.attribute(MSOAgraph, "name")
+
+
+ TourismMSOAEgo2 <- MSOAEgoList %>% map_dbl(~{
+   print(.x)
+    Tourism %>%
+      filter(MSOA11CD %in% .x) %>%
+      pull(Tourism) %>% sum
+ }) %>%
+   tibble(Ego2Tourism = .,
+          MSOA = names(MSOAEgoList))
+ 
+  TourismMSOAEgo1 <- MSOAEgoList1 %>% map_dbl(~{
+   print(.x)
+    Tourism %>%
+      filter(MSOA11CD %in% .x) %>%
+      pull(Tourism) %>% sum
+ }) %>%
+   tibble(Ego1Tourism = .,
+          MSOA = names(MSOAEgoList1))
+
+  
+
+ ##name the elements of the list
+ names(LSOAinMSOAEgo) <- names(MSOAEgoList)
+
+ ##Create a bootstrap for the ego of each MSOA
+ NeighbourhoodQuartiles <- names(MSOAEgoList) %>% map_df(~{
+   
+   print(.x)
+   target <- MSOAEgoList[[.x]]
+   PriceCounts2 <- PriceCounts %>%
+     filter(MSOA11CD %in% target)
+   
+   LSOAPriceList2 <- LSOAPriceList[names(LSOAPriceList) %in% PriceCounts2$LSOA11CD]
+   
+   Out <-StratifiedBoot(LSOAPriceList2, PriceCounts2$LSOA11CD, PriceCounts2$Homes2, samples = 10) %>%
+     mutate(MSOA11CD=.x)
+   
+   Out
+   
+ })
+
+
+
+```
+
+
+Do westminster and lambeth fall into each others local area?
+need to check and make sure they do!
+```{r}
+#Calculate mean local income
+LocalIncome <- names(MSOAEgoList) %>% map(~{
+  print(.x)
+#.x <- "E02000001"
+Group <-MSOAEgoList[[.x]]
+
+Incomest2 <- IncomeEst %>%
+  left_join(select(MSOAtoLAD, MSOA11CD, Homes),  by="MSOA11CD")
+
+Out <- Incomest2 %>%
+  filter(MSOA11CD %in% .x) %>%
+  summarise(LocalIncome =sum(Yearly.income* Homes)/sum(Homes)) %>% pull()
+
+Out
+}) %>% unlist %>%
+  tibble(MSOA11CD = names(MSOAEgoList), LocalIncome = .)
+
+LocalAfford <-NeighbourhoodQuartiles %>%
+  select(-ID,-X0., -X100.) %>%
+    group_by(MSOA11CD) %>%
+  summarise_all(funs(mean, sd, min, max)) %>%
+  mutate(perc = X50._sd/X50._mean) %>%
+  left_join(LocalIncome, by = "MSOA11CD") %>%
+  mutate(LocalAfford = X50._mean/LocalIncome) %>%
+  select(MSOA11CD, MedianLocalHomesPrice = X50._mean, LocalAfford)
+
+
+```
+
+
+#Complex models
+
+These models work at MSOA level only and include data from the LAD level
+They don't really add anything extra so aren't included in the main work. Just kept here so I don't forget I have already checked.
+
+```{r}
+MSOAMean2 <-MSOAMean %>%
+  mutate(RelativeAfford = AffordRatio/LADAffordRatio,
+         RelativeTourismDens = TourismDensity/LADTourismDensity,
+         RelativeTourismDens = ifelse(is.finite(RelativeTourismDens), RelativeTourismDens, 100),
+         HighFinance = factor("TRUE"==LADHighVal & "TRUE"==HighLUP, levels = c("TRUE", "FALSE"))) %>%
+  filter(!is.na(HighVal)) #Temporary  until I work out how to get rid of those weird MSOA
+
+KitchenSink <- as.formula(Reference ~ TourismDensity+ AffordRatio+ AffordRatio2+ RelativeAfford +RelativeTourismDens+
+                            LADTourismDensity+ LADAffordRatio+ LADAffordRatio2+ LADMeanMedianRatio)
+
+KitchenSink2 <- as.formula(Reference ~RelativeAfford + RelativeTourismDens +
+                            LADTourismDensity + AffordRatioScale + AffordRatioScale2 + LADMeanMedianRatio)
+
+Formulas2 <- c(as.formula(Reference ~ TourismDensity+ AffordRatio+ AffordRatio2),
+               KitchenSink)
+
+####Needs updating
+MSOAModels2 <-LinearClassifierCombiner(MSOAMean2,  Outcomes, Formulas2, TestResample) %>%
+  mutate(IncAfford2 = grepl("2", Formula),
+           LAD = grepl("LAD", Formula)
+         )
+
+#No difference
+MSOAModels2 %>%
+  group_by(Dependent, IncAfford2, LAD) %>%
+  summarise('Beats NULL' = sum(Accuracy>AccuracyNull)/n(), #How many times did the models beat NULL
+            Accuracy = mean(Accuracy), #What was the mean accuracy
+            'NULL Model' = mean(AccuracyNull),
+           'Null Difference' = mean(Accuracy-AccuracyNull) #Mean difference relative to NULL
+            ) %>%
+  ungroup %>%
+   mutate(Dependent = ifelse(Dependent=="HighLUP", "High LUP %", "High LUP value")) 
+
+
+#Just under 76%. Better than all other models...but is it?
+#The more LAD variables that are included the better the model gets... Until you find out that this is becuase the model uses the lad data to predict the results of other MSOA in the same lad.
+ResOut <- MSOAMean2 %>%
+  mutate(Reference = HighLUP) %>% 
+  TreeResampledModelPerf(., MSOAHighLUPResample, KitchenSink2)
+
+
+#Data contains LAD information I account for that here
+
+ResOut2 <- MSOAMean2 %>%
+  mutate(Reference = HighLUP) %>%
+  TreeResampledModelPerf(., LADHighLUPResample, KitchenSink2, LADData = LADMean )
+
+
+#The model was getting information from the shared LAD data so making it appear much better than it really is
+ResOut %>% SummariseModels()
+ResOut2 %>% SummariseModels()
+
+
+```
+
+
+
+```{r}
+#This model uses information from the over all LUP as a result I need to subset the data by lups then train on the MSOA
+set.seed(1983)
+TestResample <- vfold_cv(LADMean, v = 5, repeats = 20)
+
+ComplexModels <- c("BothHighLUP", "BothHighVal", "MSOALUPLADVal", "LADHighLUP", "HighLUP", "LADHighVal") %>%
+  map_df(~{
+    print(.x)
+    ResOut2 <- MSOAMean2 %>%
+      rename_(Reference = .x) %>%
+      TreeResampledModelPerf(., TestResample, KitchenSink2, LADData = LADMean) %>%
+      mutate(Dependent = .x)
+})
+
+#the data from the Lup is increasing the accuracy of the model
+ResOut2 <- MSOAMean2 %>%
+  mutate(Reference = HighLUP) %>%
+  TreeResampledModelPerf(., TestResample, KitchenSink2, LADData = LADMean)
+
+
+ComplexModels %>%
+  group_by(Dependent) %>%
+  summarise('Beats NULL' = sum(Accuracy>AccuracyNull)/n(), #How many times did the models beat NULL
+            Accuracy = mean(Accuracy), #What was the mean accuracy
+            'NULL Model' = mean(AccuracyNull),
+           'Null Difference' = mean(Accuracy-AccuracyNull) #Mean difference relative to NULL
+            )
+
+
+
+
+KitchenSink2 <- as.formula(Reference ~RelativeAfford +RelativeTourismDens+
+                            LADTourismDensity+ LADAffordRatio)
+
+ComplexModels2 <- c("BothHighLUP", "BothHighVal", "MSOALUPLADVal", "LADHighLUP", "HighLUP", "LADHighVal") %>%
+  map_df(~{
+    print(.x)
+    ResOut2 <- MSOAMean2 %>%
+      rename_(Reference = .x) %>%
+      TreeResampledModelPerf(., TestResample, KitchenSink2, LADData = LADMean) %>%
+      mutate(Dependent = .x)
+})
+
+
+ComplexModels2 %>%
+  group_by(Dependent) %>%
+  summarise('Beats NULL' = sum(Accuracy>AccuracyNull)/n(), #How many times did the models beat NULL
+            Accuracy = mean(Accuracy), #What was the mean accuracy
+            'NULL Model' = mean(AccuracyNull),
+           'Null Difference' = mean(Accuracy-AccuracyNull),
+                                    Sens = mean(Sensitivity),
+           spec = mean(Specificity)#Mean difference relative to NULL
+            )
+
+```
+
+
+Highly financialized
+
+```{r}
+KitchenSink2 <- as.formula(Reference ~RelativeAfford + RelativeTourismDens +
+                            LADTourismDensity + AffordRatioScale + AffordRatioScale2 + LADMeanMedianRatio, Ego2TourismDens2+Ego2TourismDens + AffordRatioScale2*TourismDensity)
+
+Formulatest <-  as.formula(Reference ~ TourismDensity+ AffordRatio + AffordRatioScale2)
+
+set.seed(1983)
+TestResample <- vfold_cv(LADMean, v = 5, repeats = 20, strata = "HighFinance")
+
+test <- MSOAMean2 %>%
+  select(HighFinance, LADHighVal, HighLUP)
+
+ComplexModels2 <- c("HighFinance", "HighLUP", "LADHighVal") %>%
+  map_df(~{
+    print(.x)
+    ResOut2 <- MSOAMean2 %>%
+      rename_(Reference = .x) %>%
+      TreeResampledModelPerf(., TestResample, KitchenSink2, LADData = LADMean) %>%
+      mutate(Dependent = .x)
+})
+
+
+ComplexModels2 <- c("HighFinance", "HighLUP", "LADHighVal") %>%
+  map_df(~{
+    print(.x)
+    ResOut2 <- MSOAMean2 %>%
+      rename_(Reference = .x) %>%
+      ResampledModelPerf(., TestResample, Formulatest, LADData = LADMean) %>%
+      mutate(Dependent = .x)
+})
+
+
+ComplexModels2 %>%
+  group_by(Dependent)%>%
+  summarise('Beats NULL' = sum(Accuracy>AccuracyNull)/n(), #How many times did the models beat NULL
+            Accuracy = mean(Accuracy), #What was the mean accuracy
+            'NULL Model' = mean(AccuracyNull),
+           'Null Difference' = mean(Accuracy-AccuracyNull),
+                                    Sens = mean(Sensitivity),
+           spec = mean(Specificity)#Mean difference relative to NULL
+            )
+
+
+AnalyzePreds <- c("HighFinance", "HighLUP", "LADHighVal") %>%
+  map_df(~{
+    print(.x)
+    ResOut2 <- MSOAMean2 %>%
+      rename_(Reference = .x) %>%
+      ResampledModelPerfPreds(., TestResample, Formulatest, LADData = LADMean) %>%
+      mutate(Dependent = .x,
+             row = 1:n())
+})
+
+
+test <- AnalyzePreds %>%
+  mutate(Predictions = Predictions>0.5) %>%
+  select(Predictions, Dependent, sample, row) %>%
+  spread(key = Dependent, value = Predictions)
+
+
+test2 <- AnalyzePreds %>%
+  mutate(Predictions = Predictions>0.5) %>%
+  select(Reference, Dependent, sample, row) %>%
+  spread(key = Dependent, value = Reference)
+
+confusionMatrix(data = test$HighLUP & test$LADHighVal, test2$HighFinance)
+
+confusionMatrix(test$HighFinance, test2$HighFinance)
+
+confusionMatrix(test$HighLUP, test2$HighLUP)
+
+confusionMatrix(test$LADHighVal, test2$LADHighVal)
+
+```
+
+
+#Collaspy tree voting
+```{r}
+
+test <- MSOAMean2 %>% left_join(MSOAtoLAD) %>%
+      rename_(Reference = "LADHighLUP") %>%
+MSOATreeVoting(., TestResample, KitchenSink2 )
+
+test %>% SummariseModels()
+
+```
+

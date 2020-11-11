@@ -1,24 +1,14 @@
-PlotClassDiff <-function(df, LAD = NULL){
+PlotClassDiff <-function(df, Var= "LowUseRatio1"){
    #Takes the Out put of Bootstrap Res and plots a box plot of the difference from expected
    #df: The dataframe of a specific LAD from BootStrapRES
+   #Var the column name that you wish to be plotted
   
-  if(is.null(LAD)){
-    titlewords <- "Observed difference from expected number of low-use homes"
-  } else{
-    titlewords <- paste0("Observed difference from expected number of low-use homes in ", LAD)
-  }
-  
-   colourTypes <- c( "Lower" = "#F8766D", 
-                    "Mid" = "#A3A500", 
-                   "Upper" ="#00BF7D", 
-                   "Prime" = "#00B0F6", 
-                   "Super" = "#E76BF3")
-  
-  df %>% mutate(RatioExvsAct = (RatioExvsAct-1)*100)%>% 
-     ggplot(., aes(x= class, y = RatioExvsAct, fill = class)) + 
+  df %>% 
+    rename_(Ratio = Var) %>%
+      ggplot(., aes(x= Quartile, y = Ratio, fill = Quartile)) + 
      geom_boxplot() + 
-     labs(title = titlewords, 
-          y = "% difference from expected") +
-    scale_fill_manual(values = colourTypes)
+     labs(y = "% difference from expected", x= "Price Quartile") +
+    theme(legend.position = "none", axis.text.x = element_text(angle = 15, hjust = 1)) +
+    scale_y_continuous(labels = scales::percent)
    
 }

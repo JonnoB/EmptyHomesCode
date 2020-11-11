@@ -15,20 +15,20 @@ MakeLeaflet <-function(dataframe, type = "Low-use"  , bins = c(0, 10, 20, 25, 10
   }
   
   MyData <- AG %>% filter(AG$LAD11CD %in%  unique(dataframe$LAD11CD) ) %>%
-    rename(LSOA_CODE = lsoa11cd)
+    rename(LSOA11CD = lsoa11cd)
   
   MyData <- SpatialPointsDataFrame(coords =MyData[,c(1,2)], data = MyData,
                                    proj4string = CRS('+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs'))
   MyData <- spTransform(MyData, CRS("+init=epsg:4326"))
   #random thing
-  stuff <-data.frame(LSOA_CODE=unique(MyData$LSOA_CODE),row.names=unique(MyData$id))
+  stuff <-data.frame(LSOA11CD=unique(MyData$LSOA11CD),row.names=unique(MyData$id))
   
   MyData<- points2polygons(MyData,stuff)
   
   #AG2 <- AG %>% group_by(LSOA_CODE) %>% summarise_all(funs(first))
   
   MyData <- dataframe %>%
-    select(LSOA_CODE, LowUsePerc, WD16NM)%>%
+    select(LSOA11CD, LowUsePerc, WD16NM)%>%
     merge(MyData, .)
   
   v<-"pk.eyJ1Ijoiam9ubm9iIiwiYSI6ImNqM2FlNXhpbDAwM3gzMW83ZW1hbHI0bzYifQ.4AfaY0Un0bKU41hZscpy9Q"

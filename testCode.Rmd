@@ -107,7 +107,7 @@ test0<- read_lines(file2load2, n_max=10)
 
 CorePstCd <- PstCdLSOA.raw %>%
   left_join(EW2, by = c("lsoa11cd" = "ECODE")) %>%
-  select(Postcode, lsoa11cd, LAD11CD, LAD11NM,Admin_ward_code = Admin_ward_code.x, WD16NM)
+  select(Postcode,LSOA11CD= lsoa11cd, LAD11CD, LAD11NM, MSOA11CD, Pop)
 
 setwd(file.path(basewd, "VOA data"))
 
@@ -115,22 +115,24 @@ CompanyData <- read_delim(file2load2, delim = "*", col_names = F) %>%
   mutate(X15 = gsub(" ", "", X15)) %>%
   left_join(., CorePstCd, by = c("X15" = "Postcode"))
 
+#How many of the postcodes are matched?
+sum(!is.na(CompanyData$LSOA11CD))/nrow(CompanyData) #this is a high number which is totally acceptable
+
 #X10 address
 #X11 is road
 #X15 is postcode
 
 
-
+#Find each type of business
 LSOABiz <- CompanyData %>%
   filter(!is.na(LAD11CD)) %>%
   mutate(X6 = gsub("( AND PREMISES)|( & PREMISES)", "",X6),
          X6 = gsub("(AND PREMISES)|(& PREMISES)", "",X6)) %>%
-  group_by(lsoa11cd, X6) %>%
+  group_by(LSOA11CD, X6) %>%
   summarise(counts = n(),
             LAD11CD = first(LAD11CD),
             LAD11NM = first(LAD11NM),
-            Admin_ward_code = first(Admin_ward_code),
-            WD16NM = first(WD16NM)) 
+            MSOA11CD = first(MSOA11CD)) 
 
 
 
@@ -148,19 +150,339 @@ HOLS <- FirmCounts %>%
 Catering <- FirmCounts %>%
   filter(grepl("SELF CATER",X6))
 
+Hotel <- FirmCounts %>%
+  filter(grepl("(HOTEL)|(HOSTEL)",X6))
+
+Guest <- FirmCounts %>%
+  filter(grepl("(GUEST)",X6))
+
+sum(Guest$counts)
 
 ```
 
-Look at Westminster
+
+#Tourism to Lups
+
+I want to be able to plot the tourism density to deprivation and overlay the catagories and see what happens
 
 ```{r}
 
-West <- LSOABiz %>%
+setwd("/home/jonno/Dropbox/SSE/Empty Homes/BootstrapMSOA")
+
+ LADAfford2 <- list.files(getwd()) %>%
+   map_df(~readRDS(.x)) %>%
+   left_join(select(IncomeEst, Yearly.income, MSOA11CD), by = "MSOA11CD") %>%
+   ungroup %>%
+   mutate(MSOAAffordRatio = MSOAHomesMedian/Yearly.income,
+          MSOAHighVal = MSOAHomesMedian< MSOALowUseMedian, #Reference Variable
+          MOSAHighLUP = MSOALowUsePerc >median(MSOALowUsePerc))  #Reference Variable
+   
+ 
+ 
+ %>%
+   group_by(LAD11CD, ID) %>%
+   summarise(LADHomesMedian = first(LADHomesMedian),
+             MedianLowUse = first(LADLowUseMedian)) %>%
+   group_by(LAD11CD) %>%
+   summarise(LADHomesMedian = mean(LADHomesMedian, na.rm = T),
+             MedianLowUse = mean(MedianLowUse, na.rm = T)) %>%
+   left_join(MSOAtoLAD,., by = "LAD11CD") %>%
+   filter(!is.na(LADHomesMedian)) %>% # keep only the LADs that I have data for
+   left_join(., IncomeEst, by = "MSOA11CD") %>%
+  group_by(LAD11CD) %>%
+  summarise(Yearly.income = weighted.mean(Yearly.income, Homes),
+            LADHomesMedian = weighted.mean(LADHomesMedian, Homes)) %>%
+   mutate(AffordRatio = LADHomesMedian/Yearly.income,
+          AffordRank = rank(AffordRatio),
+          AffordRank = scale(AffordRank),
+          AffordRank2 = AffordRank^2)
+  
+
+Tourism <- CompanyData %>%
+  filter(!is.na(LAD11CD))%>%
+  filter(grepl("(SELF CATER)|(HOLIDAY)|(HOTEL)|(HOSTEL)|(GUEST)",X6))  %>%
+  mutate(Guest = grepl("(SELF CATER)|(HOLIDAY)|(GUEST)",X6),
+         Hotel = grepl("(HOTEL)|(HOSTEL)",X6))
+   group_by(LSOA11CD, X6) %>%
+  summarise(counts = n(),
+            LAD11CD = first(LAD11CD),
+            LAD11NM = first(LAD11NM),
+            MSOA11CD = first(MSOA11CD),
+            Pop = first(Pop),
+            Guest = sum(Guest),
+            Hotel = sum(Hotel)) 
+
+
+Tourism2 <- Tourism %>%
+  group_by(LAD11CD, LAD11NM) %>%
+  summarise(Tourism = sum(counts),
+            Pop = sum(Pop)) 
+
+# Only used if bootdeets two exists, which is created in the MSOAmodel rmd
+testLAD <- Tourism2 %>% #
+  left_join(BootDeets2,.) %>% 
+  mutate(TourismDensity =Tourism/Homes,
+         TourismDensityRank = percent_rank(TourismDensity)) %>%
+  left_join(LADAfford2, by = "LAD11CD") %>%
+  #mutate(Extent = AffordRatio) %>%
+  left_join(select(LADDep, LAD11CD, Extent, Average.rank)) %>%
+  mutate(ExtentRank = percent_rank(-Extent),
+         ExtentRank2 = (Extent-0.5)^2,
+         TourDepCat = case_when( 
+           TourismDensityRank>=0.5 & ExtentRank>=0.5 ~ 1, #wealthly high tourism
+           TourismDensityRank>=0.5 & ExtentRank<0.5 ~ 2, #Wealthy Low tourism
+           TourismDensityRank<0.5 & ExtentRank>=0.5 ~3, #Poor High tourism
+           TRUE ~ 4                                          #Poor low tourism
+         ) %>% as.factor,
+         Reference = Catagory==1|Catagory==2)
+
+
+#This plot means we may be able to separate High low use from Low low use.
+testLAD  %>%
+  ggplot(aes(x= AffordRank2, y = TourismDensityRank, colour = Reference)) + geom_point()
++
+  geom_hline(yintercept = 0.5) +
+  geom_vline(xintercept = 0.5)
+
+
+testLAD %>%
+  filter(Catagory==1, TourDepCat==3) %>% select(Catagory, TourDepCat, LAD11NM)
+
+ testLAD %>%
+  filter(Catagory %in% c(3,4), TourDepCat==1) %>% select(Catagory, TourDepCat, LAD11NM)
+
+#
+#
+#This model is the best for predicting LADs with high value LUPs-- Can include wales!
+#
+  #OpenFormula <- as.formula(Reference ~ AffordRank+ AffordRank2+ TourismDensityRank)
+
+ 
+```
+
+#local tourism.
+number of hotels within 1 MSOA
+
+```{r}
+
+MSOAEgoListDist1 <- ego(MSOAgraph, 1) %>%map(~names(.x))
+names(MSOAEgoListDist1) <- get.vertex.attribute(MSOAgraph, "name")
+
+ NeighbourhoodQuartiles <- names(MSOAEgoListDist1) %>% map_df(~{
+   
+   print(.x)
+   target <- MSOAEgoListDist1[[.x]]
+   test <- Tourism %>%
+     filter(MSOA11CD %in% target) %>%
+     ungroup %>%
+     summarise(
+               Hotel = sum(Hotel),
+               Guest = sum(Guest))
+
+   
+ }) %>%
+  mutate(MSOA11CD =  names(MSOAEgoList))
+
+ test <- NeighbourhoodQuartiles %>%
+   left_join(MSOAtoLAD)
+ 
+```
+
+
+#How do I make an MSOA version? of tourism density?
+2654
+```{r}
+MSOAtest<- CompanyData %>%
+  filter(!is.na(LAD11CD))%>%
+  filter(grepl("(SELF CATER)|(HOLIDAY)|(HOTEL)|(HOSTEL)(GUEST)",X6))  %>%
+   group_by(LSOA11CD) %>%
+  summarise(counts = n(),
+            Guest = sum(grepl("(SELF CATER)|(HOLIDAY)|(GUEST)",X6)),
+            Hotel = sum(grepl("(HOTEL)|(HOSTEL)",X6)),
+            LAD11CD = first(LAD11CD),
+            LAD11NM = first(LAD11NM),
+            MSOA11CD = first(MSOA11CD),
+            Pop = first(Pop)) %>%
+  group_by(MSOA11CD) %>%
+  summarise(Tourism = sum(counts, na.rm = T),
+            Hotel= sum(Hotel, na.rm = T),
+            Guest = sum(Guest, na.rm = T),
+            Pop = sum(Pop),
+            LAD11CD = first(LAD11CD),
+            LAD11NM = first(LAD11NM)) %>% #
+  left_join(BootDeetsMean,., by = "MSOA11CD") %>%
+  mutate(Tourism = ifelse(is.na(Tourism), 0, Tourism),
+         Guest = ifelse(is.na(Guest), 0, Guest),
+         Hotel = ifelse(is.na(Hotel), 0, Hotel),
+         TourismDensity =scale(Tourism/Homes),
+         HotelDensity =scale(Hotel/Homes),
+         GuestDensity =scale(Guest/Homes),
+         TourismDensityRank = percent_rank(TourismDensity),
+         TourismDensityRankV2 = rank(TourismDensity, ties.method = "max"),
+         HotelDensityRank = percent_rank(HotelDensity),
+         GuestDensityRank = percent_rank(GuestDensity),
+         AffordRatio = scale(AffordRatio),
+         AffordRatio2 = AffordRatio^2)  %>% 
+  left_join(NeighbourhoodQuartiles %>% rename(Ego1Hotel= Hotel, Ego1Guest = Guest), by = "MSOA11CD") %>%
+  mutate(Ego1Guest = ifelse(is.na(Ego1Guest), 0, Ego1Guest),
+         Ego1Hotel = ifelse(is.na(Ego1Hotel), 0, Ego1Hotel))
+
+
+ModelMSOAdf <- MSOAtest %>%
+  mutate(ExtentRank = percent_rank(AffordRatio),
+         TourDepCat = case_when( 
+           TourismDensityRank>=0.5 & ExtentRank>=0.5 ~ 1, #wealthly high tourism
+           TourismDensityRank>=0.5 & ExtentRank<0.5 ~ 2, #Wealthy Low tourism
+           TourismDensityRank<0.5 & ExtentRank>=0.5 ~3, #Poor High tourism
+           TRUE ~ 4                                          #Poor low tourism
+         ) %>% as.factor)  %>%
+   mutate(MedianPercDiff = (MSOALowUseMedian-MSOAHomesMedian)/MSOAHomesMedian,
+         PercLowUse = LowUse/Homes,
+         RankLowUse = percent_rank(PercLowUse),
+         RankMedianDiff = percent_rank(MedianPercDiff),
+         Catagory = case_when( 
+           RankLowUse>=0.5 & RankMedianDiff>=0.5 ~ 1, #High low use and High price difference
+           RankLowUse>=0.5 & RankMedianDiff<0.5 ~ 2, #High low Use and Low rank price difference
+           RankLowUse<0.5 & RankMedianDiff>=0.5 ~3, # Low low use and high price difference
+           TRUE ~ 4 #Low low use low price difference
+         ) %>% as.factor,
+        Reference = RankLowUse>0.5, #Catagory==1|Catagory==2,
+         #Reference =MSOAHomesMedian<MSOALowUseMedian,
+         spare = 1)
+
+
+ModelMSOAdf   %>%
+  ggplot(aes(x= AffordRank, y = TourismDensityRankV2, colour = Reference)) + geom_point() 
++
+  geom_hline(yintercept = 0.5) +
+  geom_vline(xintercept = 0.5)
+
+ModelMSOAdf   %>%
+  filter(Tourism == 0) %>%
+  ggplot(aes(x= ExtentRank, y = LowUsePerc, colour = Catagory)) + geom_point()
++
+  geom_hline(yintercept = 0.5) +
+  geom_vline(xintercept = 0.5)
+
+ModelMSOAdf  %>%
+  ggplot(aes(x= RankLowUse, y = RankMedianDiff, colour = Guest>0)) + geom_point()
+
+
+table(ModelMSOAdf$Guest>0, ModelMSOAdf$RankLowUse>0.5)
+
+confusionMatrix(ModelMSOAdf$Tourism>0, ModelMSOAdf$RankLowUse>0.5)
+
+```
+
+
+#Model If a lot of LUPs
+
+```{r}
+
+Modeldf <- ModelMSOAdf #testLAD
+
+OpenFormula <- as.formula(Reference ~ Guest + Hotel + AffordRatio+ AffordRatio2)
+
+set.seed(1983)
+TestResample <- 1:100 %>% map(~  resample_partition(Modeldf , c(test = 0.2, train = 0.8)))
+
+#Make a lot of models 
+
+ResOut <- 1:length(TestResample) %>% map_df(~{
+  Mod2 <- Modeldf  %>%
+  mutate(Reference = as.factor(Reference)) %>%
+  slice(as.integer(TestResample[[.x]]$train)) %>%
+  glm(formula = OpenFormula, data = ., family=binomial(link='logit'))
+
+
+preds2<- Modeldf  %>%
+  mutate(Reference = as.factor(Reference)) %>%
+  slice(as.integer(TestResample[[.x]]$test)) %>%
+predict(Mod2, ., type = "response")
+
+ConfOut<-Modeldf  %>%
+  mutate(Reference = as.factor(Reference)) %>%
+  slice(as.integer(TestResample[[.x]]$test)) %>%
+  pull(Reference) %>%
+confusionMatrix(.,preds2>0.5)
+
+ConfOut$overall %>% t %>% data.frame() %>% as.tibble
+
+  
+})
+
+test <- tibble(truth = ConfOut, estimate = as.factor(preds2>0.5))
+conf_mat(test, truth, estimate) %>%summary(wide= T)
+
+MODOut <- 1:length(TestResample) %>% map_df(~{
+  Mod2 <- Modeldf  %>%
+  mutate(Reference = as.factor(Reference)) %>%
+  slice(as.integer(TestResample[[.x]]$train)) %>%
+  glm(formula = OpenFormula, data = ., family=binomial(link='logit'))%>%
+    tidy
+
+})
+
+ggplot(MODOut, aes(x = term, y = estimate)) + geom_boxplot()
+
+#
+#        TREEEEEEEEEEEEEEEEEE
+# 
+OpenFormula <- as.formula(Reference ~ TourismDensityRank + AffordRatio+ AffordRatio2)
+
+
+library(ranger)
+ResOut <- 1:length(TestResample) %>% map_df(~{
+  print(.x)
+  Mod2 <- Modeldf  %>%
+  mutate(Reference = as.factor(Reference)) %>%
+  slice(as.integer(TestResample[[.x]]$train)) %>%
+  ranger(formula = OpenFormula, data = . )
+
+
+preds2<- Modeldf  %>%
+  mutate(Reference = as.factor(Reference)) %>%
+  slice(as.integer(TestResample[[.x]]$test)) %>%
+predict(Mod2, ., type = "response")
+preds2 <- preds2$predictions
+
+ConfOut<-Modeldf  %>%
+  mutate(Reference = as.factor(Reference)) %>%
+  slice(as.integer(TestResample[[.x]]$test)) %>%
+  pull(Reference) %>%
+confusionMatrix(.,preds2)
+
+ConfOut$overall %>% t %>% data.frame() %>% as.tibble
+
+  
+})
+
+sum(ResOut$Accuracy>ResOut$AccuracyNull)/nrow(ResOut)
+mean(ResOut$Accuracy)
+
+#The models are significantly greater than the null model when using a paired t-test.
+t.test(ResOut$Accuracy,ResOut$AccuracyNull, alternative = "greater", paired = T)
+
+ResOut %>%
+  ggplot(aes(x = (Accuracy - AccuracyNull))) + geom_density()
+  
+
+```
+
+
+
+#Look at Westminster
+
+```{r}
+
+West <- LSOABiz %>5
   filter(LAD11CD=="E09000033")
 
 
 Catering <- West %>%
-  filter(grepl("SELF CATER",X6))
+  filter(grepl("(SELF CATER)|(HOLIDAY)|(HOTEL)|(HOSTEL)(GUEST)",X6))
+
+sum(Catering$counts)
 
 
 test <- list(HammersmithLONDATA, WestminsterLONDATA, ChelseaLONDATA, CoLLONDATA, CamdenLONDATA, LambethLONDATA) %>% 
@@ -535,12 +857,12 @@ test <- Offshore %>%
   mutate(Postcode = gsub(" ", "", Postcode)) %>%
   left_join(., CorePstCd, "Postcode")
 
-table(is.na(test$lsoa11cd))
+table(is.na(test$LSOA11CD))
 
 
 test2 <- test %>%
-  filter(!is.na(lsoa11cd)) %>%
-  group_by(lsoa11cd) %>%
+  filter(!is.na(LSOA11CD)) %>%
+  group_by(LSOA11CD) %>%
   summarise(counts = n(),
             LAD11CD = first(LAD11CD),
             LAD11NM = first(LAD11NM),
@@ -550,7 +872,7 @@ test2 <- test %>%
 
 
 examin <- test %>% 
-  filter(lsoa11cd =="E01006854")
+  filter(LSOA11CD =="E01006854")
 
 table(examin$Proprietor_Name_1)
 ```
@@ -624,10 +946,10 @@ test <- CompCounts %>%
 ```{r}
 
 Flats3<- Flats %>% left_join(PstCdLSOA.raw)%>%
-   group_by(lsoa11cd) %>%
+   group_by(LSOA11CD) %>%
   summarise(Total = n()) %>%
-#  left_join(EW2, by = c("lsoa11cd" = "ECODE")) %>%
-  rename(LSOA_CODE = lsoa11cd)
+#  left_join(EW2, by = c("LSOA11CD" = "ECODE")) %>%
+  rename(LSOA_CODE = LSOA11CD)
 
 
 Flats4 <- Flats3 %>% group_by(LAD11NM) %>%
